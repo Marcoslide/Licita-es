@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bolsa de Licitações — A plataforma de inteligência do mercado público</title>
+<meta name="description" content="Acompanhe licitações, preços, órgãos, fornecedores, concorrentes, contratos e oportunidades futuras do mercado público brasileiro em uma única plataforma de inteligência.">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="assets/portal.css">
+</head>
+<body>
+
+<nav class="nav"><div class="wrap nav-in">
+  <a class="brand" href="index.html"><span class="brand-mark">BL</span><b>Bolsa de Licitações</b></a>
+  <div class="nav-links">
+    <a href="index.html#recursos">Recursos</a>
+    <a href="precos.html">Preços</a>
+    <a href="index.html#faq">Perguntas</a>
+    <a href="index.html#contato">Contato</a>
+  </div>
+  <div class="nav-cta">
+    <a class="btn ghost" href="login.html">Entrar</a>
+    <a class="btn primary" href="cadastro.html">Testar a Bolsa</a>
+  </div>
+</div></nav>
+
+<header class="hero"><div class="wrap hero-grid">
+  <div>
+    <div class="eyebrow">Inteligência do mercado público</div>
+    <h1 class="hero-t">Veja o mercado público antes de decidir onde competir.</h1>
+    <p class="hero-p">Acompanhe licitações, preços, órgãos, fornecedores, concorrentes, contratos,
+      oportunidades futuras e históricos em uma única plataforma de inteligência.</p>
+    <div class="hero-ctas">
+      <a class="btn primary big" href="cadastro.html" data-track="cta_hero_testar">Testar a Bolsa</a>
+      <a class="btn big" href="#como-funciona">Ver como funciona</a>
+    </div>
+    <div class="hero-note">Comece grátis no plano Explorar. Sem cartão de crédito.</div>
+    <div class="hero-stats" id="heroStats">
+      <div class="hstat"><b class="mono" data-m="valor">—</b><span>em oportunidades monitoradas</span></div>
+      <div class="hstat"><b class="mono" data-m="licitacoes">—</b><span>licitações na base</span></div>
+      <div class="hstat"><b class="mono" data-m="atas">—</b><span>atas de registro de preços</span></div>
+      <div class="hstat"><b class="mono" data-m="fontes">—</b><span>fontes oficiais conectadas</span></div>
+    </div>
+    <div class="small" id="heroStatsNota" style="color:var(--dim);margin-top:8px">Números reais da nossa base nacional.</div>
+  </div>
+
+  <div class="term" aria-label="Prévia da interface da Bolsa">
+    <div class="term-bar"><span class="term-dot"></span> BOLSA DE LICITAÇÕES · TERMINAL <span style="margin-left:auto" id="termTag">DADOS REAIS DA BASE</span></div>
+    <div class="term-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="card" style="padding:12px"><span class="term-tag">Recebendo propostas</span>
+          <div class="mono" style="font:700 22px var(--mono)" data-m="abertas">—</div></div>
+        <div class="card" style="padding:12px"><span class="term-tag">Contratos vencendo ≤180d</span>
+          <div class="mono" style="font:700 22px var(--mono)" data-m="vencendo">—</div></div>
+      </div>
+      <div class="card" style="padding:12px;margin-top:10px">
+        <span class="term-tag">Mapa de calor — UFs mais aquecidas (valor estimado)</span>
+        <div id="miniMapa" style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap"></div>
+      </div>
+      <div class="card" style="padding:12px;margin-top:10px">
+        <span class="term-tag">Compras previstas (PCA real)</span>
+        <div class="small" style="margin-top:6px">Manutenção de frota — <b class="mono">R$ 7,1 mi</b> · desejada dez/2026</div>
+        <div class="small">Software — <b class="mono">R$ 4,7 mi</b> · desejada nov/2026</div>
+      </div>
+    </div>
+  </div>
+</div></header>
+
+<div class="ticker-strip" title="Setores do universo coletado pela Bolsa — nº de processos por modalidade/segmento na base atual">
+  <div class="ticker-track" id="tickerTrack"></div>
+</div>
+
+<section class="sect"><div class="wrap">
+  <div class="sect-eyebrow">O problema</div>
+  <h2>Licitação não é apenas encontrar edital.</h2>
+  <p class="sect-p">Milhares de processos espalhados em dezenas de portais, histórico difícil de achar,
+    preços opacos, concorrentes invisíveis e oportunidades futuras que ninguém enxerga.
+    A Bolsa organiza o mercado para você ver onde realmente vale dedicar tempo.</p>
+  <div class="grid3">
+    <div class="card"><span class="ico">🗂️</span><h3>Informação espalhada</h3><p>PNCP, Compras.gov, Contratos.gov, Transparência e portais próprios — cada um com uma parte da história.</p></div>
+    <div class="card"><span class="ico">🕰️</span><h3>Pouco tempo para analisar</h3><p>Centenas de editais novos por dia. Impossível ler tudo — e perigoso decidir sem contexto.</p></div>
+    <div class="card"><span class="ico">🌫️</span><h3>Futuro invisível</h3><p>PCAs, atas e contratos vencendo anunciam compras futuras — mas ninguém junta esses sinais.</p></div>
+  </div>
+</div></section>
+
+<section class="sect alt" id="como-funciona"><div class="wrap">
+  <div class="sect-eyebrow">Como a Bolsa resolve</div>
+  <h2>Do dado espalhado à decisão.</h2>
+  <div class="flow">
+    <div class="flow-step"><b>MONITORA</b><span>o mercado público nacional, continuamente</span></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step"><b>ORGANIZA</b><span>licitações, itens, órgãos, preços, contratos e fornecedores</span></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step"><b>ANALISA</b><span>históricos e padrões</span></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step"><b>IDENTIFICA</b><span>oportunidades reais e futuras</span></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step"><b>RECOMENDA</b><span>onde olhar primeiro</span></div>
+  </div>
+</div></section>
+
+<section class="sect" id="recursos"><div class="wrap">
+  <div class="sect-eyebrow">A Bolsa ao vivo</div>
+  <h2>O mercado público em uma única tela.</h2>
+  <div class="grid4">
+    <div class="card"><span class="ico">🗺️</span><h3>Mapa de calor <span class="stage disp">Disponível</span></h3><p>Onde o governo está comprando — Brasil, estados, valores e crescimento.</p></div>
+    <div class="card"><span class="ico">📜</span><h3>Atas e contratos <span class="stage disp">Disponível</span></h3><p>Contratos e atas vencendo: o radar de renovação que antecipa recompras.</p></div>
+    <div class="card"><span class="ico">🔮</span><h3>Compras futuras <span class="stage disp">Disponível</span></h3><p>PCA real dos órgãos: o que planejam comprar, quanto e quando.</p></div>
+    <div class="card"><span class="ico">🏆</span><h3>Fornecedores <span class="stage disp">Disponível</span></h3><p>Quem vence, por quanto e onde — com base em resultados homologados públicos.</p></div>
+    <div class="card"><span class="ico">🧬</span><h3>Histórico por objeto <span class="stage disp">Disponível</span></h3><p>Entre em uma licitação sabendo o que aconteceu antes: preços, vencedores, órgãos.</p></div>
+    <div class="card"><span class="ico">⚔️</span><h3>Concorrentes <span class="stage beta">Beta</span></h3><p>Identifique padrões históricos e comportamentos públicos de mercado.</p></div>
+    <div class="card"><span class="ico">🤖</span><h3>IA de edital <span class="stage breve">Em breve</span></h3><p>Resumo, exigências, riscos e checklist extraídos do edital com rastreabilidade.</p></div>
+    <div class="card"><span class="ico">🎯</span><h3>Price to Win <span class="stage breve">Em breve</span></h3><p>Faixa de preço provável para competir, calculada do histórico real.</p></div>
+  </div>
+</div></section>
+
+<section class="sect alt"><div class="wrap">
+  <div class="sect-eyebrow">Oportunidades futuras</div>
+  <h2>Não espere o edital aparecer.</h2>
+  <p class="sect-p">A Bolsa procura sinais de futuras compras públicas — planos de contratação (PCA),
+    atas e contratos vencendo, recorrência de compra — para ajudar sua empresa a se preparar antes.
+    O portal oficial continua sendo a fonte oficial dos atos do processo; a Bolsa é a camada de inteligência.</p>
+</div></section>
+
+<section class="sect"><div class="wrap" style="text-align:center">
+  <div class="sect-eyebrow">Prova social</div>
+  <h2>Seja um dos primeiros a testar.</h2>
+  <p class="sect-p" style="margin:0 auto">A Bolsa está em acesso inicial. Crie sua conta gratuita e ajude a moldar
+    a plataforma de inteligência do mercado público.</p>
+  <div style="margin-top:24px"><a class="btn primary big" href="cadastro.html" data-track="cta_meio_testar">Criar conta gratuita</a></div>
+</div></section>
+
+<section class="sect alt" id="faq"><div class="wrap">
+  <div class="sect-eyebrow">Perguntas frequentes</div>
+  <h2>Antes de começar.</h2>
+  <div class="faq" style="margin-top:24px">
+    <details><summary>O que é a Bolsa de Licitações?</summary><p>Uma plataforma de inteligência sobre o mercado público brasileiro: organiza licitações, itens, preços, órgãos, fornecedores, contratos, atas e planos de contratação em uma única base pesquisável.</p></details>
+    <details><summary>De onde vêm os dados?</summary><p>De fontes oficiais e públicas — PNCP, Compras.gov.br, Contratos.gov.br e Portal da Transparência — coletadas continuamente pela nossa infraestrutura, com origem rastreável até a fonte.</p></details>
+    <details><summary>A Bolsa participa da licitação por mim?</summary><p>Não. A Bolsa é inteligência e monitoramento. A participação acontece nos portais oficiais; módulos operacionais poderão ser adicionados no futuro.</p></details>
+    <details><summary>Preciso ter CNPJ para pesquisar?</summary><p>Não. Basta criar sua conta — qualquer pessoa pode explorar o mercado público.</p></details>
+    <details><summary>Posso acompanhar qualquer mercado e concorrentes?</summary><p>Sim: objetos, produtos, serviços, órgãos, regiões e empresas participantes do mercado, sempre a partir de dados públicos.</p></details>
+    <details><summary>A plataforma substitui os portais oficiais?</summary><p>Não. O portal oficial continua sendo a fonte oficial dos atos do processo. A Bolsa organiza e analisa a informação para apoiar sua decisão.</p></details>
+  </div>
+</div></section>
+
+<section class="sect" id="contato"><div class="wrap" style="max-width:640px">
+  <div class="sect-eyebrow">Fale com vendas</div>
+  <h2>Vamos conversar sobre a sua operação.</h2>
+  <form id="leadForm" style="margin-top:20px">
+    <div class="field-row">
+      <div class="field"><label for="ld-nome">Nome*</label><input id="ld-nome" required></div>
+      <div class="field"><label for="ld-email">E-mail*</label><input id="ld-email" type="email" required></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label for="ld-tel">Telefone</label><input id="ld-tel"></div>
+      <div class="field"><label for="ld-emp">Empresa</label><input id="ld-emp"></div>
+    </div>
+    <div class="field"><label for="ld-msg">Mensagem</label><textarea id="ld-msg" rows="4"></textarea></div>
+    <div class="form-msg" id="ld-msg-box"></div>
+    <button class="btn primary big" type="submit">Enviar mensagem</button>
+    <a class="btn big" style="margin-left:8px" href="cadastro.html">Agendar demonstração</a>
+  </form>
+</div></section>
+
+<footer class="footer"><div class="wrap">
+  <div class="foot-grid">
+    <div>
+      <a class="brand" href="index.html"><span class="brand-mark">BL</span><b>Bolsa de Licitações</b></a>
+      <p class="small mut" style="max-width:36ch;margin-top:12px">Dados públicos transformados em inteligência comercial. A tecnologia trabalha. A pessoa decide.</p>
+    </div>
+    <div><h4>Produto</h4>
+      <a href="index.html#recursos">Recursos</a><a href="precos.html">Preços</a>
+      <a href="status.html">Status</a><a href="login.html">Entrar</a></div>
+    <div><h4>Empresa</h4>
+      <a href="index.html#contato">Contato</a><a href="index.html#contato">Suporte</a>
+      <a href="index.html#faq">Perguntas</a></div>
+    <div><h4>Legal</h4>
+      <a href="termos.html">Termos de uso</a><a href="privacidade.html">Privacidade</a>
+      <a href="cookies.html">Cookies</a></div>
+  </div>
+  <div class="foot-legal">
+    <span>© 2026 Bolsa de Licitações — nome provisório</span>
+    <span>Fontes: PNCP · Compras.gov.br · Contratos.gov.br · Portal da Transparência</span>
+  </div>
+</div></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="assets/config.js"></script>
+<script src="assets/portal.js"></script>
+<script>
+"use strict";
+// Instantâneo REAL da base (03/09/2026 02:28 UTC) — fallback quando o live falha (§108-109).
+// Nunca inventado: espelho de public.bolsa_vw_resumo / bolsa_vw_por_uf.
+const SNAP = {
+  quando: "03/09/2026",
+  valor: 2423540684.07, licitacoes: 596, abertas: 288, vencendo: 169,
+  atas: 150, fontes: 4,
+  ufs: [["SP", 777.5], ["RS", 346.6], ["MG", 321.8], ["DF", 142.6], ["RJ", 122.6], ["SC", 115.9], ["PR", 98.2], ["GO", 88.2]],
+  setores: [["Pregão Eletrônico", 200], ["Inexigibilidade", 100], ["Concorrência", 100], ["Dispensa", 100], ["Credenciamento", 96]]
+};
+function pintar(d, aoVivo) {
+  const M = {
+    valor: fmtMi(d.valor), licitacoes: fmtN(d.licitacoes), atas: fmtN(d.atas),
+    fontes: d.fontes, abertas: fmtN(d.abertas), vencendo: fmtN(d.vencendo)
+  };
+  $$('[data-m]').forEach(el => { const v = M[el.dataset.m]; if (v != null) el.textContent = v; });
+  $('#heroStatsNota').textContent = aoVivo
+    ? 'Números reais da nossa base nacional — ao vivo.'
+    : `Números reais da nossa base nacional em ${d.quando}.`;
+  $('#termTag').textContent = aoVivo ? 'DADOS REAIS · AO VIVO' : `DADOS REAIS · ${d.quando}`;
+}
+function pintarMapa(ufs) {
+  const max = ufs[0][1];
+  $('#miniMapa').innerHTML = ufs.map(([uf, v]) => {
+    const t = v / max, cor = t > .66 ? 'var(--down)' : t > .33 ? 'var(--amber)' : 'var(--info)';
+    return `<span class="mono small" style="padding:5px 9px;border-radius:5px;background:${cor}22;color:${cor};border:1px solid ${cor}44"
+      title="R$ ${v.toLocaleString('pt-BR')} mi estimados">${uf}</span>`;
+  }).join('');
+}
+const item = ([n, v]) => `<span class="tk"><span class="mut">${n.toUpperCase()}</span><b>${v} processos</b></span>`;
+$('#tickerTrack').innerHTML = SNAP.setores.map(item).join('') + SNAP.setores.map(item).join('');
+pintar(SNAP, false); pintarMapa(SNAP.ufs);
+
+// live refresh (cacheado pelo PostgREST; leve) — mantém instantâneo se falhar
+(async () => {
+  try {
+    const [r] = await bolsaView('bolsa_vw_resumo', 'select=valor_estimado_total,licitacoes,recebendo_propostas,contratos_vencendo_180d,atas,fontes_total');
+    if (!r) return;
+    pintar({
+      quando: SNAP.quando, valor: r.valor_estimado_total, licitacoes: r.licitacoes,
+      abertas: r.recebendo_propostas, vencendo: r.contratos_vencendo_180d,
+      atas: r.atas, fontes: r.fontes_total
+    }, true);
+    const ufs = await bolsaView('bolsa_vw_por_uf', 'select=uf,valor_estimado&order=valor_estimado.desc.nullslast&limit=8');
+    if (ufs.length) pintarMapa(ufs.map(u => [u.uf, (u.valor_estimado || 0) / 1e6]));
+  } catch { /* instantâneo rotulado permanece */ }
+})();
+
+// lead form → saas_leads
+$('#leadForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const box = $('#ld-msg-box');
+  try {
+    const { error } = await sb.from('saas_leads').insert({
+      nome: $('#ld-nome').value.trim(), email: $('#ld-email').value.trim(),
+      telefone: $('#ld-tel').value.trim() || null, empresa: $('#ld-emp').value.trim() || null,
+      mensagem: $('#ld-msg').value.trim() || null, utm: getUTM()
+    });
+    if (error) throw error;
+    formMsg(box, 'ok', 'Mensagem enviada! Nossa equipe entrará em contato.');
+    e.target.reset(); track('lead_submitted');
+  } catch {
+    formMsg(box, 'err', 'Não foi possível enviar agora. Tente novamente em instantes.');
+  }
+});
+
+// tracking de CTAs + visita
+track('landing_view');
+$$('[data-track]').forEach(a => a.addEventListener('click', () => track(a.dataset.track)));
+</script>
+</body>
+</html>

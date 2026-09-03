@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Minha conta — Bolsa de Licitações</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="assets/portal.css">
+</head>
+<body>
+
+<div class="shell">
+  <aside class="side">
+    <a class="brand" href="index.html"><span class="brand-mark">BL</span><b>Bolsa</b></a>
+    <a href="app.html">Visão geral</a>
+    <a id="lnkTerminal" href="#" target="_blank" rel="noopener">Abrir o Terminal</a>
+    <a href="precos.html">Planos e upgrade</a>
+    <a class="on" href="conta.html">Minha conta</a>
+    <a href="status.html">Status das fontes</a>
+    <a id="lnkAdmin" href="admin/index.html" hidden>Central administrativa</a>
+    <div class="spacer"></div>
+    <button class="nav-item" type="button" onclick="sair()">Sair</button>
+  </aside>
+
+  <main class="main" style="max-width:820px">
+    <div class="eyebrow" style="margin-bottom:6px">Minha conta</div>
+    <h2 style="margin:0 0 22px">Dados, plano e segurança</h2>
+
+    <div class="panelbox">
+      <div class="ph">MEUS DADOS</div>
+      <div class="pb">
+        <form id="fPerfil">
+          <div class="field-row">
+            <div class="field"><label>Nome</label><input id="pNome" type="text" autocomplete="given-name"></div>
+            <div class="field"><label>Sobrenome</label><input id="pSobrenome" type="text" autocomplete="family-name"></div>
+          </div>
+          <div class="field-row">
+            <div class="field"><label>E-mail</label><input id="pEmail" type="email" disabled></div>
+            <div class="field"><label>Telefone / WhatsApp</label><input id="pTelefone" type="tel" autocomplete="tel"></div>
+          </div>
+          <div class="form-msg" id="msgPerfil"></div>
+          <button class="btn primary" type="submit">Salvar dados</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="panelbox">
+      <div class="ph">MEU PLANO</div>
+      <div class="pb" id="boxPlano"><span class="mut">Carregando…</span></div>
+    </div>
+
+    <div class="panelbox">
+      <div class="ph">FATURAS</div>
+      <div class="pb flush tblwrap"><table class="tbl" id="tblFaturas">
+        <thead><tr><th>Período</th><th class="num">Valor</th><th>Status</th><th>Vencimento</th></tr></thead>
+        <tbody><tr><td colspan="4" class="mut">Carregando…</td></tr></tbody>
+      </table></div>
+    </div>
+
+    <div class="panelbox">
+      <div class="ph">SEGURANÇA</div>
+      <div class="pb">
+        <form id="fSenha" style="max-width:420px">
+          <div class="field"><label>Nova senha</label><input id="sNova" type="password" minlength="8" required autocomplete="new-password"></div>
+          <div class="field"><label>Confirmar nova senha</label><input id="sConf" type="password" minlength="8" required autocomplete="new-password"></div>
+          <div class="form-msg" id="msgSenha"></div>
+          <button class="btn primary" type="submit">Alterar senha</button>
+        </form>
+        <hr style="border:0;border-top:1px solid var(--line);margin:18px 0">
+        <p class="mut" style="font-size:13px;margin:0 0 10px">Suspeita de acesso indevido? Encerre a sessão em todos os dispositivos.</p>
+        <button class="btn ghost" type="button" id="btnSairTodos">Sair de todos os dispositivos</button>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="assets/config.js"></script>
+<script src="assets/portal.js"></script>
+<script>
+"use strict";
+(async function init() {
+  const u = await guardAuth();
+  if (!u) return;
+  $('#lnkTerminal').href = CFG.LINK_TERMINAL;
+  if (await isAdmin()) $('#lnkAdmin').hidden = false;
+
+  $('#pEmail').value = u.email || '';
+
+  // perfil vindo do banco (RLS: só a própria linha)
+  try {
+    const { data: perfil } = await sb.from('saas_perfis').select('nome,sobrenome,telefone').eq('user_id', u.id).maybeSingle();
+    if (perfil) {
+      $('#pNome').value = perfil.nome || '';
+      $('#pSobrenome').value = perfil.sobrenome || '';
+      $('#pTelefone').value = perfil.telefone || '';
+    }
+  } catch { /* mantém campos vazios */ }
+
+  $('#fPerfil').addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const m = $('#msgPerfil');
+    try {
+      const { error } = await sb.from('saas_perfis')
+        .update({ nome: $('#pNome').value.trim(), sobrenome: $('#pSobrenome').value.trim(), telefone: $('#pTelefone').value.trim(), atualizado_em: new Date().toISOString() })
+        .eq('user_id', u.id);
+      if (error) throw error;
+      formMsg(m, 'ok', 'Dados salvos.');
+    } catch (e) { formMsg(m, 'err', 'Não foi possível salvar agora. Tente novamente.'); }
+  });
+
+  // plano e assinatura (status rico, nunca booleano — §41)
+  const acesso = await getAcesso();
+  const statusMap = { ativa: ['ok','ATIVA'], trial: ['info','EM TESTE'], pagamento_pendente: ['warn','PAGAMENTO PENDENTE'],
+    vencida: ['warn','VENCIDA'], inadimplente: ['bad','INADIMPLENTE'], cancelada: ['neu','CANCELADA'],
+    suspensa: ['bad','SUSPENSA'], cortesia: ['info','CORTESIA'], vitalicia: ['ok','VITALÍCIA'],
+    enterprise: ['info','ENTERPRISE'], teste_interno: ['neu','TESTE INTERNO'] };
+  if (acesso.plano_nome) {
+    const st = statusMap[acesso.status] || ['neu', acesso.status];
+    $('#boxPlano').innerHTML = `
+      <div class="kv"><span>Plano</span><b>${acesso.plano_nome}</b></div>
+      <div class="kv"><span>Situação</span><b><span class="pill ${st[0]}">${st[1]}</span></b></div>
+      <div class="kv"><span>Ciclo</span><b>${acesso.ciclo === 'anual' ? 'Anual' : 'Mensal'}</b></div>
+      ${acesso.trial_fim ? `<div class="kv"><span>Teste até</span><b>${new Date(acesso.trial_fim).toLocaleDateString('pt-BR')}</b></div>` : ''}
+      ${acesso.fim_periodo ? `<div class="kv"><span>Período atual até</span><b>${new Date(acesso.fim_periodo).toLocaleDateString('pt-BR')}</b></div>` : ''}
+      ${acesso.cancelar_no_fim ? '<div class="kv"><span>Renovação</span><b><span class="pill warn">ENCERRA NO FIM DO CICLO</span></b></div>' : ''}
+      <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap">
+        <a class="btn primary" href="precos.html">Mudar de plano</a>
+        <a class="btn ghost" href="index.html#contato">Solicitar cancelamento</a>
+      </div>
+      <p class="small" style="color:var(--dim);margin:10px 0 0">Ao cancelar, seu acesso permanece até o fim do período já pago e sua conta
+        volta ao plano Explorar — nada é apagado. Nesta fase, cancelamentos e contratações pagas são concluídos com nosso time.</p>`;
+  } else {
+    $('#boxPlano').innerHTML = '<span class="mut">Não foi possível carregar seu plano agora.</span>';
+  }
+
+  // faturas próprias (RLS)
+  try {
+    const { data: fats, error } = await sb.from('saas_faturas')
+      .select('valor,status,periodo_inicio,periodo_fim,vencimento').order('criado_em', { ascending: false }).limit(24);
+    if (error) throw error;
+    const stF = { paga: 'ok', aberta: 'info', falhou: 'bad', estornada: 'neu', cancelada: 'neu' };
+    $('#tblFaturas tbody').innerHTML = (fats || []).map(f => `
+      <tr><td class="mono">${f.periodo_inicio ? new Date(f.periodo_inicio + 'T00:00:00').toLocaleDateString('pt-BR') : '—'} — ${f.periodo_fim ? new Date(f.periodo_fim + 'T00:00:00').toLocaleDateString('pt-BR') : '—'}</td>
+        <td class="num">${fmtBRL(f.valor, 2)}</td>
+        <td><span class="pill ${stF[f.status] || 'neu'}">${(f.status || '').toUpperCase()}</span></td>
+        <td class="mono mut">${f.vencimento ? new Date(f.vencimento + 'T00:00:00').toLocaleDateString('pt-BR') : '—'}</td></tr>`).join('')
+      || '<tr><td colspan="4" class="mut">Nenhuma fatura ainda — você está no plano gratuito ou em período de teste.</td></tr>';
+  } catch {
+    $('#tblFaturas tbody').innerHTML = '<tr><td colspan="4" class="mut">Não foi possível carregar as faturas agora.</td></tr>';
+  }
+
+  // troca de senha
+  $('#fSenha').addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const m = $('#msgSenha');
+    if ($('#sNova').value !== $('#sConf').value) { formMsg(m, 'err', 'As senhas não conferem.'); return; }
+    try {
+      const { error } = await sb.auth.updateUser({ password: $('#sNova').value });
+      if (error) throw error;
+      formMsg(m, 'ok', 'Senha alterada com sucesso.');
+      $('#sNova').value = ''; $('#sConf').value = '';
+    } catch (e) { formMsg(m, 'err', (e && e.message) || 'Não foi possível alterar a senha agora.'); }
+  });
+
+  // sair de todos os dispositivos
+  $('#btnSairTodos').addEventListener('click', async () => {
+    try { await sb.auth.signOut({ scope: 'global' }); } finally { location.href = 'login.html'; }
+  });
+
+  track('conta_view');
+})();
+</script>
+</body>
+</html>

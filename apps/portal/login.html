@@ -1,0 +1,56 @@
+<!doctype html><html lang="pt-BR"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="assets/portal.css">
+<title>Entrar — Bolsa de Licitações</title>
+</head><body>
+<nav class="nav"><div class="wrap nav-in">
+  <a class="brand" href="index.html"><span class="brand-mark">BL</span><b>Bolsa de Licitações</b></a>
+  <div class="nav-cta"><a class="btn ghost" href="index.html">← Voltar ao site</a></div>
+</div></nav>
+<div class="auth-wrap"><div class="auth-card">
+  <h1>Entrar</h1>
+  <div class="sub">Acesse a plataforma de inteligência do mercado público.</div>
+  <form id="f">
+    <div class="field"><label for="email">E-mail</label><input id="email" type="email" required autocomplete="email"></div>
+    <div class="field"><label for="senha">Senha</label><input id="senha" type="password" required autocomplete="current-password"></div>
+    <div class="field check"><input id="lembrar" type="checkbox" checked><label for="lembrar">Lembrar de mim neste dispositivo</label></div>
+    <div class="form-msg" id="msg"></div>
+    <button class="btn primary big full" type="submit" id="btn">Entrar</button>
+  </form>
+  <div class="auth-links"><a href="recuperar.html">Esqueci minha senha</a><a href="cadastro.html">Criar conta</a></div>
+</div></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="assets/config.js"></script>
+<script src="assets/portal.js"></script>
+<script>
+"use strict";
+const q = new URLSearchParams(location.search);
+const msg = document.getElementById("msg");
+if (q.get("verificado")) formMsg(msg, "ok", "E-mail confirmado! Entre com sua senha.");
+document.getElementById("f").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const btn = document.getElementById("btn"); btn.disabled = true;
+  try {
+    const { error } = await sb.auth.signInWithPassword({
+      email: document.getElementById("email").value.trim(),
+      password: document.getElementById("senha").value
+    });
+    if (error) throw error;
+    track("login_success");
+    const perfil = await sb.from("saas_perfis").select("onboarding").eq("user_id", (await sb.auth.getUser()).data.user.id).single();
+    const fezOnboarding = perfil.data && perfil.data.onboarding && Object.keys(perfil.data.onboarding).length > 0;
+    // aceita apenas caminhos relativos internos (evita open redirect)
+    const next = q.get("next");
+    const nextSeguro = next && /^[a-z0-9_/-]+\.html$/i.test(next) && !next.startsWith("/") ? next : null;
+    location.href = nextSeguro || (fezOnboarding ? "app.html" : "onboarding.html");
+  } catch (err) {
+    formMsg(msg, "err", /confirm/i.test(err.message || "") ?
+      "Confirme seu e-mail antes de entrar (verifique sua caixa de entrada)." :
+      "E-mail ou senha inválidos.");
+    btn.disabled = false;
+  }
+});
+</script>
+</body></html>

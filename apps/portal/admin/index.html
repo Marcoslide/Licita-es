@@ -1,0 +1,419 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Central administrativa — Bolsa de Licitações</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="../assets/portal.css">
+</head>
+<body>
+
+<div class="shell">
+  <aside class="side">
+    <a class="brand" href="../index.html"><span class="brand-mark">BL</span><b>Bolsa · Admin</b></a>
+    <button class="nav-item on" type="button" data-sec="visao">Visão geral</button>
+    <button class="nav-item" type="button" data-sec="clientes">Clientes</button>
+    <button class="nav-item" type="button" data-sec="planos">Planos</button>
+    <button class="nav-item" type="button" data-sec="cupons">Cupons</button>
+    <button class="nav-item" type="button" data-sec="leads">Leads</button>
+    <button class="nav-item" type="button" data-sec="fontes">Fontes e coletas</button>
+    <button class="nav-item" type="button" data-sec="auditoria">Auditoria</button>
+    <div class="spacer"></div>
+    <a href="../app.html">← Voltar ao app</a>
+    <button class="nav-item" type="button" onclick="sair()">Sair</button>
+  </aside>
+
+  <main class="main" id="adminMain">
+    <div class="panelbox" id="gateAdmin"><div class="pb"><span class="mut">Verificando permissões…</span></div></div>
+
+    <!-- VISÃO GERAL -->
+    <section data-sec="visao" hidden>
+      <div class="eyebrow" style="margin-bottom:6px">Central administrativa</div>
+      <h2 style="margin:0 0 22px">Visão geral do negócio</h2>
+      <div class="kpis">
+        <div class="kpi"><div class="k-l">MRR</div><div class="k-v" id="mMrr">—</div><div class="k-s">receita recorrente mensal</div></div>
+        <div class="kpi"><div class="k-l">Clientes</div><div class="k-v" id="mTotal">—</div><div class="k-s"><span id="mPagantes">—</span> pagantes · <span id="mGratuitos">—</span> gratuitos</div></div>
+        <div class="kpi"><div class="k-l">Trials</div><div class="k-v" id="mTrials">—</div><div class="k-s">em período de teste</div></div>
+        <div class="kpi"><div class="k-l">Inadimplência</div><div class="k-v" id="mInad">—</div><div class="k-s">pendentes/vencidas/inadimplentes</div></div>
+        <div class="kpi"><div class="k-l">Novos hoje</div><div class="k-v" id="mNovos">—</div><div class="k-s">contas criadas hoje</div></div>
+        <div class="kpi"><div class="k-l">Leads</div><div class="k-v" id="mLeads">—</div><div class="k-s"><span id="mLeadsNovos">—</span> aguardando contato</div></div>
+      </div>
+      <div class="panelbox">
+        <div class="ph">OPERAÇÃO DE DADOS (BASE REAL)</div>
+        <div class="pb" id="boxOperacao"><span class="mut">Carregando…</span></div>
+      </div>
+      <p class="small" style="color:var(--dim)">Todos os números desta tela vêm ao vivo do banco (função <span class="mono">saas_metricas_admin</span>). Nada é estimado ou fixo no código.</p>
+    </section>
+
+    <!-- CLIENTES -->
+    <section data-sec="clientes" hidden>
+      <h2 style="margin:0 0 16px">Clientes</h2>
+      <div class="field-row" style="max-width:520px">
+        <div class="field" style="flex:1"><label>Buscar por nome ou e-mail</label><input id="cliBusca" type="search" placeholder="ex.: maria@empresa.com.br"></div>
+        <div class="field" style="align-self:flex-end"><button class="btn primary" id="btnCliBuscar" type="button">Buscar</button></div>
+      </div>
+      <div class="panelbox"><div class="pb flush tblwrap"><table class="tbl" id="tblClientes">
+        <thead><tr><th>Cliente</th><th>E-mail</th><th>Plano</th><th>Status</th><th>Criado em</th><th></th></tr></thead>
+        <tbody><tr><td colspan="6" class="mut">Carregando…</td></tr></tbody>
+      </table></div></div>
+    </section>
+
+    <!-- PLANOS -->
+    <section data-sec="planos" hidden>
+      <h2 style="margin:0 0 8px">Planos</h2>
+      <p class="mut" style="margin:0 0 16px;font-size:13px">Preços, descrições, destaque e limites são 100% editáveis aqui — nada de preço no código (§119). Alterações valem imediatamente para a página de preços e para os gates de recurso.</p>
+      <div class="panelbox"><div class="pb flush tblwrap"><table class="tbl" id="tblPlanos">
+        <thead><tr><th>Plano</th><th class="num">Mensal (R$)</th><th class="num">Anual (R$)</th><th class="num">Trial (dias)</th><th>Destaque</th><th>Ativo</th><th></th></tr></thead>
+        <tbody><tr><td colspan="7" class="mut">Carregando…</td></tr></tbody>
+      </table></div></div>
+      <div class="panelbox"><div class="ph">ENTITLEMENTS DO PLANO SELECIONADO</div><div class="pb">
+        <div class="field"><label>JSON de limites/recursos (<span class="mono" id="entPlanoId">—</span>)</label>
+          <textarea id="entJson" rows="6" class="mono" style="width:100%" placeholder="Selecione um plano na tabela acima"></textarea></div>
+        <div class="form-msg" id="msgEnt"></div>
+        <button class="btn primary" type="button" id="btnEntSalvar" disabled>Salvar entitlements</button>
+      </div></div>
+    </section>
+
+    <!-- CUPONS -->
+    <section data-sec="cupons" hidden>
+      <h2 style="margin:0 0 16px">Cupons de desconto</h2>
+      <div class="panelbox"><div class="ph">NOVO CUPOM</div><div class="pb">
+        <div class="field-row">
+          <div class="field"><label>Código</label><input id="cupCodigo" type="text" placeholder="LANCAMENTO20" style="text-transform:uppercase"></div>
+          <div class="field"><label>Tipo</label><select id="cupTipo"><option value="percentual">Percentual (%)</option><option value="fixo">Valor fixo (R$)</option></select></div>
+          <div class="field"><label>Valor</label><input id="cupValor" type="number" min="0" step="0.01" placeholder="20"></div>
+        </div>
+        <div class="field-row">
+          <div class="field"><label>Meses de desconto (vazio = sempre)</label><input id="cupMeses" type="number" min="1"></div>
+          <div class="field"><label>Máximo de usos (vazio = ilimitado)</label><input id="cupMax" type="number" min="1"></div>
+          <div class="field"><label>Válido até (vazio = sem prazo)</label><input id="cupValidade" type="date"></div>
+        </div>
+        <div class="form-msg" id="msgCupom"></div>
+        <button class="btn primary" type="button" id="btnCupomCriar">Criar cupom</button>
+      </div></div>
+      <div class="panelbox"><div class="pb flush tblwrap"><table class="tbl" id="tblCupons">
+        <thead><tr><th>Código</th><th>Desconto</th><th class="num">Usos</th><th>Validade</th><th>Situação</th><th></th></tr></thead>
+        <tbody><tr><td colspan="6" class="mut">Carregando…</td></tr></tbody>
+      </table></div></div>
+    </section>
+
+    <!-- LEADS -->
+    <section data-sec="leads" hidden>
+      <h2 style="margin:0 0 16px">Leads comerciais</h2>
+      <div class="panelbox"><div class="pb flush tblwrap"><table class="tbl" id="tblLeads">
+        <thead><tr><th>Nome</th><th>Contato</th><th>Empresa / mensagem</th><th>Origem</th><th>Recebido</th><th>Status</th></tr></thead>
+        <tbody><tr><td colspan="6" class="mut">Carregando…</td></tr></tbody>
+      </table></div></div>
+    </section>
+
+    <!-- FONTES -->
+    <section data-sec="fontes" hidden>
+      <h2 style="margin:0 0 16px">Fontes e coletas</h2>
+      <div id="boxFontes"><span class="mut">Carregando…</span></div>
+    </section>
+
+    <!-- AUDITORIA -->
+    <section data-sec="auditoria" hidden>
+      <h2 style="margin:0 0 16px">Auditoria administrativa</h2>
+      <p class="mut" style="margin:0 0 16px;font-size:13px">Toda ação sensível de administrador fica registrada: quem, o quê, quando e por quê (§83).</p>
+      <div class="panelbox"><div class="pb flush tblwrap"><table class="tbl" id="tblAud">
+        <thead><tr><th>Quando</th><th>Ação</th><th>Alvo</th><th>Motivo</th><th>Depois</th></tr></thead>
+        <tbody><tr><td colspan="5" class="mut">Carregando…</td></tr></tbody>
+      </table></div></div>
+    </section>
+  </main>
+</div>
+
+<!-- modal alterar assinatura -->
+<div class="modal-bk" id="mdAss"><div class="modal">
+  <h3 style="margin-top:0">Alterar assinatura</h3>
+  <p class="mut" id="mdAssCliente" style="font-size:13px"></p>
+  <div class="field"><label>Plano</label><select id="mdPlano"></select></div>
+  <div class="field"><label>Status</label><select id="mdStatus">
+    <option value="ativa">ativa</option><option value="trial">trial</option>
+    <option value="pagamento_pendente">pagamento_pendente</option><option value="vencida">vencida</option>
+    <option value="inadimplente">inadimplente</option><option value="cancelada">cancelada</option>
+    <option value="suspensa">suspensa</option><option value="cortesia">cortesia</option>
+    <option value="vitalicia">vitalicia</option><option value="enterprise">enterprise</option>
+    <option value="teste_interno">teste_interno</option>
+  </select></div>
+  <div class="field"><label>Motivo (obrigatório — vai para a auditoria)</label><input id="mdMotivo" type="text" placeholder="ex.: cortesia de lançamento aprovada pela diretoria"></div>
+  <div class="form-msg" id="msgAss"></div>
+  <div style="display:flex;gap:10px;margin-top:14px">
+    <button class="btn primary" type="button" id="btnAssSalvar">Aplicar</button>
+    <button class="btn ghost" type="button" onclick="document.getElementById('mdAss').classList.remove('on')">Cancelar</button>
+  </div>
+</div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="../assets/config.js"></script>
+<script src="../assets/portal.js"></script>
+<script>
+"use strict";
+let planosCache = [];
+let assUser = null;
+
+function mostrar(sec) {
+  $$('#adminMain > section').forEach(s => s.hidden = s.dataset.sec !== sec);
+  $$('.side .nav-item[data-sec]').forEach(b => b.classList.toggle('on', b.dataset.sec === sec));
+  const load = { visao: carregarVisao, clientes: carregarClientes, planos: carregarPlanos,
+    cupons: carregarCupons, leads: carregarLeads, fontes: carregarFontes, auditoria: carregarAuditoria };
+  if (load[sec]) load[sec]();
+}
+
+async function carregarVisao() {
+  try {
+    const { data: m, error } = await sb.rpc('saas_metricas_admin');
+    if (error) throw error;
+    $('#mMrr').textContent = fmtBRL(m.mrr || 0);
+    $('#mTotal').textContent = fmtN(m.clientes.total);
+    $('#mPagantes').textContent = fmtN(m.clientes.pagantes);
+    $('#mGratuitos').textContent = fmtN(m.clientes.gratuitos);
+    $('#mTrials').textContent = fmtN(m.clientes.trials);
+    $('#mInad').textContent = fmtN(m.clientes.inadimplentes);
+    $('#mNovos').textContent = fmtN(m.clientes.novos_hoje);
+    $('#mLeads').textContent = fmtN(m.leads.total);
+    $('#mLeadsNovos').textContent = fmtN(m.leads.novos);
+    const o = m.operacao || {};
+    $('#boxOperacao').innerHTML = `
+      <div class="kv"><span>Licitações na base</span><b>${fmtN(o.licitacoes)}</b></div>
+      <div class="kv"><span>Valor estimado monitorado</span><b>${fmtMi(Number(o.valor_estimado || 0))}</b></div>
+      <div class="kv"><span>Atas de registro de preços</span><b>${fmtN(o.atas)}</b></div>
+      <div class="kv"><span>Itens de PCA (compras futuras)</span><b>${fmtN(o.pca_itens)}</b></div>
+      <div class="kv"><span>Contratos (Contratos.gov)</span><b>${fmtN(o.contratos_gov)}</b></div>
+      <div class="kv"><span>Fontes ativas</span><b>${fmtN(o.fontes_ativas)} de ${fmtN(o.fontes_total)}</b></div>
+      <div class="kv"><span>Execuções de coleta (24h)</span><b>${fmtN(o.execucoes_24h)} · ${fmtN(o.erros_24h)} erros</b></div>
+      <div class="kv"><span>Última coleta</span><b>${o.ultima_coleta ? new Date(o.ultima_coleta).toLocaleString('pt-BR') : '—'}</b></div>`;
+  } catch (e) {
+    $('#boxOperacao').innerHTML = '<span class="mut">Não foi possível carregar as métricas agora.</span>';
+  }
+}
+
+async function carregarClientes() {
+  const tb = $('#tblClientes tbody');
+  tb.innerHTML = '<tr><td colspan="6" class="mut">Carregando…</td></tr>';
+  try {
+    const busca = $('#cliBusca').value.trim() || null;
+    const { data, error } = await sb.rpc('saas_admin_clientes', { p_busca: busca, p_limite: 100 });
+    if (error) throw error;
+    tb.innerHTML = (data || []).map(c => `
+      <tr><td>${[c.nome, c.sobrenome].filter(Boolean).join(' ') || '—'} ${c.papel === 'admin' ? '<span class="pill info">ADMIN</span>' : ''}</td>
+        <td class="mono" style="font-size:12px">${c.email} ${c.email_confirmado ? '' : '<span class="pill warn">NÃO VERIFICADO</span>'}</td>
+        <td>${c.plano_id || '—'}</td>
+        <td><span class="pill ${c.assinatura_status === 'ativa' ? 'ok' : 'neu'}">${(c.assinatura_status || '—').toUpperCase()}</span></td>
+        <td class="mono mut">${new Date(c.criado_em).toLocaleDateString('pt-BR')}</td>
+        <td><button class="btn ghost" style="padding:4px 10px;font-size:12px" type="button"
+          onclick='abrirAss(${JSON.stringify(JSON.stringify({ id: c.user_id, email: c.email, plano: c.plano_id, status: c.assinatura_status }))})'>Alterar</button></td></tr>`).join('')
+      || '<tr><td colspan="6" class="mut">Nenhum cliente encontrado.</td></tr>';
+  } catch { tb.innerHTML = '<tr><td colspan="6" class="mut">Falha ao carregar clientes.</td></tr>'; }
+}
+
+function abrirAss(payload) {
+  const c = JSON.parse(payload);
+  assUser = c.id;
+  $('#mdAssCliente').textContent = c.email;
+  $('#mdPlano').innerHTML = planosCache.map(p => `<option value="${p.id}" ${p.id === c.plano ? 'selected' : ''}>${p.nome}</option>`).join('');
+  if (c.status) $('#mdStatus').value = c.status;
+  $('#mdMotivo').value = '';
+  $('#msgAss').className = 'form-msg';
+  $('#mdAss').classList.add('on');
+}
+
+async function carregarPlanos() {
+  const tb = $('#tblPlanos tbody');
+  try {
+    const { data, error } = await sb.from('saas_planos').select('*').order('ordem');
+    if (error) throw error;
+    planosCache = data || [];
+    tb.innerHTML = planosCache.map(p => `
+      <tr data-id="${p.id}">
+        <td><b>${p.nome}</b><div class="mut" style="font-size:11.5px">${p.id}</div></td>
+        <td class="num"><input class="mono" data-f="preco_mensal" type="number" step="0.01" value="${p.preco_mensal ?? ''}" placeholder="sob consulta" style="width:110px;text-align:right"></td>
+        <td class="num"><input class="mono" data-f="preco_anual" type="number" step="0.01" value="${p.preco_anual ?? ''}" placeholder="sob consulta" style="width:110px;text-align:right"></td>
+        <td class="num"><input class="mono" data-f="trial_dias" type="number" value="${p.trial_dias ?? 0}" style="width:70px;text-align:right"></td>
+        <td><input data-f="destaque" type="checkbox" ${p.destaque ? 'checked' : ''}></td>
+        <td><input data-f="ativo" type="checkbox" ${p.ativo ? 'checked' : ''}></td>
+        <td style="white-space:nowrap">
+          <button class="btn ghost" style="padding:4px 10px;font-size:12px" type="button" onclick="salvarPlano('${p.id}', this)">Salvar</button>
+          <button class="btn ghost" style="padding:4px 10px;font-size:12px" type="button" onclick="editarEnt('${p.id}')">Limites</button></td></tr>`).join('');
+  } catch { tb.innerHTML = '<tr><td colspan="7" class="mut">Falha ao carregar planos.</td></tr>'; }
+}
+
+async function salvarPlano(id, btn) {
+  const tr = btn.closest('tr');
+  const val = f => tr.querySelector(`[data-f="${f}"]`);
+  const num = f => { const v = val(f).value.trim(); return v === '' ? null : Number(v); };
+  try {
+    const { error } = await sb.from('saas_planos').update({
+      preco_mensal: num('preco_mensal'), preco_anual: num('preco_anual'),
+      trial_dias: num('trial_dias') ?? 0,
+      destaque: val('destaque').checked, ativo: val('ativo').checked
+    }).eq('id', id);
+    if (error) throw error;
+    toast('Plano <b>' + id + '</b> atualizado.');
+  } catch (e) { toast('Falha ao salvar o plano ' + id + '.'); }
+}
+
+function editarEnt(id) {
+  const p = planosCache.find(x => x.id === id);
+  if (!p) return;
+  $('#entPlanoId').textContent = id;
+  $('#entJson').value = JSON.stringify(p.entitlements || {}, null, 2);
+  $('#btnEntSalvar').disabled = false;
+  $('#btnEntSalvar').dataset.id = id;
+}
+
+async function carregarCupons() {
+  const tb = $('#tblCupons tbody');
+  try {
+    const { data, error } = await sb.from('saas_cupons').select('*').order('criado_em', { ascending: false });
+    if (error) throw error;
+    tb.innerHTML = (data || []).map(c => `
+      <tr><td class="mono"><b>${c.codigo}</b></td>
+        <td>${c.tipo === 'percentual' ? c.valor + '%' : fmtBRL(c.valor, 2)}${c.meses ? ' por ' + c.meses + ' meses' : ''}</td>
+        <td class="num">${fmtN(c.usados)}${c.max_usos ? ' / ' + fmtN(c.max_usos) : ''}</td>
+        <td class="mono mut">${c.valido_ate ? new Date(c.valido_ate + 'T00:00:00').toLocaleDateString('pt-BR') : 'sem prazo'}</td>
+        <td><span class="pill ${c.ativo ? 'ok' : 'neu'}">${c.ativo ? 'ATIVO' : 'INATIVO'}</span></td>
+        <td><button class="btn ghost" style="padding:4px 10px;font-size:12px" type="button" onclick="toggleCupom('${c.codigo}', ${c.ativo})">${c.ativo ? 'Desativar' : 'Reativar'}</button></td></tr>`).join('')
+      || '<tr><td colspan="6" class="mut">Nenhum cupom criado ainda.</td></tr>';
+  } catch { tb.innerHTML = '<tr><td colspan="6" class="mut">Falha ao carregar cupons.</td></tr>'; }
+}
+
+async function toggleCupom(codigo, ativo) {
+  try {
+    const { error } = await sb.from('saas_cupons').update({ ativo: !ativo }).eq('codigo', codigo);
+    if (error) throw error;
+    carregarCupons();
+  } catch { toast('Falha ao atualizar o cupom.'); }
+}
+
+async function carregarLeads() {
+  const tb = $('#tblLeads tbody');
+  const opcoes = ['novo','contato','demonstracao','negociacao','convertido','perdido'];
+  try {
+    const { data, error } = await sb.from('saas_leads').select('*').order('criado_em', { ascending: false }).limit(200);
+    if (error) throw error;
+    tb.innerHTML = (data || []).map(l => `
+      <tr><td><b>${l.nome}</b></td>
+        <td class="mono" style="font-size:12px">${l.email}${l.telefone ? '<br>' + l.telefone : ''}</td>
+        <td style="max-width:280px"><span class="mut" style="font-size:12.5px">${l.empresa ? '<b>' + l.empresa + '</b> · ' : ''}${(l.mensagem || '').slice(0, 140)}</span></td>
+        <td>${l.origem || '—'}${l.utm && l.utm.utm_source ? '<div class="mut" style="font-size:11px">' + l.utm.utm_source + '</div>' : ''}</td>
+        <td class="mono mut">${new Date(l.criado_em).toLocaleDateString('pt-BR')}</td>
+        <td><select onchange="statusLead(${l.id}, this.value)">${opcoes.map(o => `<option ${o === l.status ? 'selected' : ''}>${o}</option>`).join('')}</select></td></tr>`).join('')
+      || '<tr><td colspan="6" class="mut">Nenhum lead recebido ainda.</td></tr>';
+  } catch { tb.innerHTML = '<tr><td colspan="6" class="mut">Falha ao carregar leads.</td></tr>'; }
+}
+
+async function statusLead(id, status) {
+  try {
+    const { error } = await sb.from('saas_leads').update({ status }).eq('id', id);
+    if (error) throw error;
+    toast('Lead atualizado para <b>' + status + '</b>.');
+  } catch { toast('Falha ao atualizar o lead.'); }
+}
+
+async function carregarFontes() {
+  try {
+    const fs = await bolsaView('bolsa_vw_saude', 'select=*&order=id.asc');
+    const pill = s => s === 'ATIVA' ? 'ok' : (s === 'AGUARDANDO_CHAVE' ? 'info' : 'warn');
+    $('#boxFontes').innerHTML = fs.map(f => {
+      const ex = f.ultimas_execucoes || [];
+      return `<div class="panelbox">
+        <div class="ph">${f.nome} <span class="pill ${pill(f.status)}" style="margin-left:8px">${(f.status || '').replace(/_/g, ' ')}</span>
+          <span class="mut" style="font-weight:400;margin-left:auto">${fmtN(f.execucoes)} execuções · último sucesso ${f.ultimo_sucesso_em ? new Date(f.ultimo_sucesso_em).toLocaleString('pt-BR') : '—'}</span></div>
+        <div class="pb flush tblwrap"><table class="tbl">
+          <thead><tr><th>Job</th><th>Início</th><th class="num">Páginas</th><th class="num">Registros</th><th class="num">Inseridos</th><th class="num">Atualizados</th><th class="num">Erros</th></tr></thead>
+          <tbody>${ex.map(e => `<tr><td class="mono" style="font-size:12px">${e.job}</td>
+            <td class="mono mut" style="font-size:12px">${e.iniciado_em ? new Date(e.iniciado_em).toLocaleString('pt-BR') : '—'}</td>
+            <td class="num">${fmtN(e.paginas)}</td><td class="num">${fmtN(e.registros)}</td>
+            <td class="num">${fmtN(e.inseridos)}</td><td class="num">${fmtN(e.atualizados)}</td>
+            <td class="num">${e.erros > 0 ? '<span class="pill bad">' + fmtN(e.erros) + '</span>' : '0'}</td></tr>`).join('')
+            || '<tr><td colspan="7" class="mut">Sem execuções registradas.</td></tr>'}</tbody>
+        </table></div></div>`;
+    }).join('');
+  } catch { $('#boxFontes').innerHTML = '<span class="mut">Falha ao carregar a saúde das fontes.</span>'; }
+}
+
+async function carregarAuditoria() {
+  const tb = $('#tblAud tbody');
+  try {
+    const { data, error } = await sb.from('saas_auditoria_admin').select('*').order('criado_em', { ascending: false }).limit(100);
+    if (error) throw error;
+    tb.innerHTML = (data || []).map(a => `
+      <tr><td class="mono mut" style="font-size:12px">${new Date(a.criado_em).toLocaleString('pt-BR')}</td>
+        <td><b>${a.acao}</b></td><td class="mono" style="font-size:11.5px">${(a.alvo || '').slice(0, 12)}…</td>
+        <td class="mut" style="font-size:12.5px">${a.motivo || '—'}</td>
+        <td class="mono mut" style="font-size:11.5px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${a.depois ? JSON.stringify(a.depois) : '—'}</td></tr>`).join('')
+      || '<tr><td colspan="5" class="mut">Nenhuma ação administrativa registrada ainda.</td></tr>';
+  } catch { tb.innerHTML = '<tr><td colspan="5" class="mut">Falha ao carregar a auditoria.</td></tr>'; }
+}
+
+(async function init() {
+  const u = await guardAuth();
+  if (!u) return;
+  if (!(await isAdmin())) {
+    $('#gateAdmin .pb').innerHTML = '<b>Acesso restrito.</b> <span class="mut">Esta área é exclusiva da equipe administrativa da Bolsa. Se você acredita que deveria ter acesso, fale com um administrador.</span><div style="margin-top:12px"><a class="btn ghost" href="../app.html">Voltar ao app</a></div>';
+    return;
+  }
+  $('#gateAdmin').remove();
+
+  // pré-carrega planos (usados no modal de assinatura)
+  try { const { data } = await sb.from('saas_planos').select('*').order('ordem'); planosCache = data || []; } catch {}
+
+  $$('.side .nav-item[data-sec]').forEach(b => b.addEventListener('click', () => mostrar(b.dataset.sec)));
+  $('#btnCliBuscar').addEventListener('click', carregarClientes);
+  $('#cliBusca').addEventListener('keydown', e => { if (e.key === 'Enter') carregarClientes(); });
+
+  $('#btnAssSalvar').addEventListener('click', async () => {
+    const m = $('#msgAss');
+    const motivo = $('#mdMotivo').value.trim();
+    if (!motivo) { formMsg(m, 'err', 'Informe o motivo — ele vai para a auditoria.'); return; }
+    try {
+      const { error } = await sb.rpc('saas_admin_alterar_assinatura', {
+        p_user: assUser, p_plano: $('#mdPlano').value, p_status: $('#mdStatus').value, p_motivo: motivo });
+      if (error) throw error;
+      $('#mdAss').classList.remove('on');
+      toast('Assinatura alterada e registrada na auditoria.');
+      carregarClientes();
+    } catch (e) { formMsg(m, 'err', (e && e.message) || 'Falha ao alterar a assinatura.'); }
+  });
+
+  $('#btnEntSalvar').addEventListener('click', async () => {
+    const m = $('#msgEnt');
+    let obj;
+    try { obj = JSON.parse($('#entJson').value); } catch { formMsg(m, 'err', 'JSON inválido.'); return; }
+    try {
+      const { error } = await sb.from('saas_planos').update({ entitlements: obj }).eq('id', $('#btnEntSalvar').dataset.id);
+      if (error) throw error;
+      formMsg(m, 'ok', 'Entitlements salvos — valem imediatamente para todos os usuários do plano.');
+      carregarPlanos();
+    } catch { formMsg(m, 'err', 'Falha ao salvar.'); }
+  });
+
+  $('#btnCupomCriar').addEventListener('click', async () => {
+    const m = $('#msgCupom');
+    const codigo = $('#cupCodigo').value.trim().toUpperCase();
+    const valor = Number($('#cupValor').value);
+    if (!codigo || !valor) { formMsg(m, 'err', 'Código e valor são obrigatórios.'); return; }
+    try {
+      const { error } = await sb.from('saas_cupons').insert({
+        codigo, tipo: $('#cupTipo').value, valor,
+        meses: $('#cupMeses').value ? Number($('#cupMeses').value) : null,
+        max_usos: $('#cupMax').value ? Number($('#cupMax').value) : null,
+        valido_ate: $('#cupValidade').value || null });
+      if (error) throw error;
+      formMsg(m, 'ok', 'Cupom criado.');
+      $('#cupCodigo').value = ''; $('#cupValor').value = '';
+      carregarCupons();
+    } catch (e) { formMsg(m, 'err', (e && e.message) || 'Falha ao criar o cupom.'); }
+  });
+
+  $('#mdAss').addEventListener('click', e => { if (e.target.id === 'mdAss') $('#mdAss').classList.remove('on'); });
+
+  mostrar('visao');
+  track('admin_view');
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,43 @@
+<!doctype html><html lang="pt-BR"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="assets/portal.css">
+<title>Recuperar acesso — Bolsa de Licitações</title>
+</head><body>
+<nav class="nav"><div class="wrap nav-in">
+  <a class="brand" href="index.html"><span class="brand-mark">BL</span><b>Bolsa de Licitações</b></a>
+  <div class="nav-cta"><a class="btn ghost" href="index.html">← Voltar ao site</a></div>
+</div></nav>
+<div class="auth-wrap"><div class="auth-card">
+  <h1>Recuperar acesso</h1>
+  <div class="sub">Enviaremos um link seguro, de uso único e com validade limitada, para redefinir sua senha.</div>
+  <form id="f">
+    <div class="field"><label for="email">E-mail da conta</label><input id="email" type="email" required></div>
+    <div class="form-msg" id="msg"></div>
+    <button class="btn primary big full" type="submit" id="btn">Enviar link de redefinição</button>
+  </form>
+  <div class="auth-links"><a href="login.html">← Voltar ao login</a><a href="cadastro.html">Criar conta</a></div>
+</div></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="assets/config.js"></script>
+<script src="assets/portal.js"></script>
+<script>
+"use strict";
+document.getElementById("f").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const msg = document.getElementById("msg"), btn = document.getElementById("btn");
+  btn.disabled = true;
+  try {
+    const { error } = await sb.auth.resetPasswordForEmail(
+      document.getElementById("email").value.trim(),
+      { redirectTo: new URL("redefinir.html", location.href).href });
+    if (error) throw error;
+    formMsg(msg, "ok", "Se este e-mail possuir conta, o link de redefinição foi enviado. Verifique sua caixa de entrada.");
+  } catch {
+    formMsg(msg, "ok", "Se este e-mail possuir conta, o link de redefinição foi enviado. Verifique sua caixa de entrada.");
+  }
+  btn.disabled = false;
+});
+</script>
+</body></html>

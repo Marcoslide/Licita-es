@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Minha Bolsa — Bolsa de Licitações</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="assets/portal.css">
+</head>
+<body>
+
+<div class="shell">
+  <aside class="side">
+    <a class="brand" href="index.html"><span class="brand-mark">BL</span><b>Bolsa</b></a>
+    <a class="on" href="app.html">Visão geral</a>
+    <a id="lnkTerminal" href="#" target="_blank" rel="noopener">Abrir o Terminal</a>
+    <a href="precos.html">Planos e upgrade</a>
+    <a href="conta.html">Minha conta</a>
+    <a href="status.html">Status das fontes</a>
+    <a id="lnkAdmin" href="admin/index.html" hidden>Central administrativa</a>
+    <div class="spacer"></div>
+    <button class="nav-item" type="button" onclick="sair()">Sair</button>
+  </aside>
+
+  <main class="main">
+    <div class="eyebrow" style="margin-bottom:6px">Minha Bolsa</div>
+    <h2 id="boasVindas" style="margin:0 0 4px">Bem-vindo(a)</h2>
+    <p class="mut" id="planoLinha" style="margin:0 0 22px">Carregando seu plano…</p>
+
+    <div class="kpis" id="kpisBase">
+      <div class="kpi"><div class="k-l">Oportunidades monitoradas</div><div class="k-v" data-m="valor">—</div><div class="k-s">valor estimado na base</div></div>
+      <div class="kpi"><div class="k-l">Licitações na base</div><div class="k-v" data-m="licitacoes">—</div><div class="k-s">de fontes oficiais</div></div>
+      <div class="kpi"><div class="k-l">Recebendo propostas</div><div class="k-v" data-m="abertas">—</div><div class="k-s">abertas agora</div></div>
+      <div class="kpi"><div class="k-l">Contratos vencendo</div><div class="k-v" data-m="vencendo">—</div><div class="k-s">próximos 180 dias</div></div>
+    </div>
+    <p class="small" id="baseNota" style="color:var(--dim);margin:-12px 0 22px">Carregando números da base…</p>
+
+    <div class="panelbox">
+      <div class="ph">SEU PLANO E LIMITES</div>
+      <div class="pb" id="boxAcesso"><span class="mut">Carregando…</span></div>
+    </div>
+
+    <div class="panelbox">
+      <div class="ph">O QUE VOCÊ PODE FAZER AGORA</div>
+      <div class="pb">
+        <div class="grid3" style="margin:0">
+          <div class="card" style="padding:16px">
+            <span class="stage disp">DISPONÍVEL</span>
+            <h3 style="margin:10px 0 6px;font:700 15px var(--disp)">Terminal de mercado</h3>
+            <p class="mut" style="font-size:13px;margin:0 0 12px">Painéis com licitações, atas, contratos e mapa por UF, sobre a base real.</p>
+            <a class="btn ghost" id="lnkTerminal2" href="#" target="_blank" rel="noopener">Abrir terminal</a>
+          </div>
+          <div class="card" style="padding:16px">
+            <span class="stage disp" id="stConc">DISPONÍVEL</span>
+            <h3 style="margin:10px 0 6px;font:700 15px var(--disp)">Radar de concorrentes</h3>
+            <p class="mut" style="font-size:13px;margin:0 0 12px">Quem vence, onde vence e por quanto — market share por setor e região.</p>
+            <button class="btn ghost" type="button" id="btnConcorrentes">Explorar concorrentes</button>
+          </div>
+          <div class="card" style="padding:16px">
+            <span class="stage breve">EM BREVE</span>
+            <h3 style="margin:10px 0 6px;font:700 15px var(--disp)">Alertas inteligentes</h3>
+            <p class="mut" style="font-size:13px;margin:0 0 12px">Avisos por e-mail quando surgir edital com o seu perfil de produto e região.</p>
+            <button class="btn ghost" type="button" disabled>Em desenvolvimento</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panelbox">
+      <div class="ph">SAÚDE DAS FONTES OFICIAIS <span class="mut" style="font-weight:400">— transparência total sobre a origem dos dados</span></div>
+      <div class="pb flush tblwrap"><table class="tbl" id="tblFontes">
+        <thead><tr><th>Fonte</th><th>Status</th><th class="num">Coletas</th><th>Último sucesso</th></tr></thead>
+        <tbody><tr><td colspan="4" class="mut">Carregando…</td></tr></tbody>
+      </table></div>
+    </div>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="assets/config.js"></script>
+<script src="assets/portal.js"></script>
+<script>
+"use strict";
+(async function init() {
+  const u = await guardAuth();
+  if (!u) return;
+
+  $('#lnkTerminal').href = CFG.LINK_TERMINAL;
+  $('#lnkTerminal2').href = CFG.LINK_TERMINAL;
+
+  const meta = u.user_metadata || {};
+  if (meta.nome) $('#boasVindas').textContent = 'Bem-vindo(a), ' + meta.nome;
+
+  // plano + entitlements (fonte: banco, nunca hardcode) — §42
+  const acesso = await getAcesso();
+  const ent = (acesso && acesso.entitlements) || {};
+  const statusMap = { ativa: ['ok','ATIVA'], trial: ['info','EM TESTE'], pagamento_pendente: ['warn','PAGAMENTO PENDENTE'],
+    vencida: ['warn','VENCIDA'], inadimplente: ['bad','INADIMPLENTE'], cancelada: ['neu','CANCELADA'],
+    suspensa: ['bad','SUSPENSA'], cortesia: ['info','CORTESIA'], vitalicia: ['ok','VITALÍCIA'],
+    enterprise: ['info','ENTERPRISE'], teste_interno: ['neu','TESTE INTERNO'] };
+  const st = statusMap[acesso.status] || ['neu', acesso.status || '—'];
+
+  if (acesso.plano_nome) {
+    $('#planoLinha').innerHTML = `Plano <b style="color:var(--ink)">${acesso.plano_nome}</b> · <span class="pill ${st[0]}">${st[1]}</span>` +
+      (acesso.cancelar_no_fim ? ' · <span class="pill warn">ENCERRA NO FIM DO CICLO</span>' : '');
+    $('#boxAcesso').innerHTML = `
+      <div class="kv"><span>Pesquisas por dia</span><b>${ent.sob_consulta ? 'Sob medida' : fmtN(ent.pesquisas_dia)}</b></div>
+      <div class="kv"><span>Listas de acompanhamento</span><b>${ent.sob_consulta ? 'Sob medida' : fmtN(ent.max_watchlists)}</b></div>
+      <div class="kv"><span>Histórico</span><b>${ent.sob_consulta ? 'Completo' : (ent.history_days >= 365 ? Math.round(ent.history_days/365) + ' ano(s)' : (ent.history_days||0) + ' dias')}</b></div>
+      <div class="kv"><span>Radar de concorrentes</span><b>${ent.sob_consulta || ent.can_view_competitors ? 'Incluído' : 'Não incluído'}</b></div>
+      <div class="kv"><span>Exportação</span><b>${ent.sob_consulta || ent.can_export ? 'Incluída' : 'Não incluída'}</b></div>
+      <div style="margin-top:12px"><a class="btn primary" href="precos.html">Ver planos e fazer upgrade</a></div>`;
+  } else {
+    $('#planoLinha').textContent = 'Não foi possível carregar seu plano agora.';
+    $('#boxAcesso').innerHTML = '<span class="mut">Tente recarregar a página. Se persistir, fale conosco.</span>';
+  }
+
+  // gate do radar de concorrentes conforme entitlement real (§44)
+  const podeConc = !!(ent.sob_consulta || ent.can_view_competitors);
+  if (!podeConc) $('#stConc').outerHTML = '<span class="stage beta">PLANO INTELIGÊNCIA+</span>';
+  $('#btnConcorrentes').addEventListener('click', () => {
+    if (podeConc) { location.href = CFG.LINK_TERMINAL; return; }
+    gateUpgrade('Radar de concorrentes', 'Inteligência',
+      'Veja quem vence as licitações do seu setor, com que preços e em quais órgãos — e acompanhe o market share dos seus concorrentes em todo o país.');
+  });
+
+  // admin?
+  if (await isAdmin()) $('#lnkAdmin').hidden = false;
+
+  // números reais da base
+  try {
+    const rs = await bolsaView('bolsa_vw_resumo', 'select=valor_estimado_total,licitacoes,recebendo_propostas,contratos_vencendo_180d');
+    const r = Array.isArray(rs) ? rs[0] : rs;
+    if (r) {
+      $('[data-m="valor"]').textContent = fmtMi(Number(r.valor_estimado_total || 0));
+      $('[data-m="licitacoes"]').textContent = fmtN(r.licitacoes);
+      $('[data-m="abertas"]').textContent = fmtN(r.recebendo_propostas);
+      $('[data-m="vencendo"]').textContent = fmtN(r.contratos_vencendo_180d);
+      $('#baseNota').textContent = 'Números reais da base, ao vivo, agora.';
+    }
+  } catch { $('#baseNota').textContent = 'Não foi possível atualizar os números ao vivo agora.'; }
+
+  // saúde das fontes
+  try {
+    const fs = await bolsaView('bolsa_vw_saude', 'select=id,nome,status,ultimo_sucesso_em,execucoes&order=id.asc');
+    const pill = s => s === 'ATIVA' ? 'ok' : (s === 'AGUARDANDO_CHAVE' ? 'info' : 'warn');
+    $('#tblFontes tbody').innerHTML = fs.map(f => `
+      <tr><td>${f.nome}</td>
+        <td><span class="pill ${pill(f.status)}">${(f.status || '').replace(/_/g, ' ')}</span></td>
+        <td class="num">${fmtN(f.execucoes)} execuções</td>
+        <td class="mono mut">${f.ultimo_sucesso_em ? new Date(f.ultimo_sucesso_em).toLocaleString('pt-BR') : '—'}</td></tr>`).join('')
+      || '<tr><td colspan="4" class="mut">Sem fontes cadastradas.</td></tr>';
+  } catch {
+    $('#tblFontes tbody').innerHTML = '<tr><td colspan="4" class="mut">Não foi possível carregar a saúde das fontes agora.</td></tr>';
+  }
+
+  track('app_view');
+})();
+</script>
+</body>
+</html>

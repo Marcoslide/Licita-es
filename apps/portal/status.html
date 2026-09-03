@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Status das fontes — Bolsa de Licitações</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="assets/portal.css">
+</head>
+<body>
+<nav class="nav"><div class="wrap nav-in">
+  <a class="brand" href="index.html"><span class="brand-mark">BL</span><b>Bolsa de Licitações</b></a>
+  <div class="nav-links">
+    <a href="index.html#recursos">Recursos</a>
+    <a href="precos.html">Preços</a>
+    <a href="status.html" style="color:var(--amber)">Status</a>
+  </div>
+  <div class="nav-cta"><a class="btn ghost" href="login.html">Entrar</a><a class="btn primary" href="cadastro.html">Testar a Bolsa</a></div>
+</div></nav>
+
+<section class="sect" style="padding-top:60px">
+  <div class="wrap" style="max-width:900px">
+    <div class="sect-eyebrow">Transparência operacional</div>
+    <h2>Status das fontes oficiais</h2>
+    <p class="sect-p">Mostramos exatamente de onde vêm os dados e quando cada fonte foi coletada pela última vez.
+      Se uma fonte oficial estiver instável ou aguardando credencial, você vê aqui — sem maquiagem.</p>
+    <div id="lista" style="margin-top:26px"><span class="mut">Carregando status ao vivo…</span></div>
+    <p class="small" style="color:var(--dim);margin-top:16px">Status lido ao vivo do nosso banco de coleta. Horários no fuso do seu navegador.</p>
+  </div>
+</section>
+
+<footer class="footer"><div class="wrap"><div class="foot-legal">© 2026 Bolsa de Licitações · <a href="termos.html">Termos</a> · <a href="privacidade.html">Privacidade</a></div></div></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="assets/config.js"></script>
+<script src="assets/portal.js"></script>
+<script>
+"use strict";
+(async function () {
+  try {
+    const fs = await bolsaView('bolsa_vw_saude', 'select=*&order=id.asc');
+    const meta = {
+      ATIVA: ['ok', 'Operacional — coletando normalmente'],
+      TEMPORARILY_UNAVAILABLE: ['warn', 'Instável — a fonte oficial está respondendo com falhas; novas tentativas automáticas em andamento'],
+      AGUARDANDO_CHAVE: ['info', 'Aguardando credencial — fonte exige chave de API, integração pronta']
+    };
+    $('#lista').innerHTML = fs.map(f => {
+      const [cls, desc] = meta[f.status] || ['neu', f.status];
+      const ult = (f.ultimas_execucoes || [])[0];
+      return `<div class="panelbox"><div class="pb" style="display:flex;gap:14px;align-items:center;flex-wrap:wrap">
+        <div style="flex:1;min-width:220px"><b>${f.nome}</b><div class="mut" style="font-size:12.5px;margin-top:2px">${desc}</div></div>
+        <span class="pill ${cls}">${(f.status || '').replace(/_/g, ' ')}</span>
+        <div class="mono mut" style="font-size:12px;text-align:right">
+          ${fmtN(f.execucoes)} coletas<br>
+          último sucesso: ${f.ultimo_sucesso_em ? new Date(f.ultimo_sucesso_em).toLocaleString('pt-BR') : '—'}
+          ${ult && ult.registros != null ? '<br>última execução: ' + fmtN(ult.registros) + ' registros' : ''}
+        </div></div></div>`;
+    }).join('');
+  } catch {
+    $('#lista').innerHTML = '<div class="panelbox"><div class="pb"><span class="mut">Não foi possível carregar o status ao vivo agora. Tente novamente em instantes.</span></div></div>';
+  }
+  track('status_view');
+})();
+</script>
+</body>
+</html>
