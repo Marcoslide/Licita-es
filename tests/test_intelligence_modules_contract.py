@@ -12,13 +12,14 @@ ARTIFACT_MIGRATION = (ROOT / "supabase/migrations/20260903183000_ai_artifacts.sq
 
 class IntelligenceModulesContractTests(unittest.TestCase):
     def test_procurement_has_price_memory_artifact_surfaces(self) -> None:
-        for token in ('data-proc-tab="updates"', 'data-proc-tab="price-center"', 'data-proc-tab="artifacts"'):
+        for token in ('data-proc-tab="updates"', 'data-proc-tab="prices"', 'data-proc-tab="artifacts"'):
             self.assertIn(token, HTML)
         self.assertIn("renderPriceCenter", HTML)
         self.assertIn("loadProcurementMemory", HTML)
+        self.assertIn("Salvar esta análise", HTML)
 
     def test_ai_answer_can_become_versioned_artifact(self) -> None:
-        self.assertIn("Salvar como artefato", HTML)
+        self.assertIn("Guardar em Análises salvas", HTML)
         self.assertIn("ai_artifact_save_version", HTML)
         self.assertIn("RESTORED", HTML)
         self.assertIn("ai_artifact_versions", ARTIFACT_MIGRATION)

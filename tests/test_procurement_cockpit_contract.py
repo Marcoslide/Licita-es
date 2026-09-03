@@ -14,9 +14,10 @@ class ProcurementCockpitContractTests(unittest.TestCase):
             "overview",
             "requirements",
             "items",
-            "pricing",
+            "prices",
             "market",
             "documents",
+            "artifacts",
             "assistant",
         ):
             self.assertIn(f'data-proc-panel="{panel}"', self.html)
@@ -32,8 +33,18 @@ class ProcurementCockpitContractTests(unittest.TestCase):
 
     def test_missing_document_text_is_not_presented_as_ai_fact(self) -> None:
         self.assertIn("texto não está indexado por página e cláusula", self.html)
-        self.assertIn("Não foi possível determinar ainda", self.html)
+        self.assertIn("Não é possível concluir a habilitação com segurança ainda", self.html)
         self.assertNotIn("Edital.pdf → página 47 → item 8.3.2", self.html)
+
+    def test_documents_can_be_read_inside_the_procurement_workspace(self) -> None:
+        self.assertIn('id="procDocumentViewer"', self.html)
+        self.assertIn("function openDocumentViewer", self.html)
+        self.assertIn("PDFs e imagens abrem diretamente nesta área", self.html)
+
+    def test_agenda_has_calendar_and_priority_workspace(self) -> None:
+        self.assertIn('id="agendaMonthGrid"', self.html)
+        self.assertIn('id="agendaSummary"', self.html)
+        self.assertIn("function renderAgendaCalendar", self.html)
 
     def test_pricing_is_private_and_explainable(self) -> None:
         self.assertIn("bolsa.procurement-pricing.v1", self.html)
