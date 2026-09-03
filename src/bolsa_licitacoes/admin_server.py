@@ -6,14 +6,33 @@ from typing import Any
 from urllib.parse import parse_qs, urlparse
 
 from .db import Database
+from .public_api import list_procurements, market_summary, procurement_detail, source_status, state_summary
 
 
 def serve(db: Database, host: str = "127.0.0.1", port: int = 8088, token: str = "") -> None:
     class Handler(BaseHTTPRequestHandler):
+        server_version = "BolsaAPI"
+        sys_version = ""
+
         def do_GET(self) -> None:  # noqa: N802
             parsed = urlparse(self.path)
             if parsed.path == "/health":
                 self._json(200, {"status": "ok"})
+            elif parsed.path == "/api/public/summary":
+                self._json(200, market_summary(db), cache="public, max-age=30")
+            elif parsed.path == "/api/public/states":
+                self._json(200, state_summary(db), cache="public, max-age=60")
+            elif parsed.path == "/api/public/procurements":
+                self._json(200, list_procurements(db, parse_qs(parsed.query)), cache="public, max-age=20")
+            elif parsed.path == "/api/public/sources":
+                self._json(200, source_status(db), cache="public, max-age=30")
+            elif parsed.path.startswith("/api/public/procurements/"):
+                try:
+                    procurement_id = int(parsed.path.rsplit("/", 1)[-1])
+                except ValueError:
+                    self._json(400, {"error": "procurement id inválido"}); return
+                payload = procurement_detail(db, procurement_id)
+                self._json(404 if payload is None else 200, payload or {"error": "not found"}, cache="public, max-age=20")
             elif token and self.headers.get("Authorization") != f"Bearer {token}":
                 self._json(401, {"error": "unauthorized"})
             elif parsed.path == "/api/admin/stats":
@@ -45,11 +64,13 @@ def serve(db: Database, host: str = "127.0.0.1", port: int = 8088, token: str = 
         def log_message(self, fmt: str, *args: Any) -> None:
             return
 
-        def _json(self, status: int, payload: Any) -> None:
+        def _json(self, status: int, payload: Any, cache: str = "no-store") -> None:
             body = json.dumps(payload, ensure_ascii=False, default=str).encode("utf-8")
             self.send_response(status)
             self.send_header("Content-Type", "application/json; charset=utf-8")
             self.send_header("Content-Length", str(len(body)))
+            self.send_header("Cache-Control", cache)
+            self.send_header("X-Content-Type-Options", "nosniff")
             self.end_headers()
             self.wfile.write(body)
 

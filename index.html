@@ -250,6 +250,12 @@ main.view.on{display:block}
   padding:13px 12px;margin-bottom:8px;border-radius:7px;border:1px solid var(--line);background:var(--panel2);text-align:left}
 .explorer-result:hover{border-color:var(--amber-dim);transform:translateX(-2px)}.explorer-result b{font-size:13px}.explorer-result small{display:block;color:var(--mut);margin-top:3px}
 .explorer-result .er-value{font:700 12px var(--mono);color:var(--amber);white-space:nowrap}.explorer-empty{padding:24px;border:1px dashed var(--line2);border-radius:8px;color:var(--mut);text-align:center}
+.real-detail{display:flex;flex-direction:column;gap:12px}.detail-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.detail-metric{padding:10px;border:1px solid var(--line);border-radius:6px;background:var(--panel2)}.detail-metric span{display:block;font:600 9px var(--mono);text-transform:uppercase;letter-spacing:.8px;color:var(--mut)}
+.detail-metric b{display:block;margin-top:3px;font:600 12px var(--mono)}.detail-section{padding:12px;border:1px solid var(--line);border-radius:7px;background:var(--panel)}
+.detail-section h3{margin:0 0 8px;font:700 11px var(--sans);letter-spacing:.8px;text-transform:uppercase}.detail-section p{margin:0;font-size:12.5px;line-height:1.55}
+.detail-item{padding:8px 0;border-bottom:1px solid var(--line)}.detail-item:last-child{border-bottom:0}.detail-item b{font-size:12px}.detail-item small{display:block;color:var(--mut)}
+.source-link{display:flex;align-items:center;justify-content:space-between;gap:8px;color:var(--info);padding:7px 0;border-bottom:1px solid var(--line);text-decoration:none}.source-link:last-child{border-bottom:0}.source-link:hover{color:var(--amber)}
 .hm-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;max-width:480px}
 .hm-tile{aspect-ratio:1;border-radius:4px;display:flex;flex-direction:column;align-items:center;
   justify-content:center;gap:1px;cursor:pointer;border:1px solid rgba(255,255,255,.06);
@@ -473,10 +479,10 @@ main.view.on{display:block}
   <section class="control-deck" aria-label="Controles da visão de mercado">
     <div class="control-intro"><span class="control-kicker">Explorar</span><span class="control-context" id="controlContext">Brasil · mercado completo</span></div>
     <div class="control-fields">
-      <div class="control-field"><label for="filterPeriod">Período</label><select id="filterPeriod"><option>Hoje</option><option>7 dias</option><option selected>30 dias</option><option>12 meses</option></select></div>
+      <div class="control-field"><label for="filterPeriod">Período</label><select id="filterPeriod"><option value="today">Hoje</option><option value="7">7 dias</option><option value="30" selected>30 dias</option><option value="365">12 meses</option></select></div>
       <div class="control-field"><label for="filterUf">Região</label><select id="filterUf"><option value="">Brasil inteiro</option></select></div>
       <div class="control-field"><label for="filterSegment">Mercado</label><select id="filterSegment"><option>Todos os segmentos</option><option>Medicamentos</option><option>Material hospitalar</option><option>Construção</option><option>Tecnologia</option><option>Alimentação</option></select></div>
-      <div class="control-field"><label for="filterStatus">Situação</label><select id="filterStatus"><option>Oportunidades abertas</option><option>Publicadas hoje</option><option>Resultados</option><option>Contratos</option><option>Desertas e fracassadas</option></select></div>
+      <div class="control-field"><label for="filterStatus">Situação</label><select id="filterStatus"><option value="open">Oportunidades abertas</option><option value="published_today">Publicadas hoje</option><option value="results">Com resultados</option><option value="contracts">Com contratos</option><option value="failed">Desertas e fracassadas</option></select></div>
       <button class="btn primary" id="applyFilters">Atualizar visão</button>
     </div>
     <button class="btn view-depth" id="viewDepth" aria-pressed="false"><span class="depth-dot"></span><span>Visão completa</span></button>
@@ -516,21 +522,21 @@ main.view.on{display:block}
       </section>
 
       <section class="panel c5">
-        <div class="p-head"><span class="p-title">🌡️ Índice de Aquecimento</span><span class="p-sub">por segmento do seu portfólio</span></div>
+        <div class="p-head"><span class="p-title" id="heatTitle">🌡️ Índice de Aquecimento</span><span class="p-sub" id="heatSubtitle">por segmento do seu portfólio</span></div>
         <div class="p-body" id="heatIndex"></div>
         <div class="p-foot">Componentes: novas oportunidades, valor publicado, nº de compradores, recorrência, contratos vencendo, PCA e concorrência. Passe o mouse para a composição.</div>
       </section>
 
       <section class="panel c4">
-        <div class="p-head"><span class="p-title">🔥 Oportunidades Quentes</span><span class="p-sub">score consolidado</span></div>
+        <div class="p-head"><span class="p-title" id="quentesTitle">🔥 Oportunidades Quentes</span><span class="p-sub" id="quentesSubtitle">score consolidado</span></div>
         <div class="p-body flush" id="blkQuentes"></div>
       </section>
       <section class="panel c4">
-        <div class="p-head"><span class="p-title">💰 Maiores Margens</span><span class="p-sub">margem potencial estimada</span></div>
+        <div class="p-head"><span class="p-title" id="margensTitle">💰 Maiores Margens</span><span class="p-sub" id="margensSubtitle">margem potencial estimada</span></div>
         <div class="p-body flush" id="blkMargens"></div>
       </section>
       <section class="panel c4">
-        <div class="p-head"><span class="p-title">🏆 Maior Chance de Vitória</span><span class="p-sub">aderência × histórico × concorrência</span></div>
+        <div class="p-head"><span class="p-title" id="chanceTitle">🏆 Maior Chance de Vitória</span><span class="p-sub" id="chanceSubtitle">aderência × histórico × concorrência</span></div>
         <div class="p-body flush" id="blkChance"></div>
       </section>
 
@@ -628,6 +634,8 @@ main.view.on{display:block}
    ============================================================ */
 /* ===================== HELPERS ===================== */
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+const safeUrl=value=>{try{const u=new URL(String(value));return ['http:','https:'].includes(u.protocol)?u.href:'#';}catch{return '#';}};
 const fmtBRL=(v,dec=0)=>v.toLocaleString('pt-BR',{style:'currency',currency:'BRL',minimumFractionDigits:dec,maximumFractionDigits:dec});
 const fmtN=v=>v.toLocaleString('pt-BR');
 const fmtMi=v=>v>=1e9?('R$ '+(v/1e9).toLocaleString('pt-BR',{maximumFractionDigits:1})+' bi')
@@ -893,7 +901,7 @@ $('#viewDepth').addEventListener('click',e=>{
   toast(expanded?'<b>Visão completa ativada</b><small>Todos os radares e painéis operacionais estão visíveis.</small>':'<b>Visão essencial ativada</b><small>Somente os sinais necessários para decidir agora.</small>');
 });
 $('#applyFilters').addEventListener('click',()=>{
-  const uf=$('#filterUf').value, period=$('#filterPeriod').value, segment=$('#filterSegment').value, status=$('#filterStatus').value;
+  const uf=$('#filterUf').value, period=$('#filterPeriod').selectedOptions[0].text, segment=$('#filterSegment').value, status=$('#filterStatus').selectedOptions[0].text;
   if(uf){hmSel=uf;renderHeat();}
   $('#controlContext').textContent=`${uf?UF_NAMES[uf]:'Brasil'} · ${period.toLowerCase()} · ${segment.replace('Todos os segmentos','todos os mercados')}`;
   toast(`<b>Visão atualizada</b><small>${uf?UF_NAMES[uf]:'Brasil inteiro'} · ${period} · ${segment} · ${status}. Protótipo visual: os números continuam identificados como simulados.</small>`);
@@ -957,7 +965,7 @@ $('#kpis').addEventListener('click',e=>{
 });
 
 /* heatmap geográfico: malha oficial do IBGE, com dados do protótipo por UF */
-let hmMode=HM_MODES[0], hmSel='MG', mapGeo=null;
+let hmMode=HM_MODES[0], hmSel='MG', mapGeo=null, realStateRows=null;
 $('#hmModes').innerHTML=HM_MODES.map(m=>`<button class="hm-mode${m===hmMode?' on':''}" data-m="${m.id}">${m.n}</button>`).join('');
 $('#hmModes').addEventListener('click',e=>{
   const b=e.target.closest('.hm-mode');if(!b)return;
@@ -976,7 +984,7 @@ function renderHeat(){
     const rs=rings(f.geometry), path=rs.map(ringPath).join('');
     const main=rs.reduce((a,r)=>r.length>a.length?r:a,[]), pts=main.map(project);
     const xs=pts.map(p=>p[0]),ys=pts.map(p=>p[1]),cx=(Math.min(...xs)+Math.max(...xs))/2,cy=(Math.min(...ys)+Math.max(...ys))/2;
-    const t=(hmMode.val(e)-hmMode.lo)/((hmMode.hi-hmMode.lo)||1), fill=heatColor(t);
+    const t=(hmMode.val(e)-hmMode.lo)/((hmMode.hi-hmMode.lo)||1), hasData=!realStateRows||realStateRows.some(state=>state.code===uf), fill=hasData?heatColor(t):'#101827';
     return `<path class="br-state hm-region${uf===hmSel?' sel':''}" data-uf="${uf}" d="${path}" fill="${fill}" fill-rule="evenodd" tabindex="0" role="button" aria-label="${UF_NAMES[uf]}: ${hmMode.fmt(e)} em ${hmMode.n.toLowerCase()}"></path>
       <text class="br-label${t<.46?' light':''}" x="${cx.toFixed(1)}" y="${cy.toFixed(1)}">${uf}</text>`;
   }).join('');
@@ -1006,6 +1014,21 @@ function renderDrill(){
     ?[['SES-MG','R$ 2,1 bi'],['Pref. Belo Horizonte','R$ 840 mi'],['FHEMIG','R$ 460 mi'],['UFMG / HC','R$ 310 mi']]
     :[[`Secretaria de Saúde — ${e[0]}`,'—'],[`Secretaria de Educação — ${e[0]}`,'—'],[`Prefeitura de ${cap}`,'—'],[`Tribunal de Justiça — ${e[0]}`,'—']];
   const hot=e[5]>=25?['MUITO AQUECIDO','#ef4444']:e[5]>=12?['AQUECIDO','#ffb020']:e[5]>=5?['NEUTRO','#0ea5a3']:['FRIO','#1d4ed8'];
+  if(realStateRows){
+    const state=realStateRows.find(x=>x.code===e[0]);
+    const orgs=state?.top_organizations||[];
+    $('#hmDrill').innerHTML=`
+      <h3>${UF_NAMES[e[0]]}<span class="heat-tag" style="background:var(--up-bg);color:var(--up)">DADOS REAIS</span></h3>
+      <div class="kv"><span class="mut">Processos monitorados</span><b>${fmtN(state?.procurements||0)}</b></div>
+      <div class="kv"><span class="mut">Valor estimado conhecido</span><b>${fmtMi(state?.estimated_value||0)}</b></div>
+      <div class="kv"><span class="mut">Órgãos compradores</span><b>${fmtN(state?.organizations||0)}</b></div>
+      <div class="kv"><span class="mut">Cidades presentes</span><b>${fmtN(state?.cities||0)}</b></div>
+      <div class="kv"><span class="mut">Última coleta</span><b>${formatDateTime(state?.last_collected_at)}</b></div>
+      <h4>Principais compradores no recorte</h4>
+      ${orgs.length?orgs.map(o=>`<button class="geo-row" data-geo="${esc(o.legal_name||'Não informado')}"><span>⌂</span><span>${esc(o.legal_name||'Não informado')}</span><span class="geo-val">${fmtN(o.procurements)} proc. · ${fmtMi(o.estimated_value||0)}</span></button>`).join(''):'<div class="note">Ainda não há processos coletados para este estado.</div>'}
+      <div style="margin-top:10px"><button class="btn primary" data-open-state="${e[0]}" ${state?'':'disabled'}>Explorar processos reais →</button></div>`;
+    return;
+  }
   $('#hmDrill').innerHTML=`
     <h3>${UF_NAMES[e[0]]}<span class="heat-tag" style="background:${hot[1]}22;color:${hot[1]}">${hot[0]}</span></h3>
     <div class="kv"><span class="mut">Processos abertos</span><b>${fmtN(e[4])}</b></div>
@@ -1030,18 +1053,36 @@ $('#hmGrid').addEventListener('keydown',e=>{
 $('#hmGrid').addEventListener('pointermove',e=>{
   const t=e.target.closest('.hm-region'),tip=$('#mapTooltip');if(!t||!tip){if(tip)tip.classList.remove('on');return;}
   const data=ESTADOS.find(x=>x[0]===t.dataset.uf), box=$('#hmGrid').getBoundingClientRect();
-  tip.innerHTML=`<b>${UF_NAMES[data[0]]}</b><span>${fmtN(data[4])} processos abertos</span><span>R$ ${data[3].toLocaleString('pt-BR',{maximumFractionDigits:1})} bi estimados</span><span>${sgn(data[5])} em 30 dias · clique para explorar</span>`;
+  tip.innerHTML=realStateRows?`<b>${UF_NAMES[data[0]]}</b><span>${fmtN(data[4])} processos monitorados</span><span>${fmtMi(data[3]*1e9)} em valor estimado conhecido</span><span>${data[4]?'clique para explorar':'aguardando cobertura do coletor'}</span>`:
+    `<b>${UF_NAMES[data[0]]}</b><span>${fmtN(data[4])} processos abertos</span><span>R$ ${data[3].toLocaleString('pt-BR',{maximumFractionDigits:1})} bi estimados</span><span>${sgn(data[5])} em 30 dias · clique para explorar</span>`;
   tip.style.left=Math.min(e.clientX-box.left+14,box.width-210)+'px';tip.style.top=Math.min(e.clientY-box.top+12,box.height-86)+'px';tip.classList.add('on');
 });
 $('#hmGrid').addEventListener('pointerleave',()=>$('#mapTooltip')?.classList.remove('on'));
-function openStateExplorer(uf){
+async function openStateExplorer(uf){
   const e=ESTADOS.find(x=>x[0]===uf), layer=$('#stateExplorer');
+  layer.classList.add('on');layer.setAttribute('aria-hidden','false');$('#stateExplorerClose').focus();
+  if(realStateRows){
+    $('#stateExplorerTitle').textContent=`${UF_NAMES[uf]} · processos reais`;
+    $('#stateExplorerSub').textContent=`Carregando registros da base nacional…`;
+    $('#stateExplorerList').innerHTML='<div class="explorer-empty">Consultando a base da Bolsa…</div>';
+    try{
+      const response=await fetch(`/api/public/procurements?uf=${encodeURIComponent(uf)}&limit=50&sort=value`);
+      if(!response.ok)throw new Error('consulta indisponível');
+      const payload=await response.json();
+      $('#stateExplorerSub').textContent=`${fmtN(payload.total)} processos encontrados · ordenados por valor estimado`;
+      $('#stateExplorerList').innerHTML=payload.items.length?payload.items.map(realProcessRow).join(''):
+        `<div class="explorer-empty"><b>Nenhum processo coletado para ${UF_NAMES[uf]}.</b><br><span class="small">O estado passará a aparecer quando o coletor trouxer registros dessa região.</span></div>`;
+    }catch{
+      $('#stateExplorerSub').textContent='A base não respondeu agora';
+      $('#stateExplorerList').innerHTML='<div class="explorer-empty">Não foi possível carregar os processos. Tente novamente em instantes.</div>';
+    }
+    return;
+  }
   const matches=BLK_QUENTES.filter(o=>o.org.includes(`-${uf}`)||o.org.includes(`/${uf}`));
   $('#stateExplorerTitle').textContent=`${UF_NAMES[uf]} · processos em destaque`;
   $('#stateExplorerSub').textContent=`${fmtN(e[4])} processos abertos · R$ ${e[3].toLocaleString('pt-BR',{maximumFractionDigits:1})} bi estimados · recorte atual: 30 dias`;
   $('#stateExplorerList').innerHTML=matches.length?matches.map(o=>`<button class="explorer-result" data-goto="ficha"><span><b>${o.t}</b><small>${o.org} · ${o.proc} · abertura em ${o.abre}</small></span><span class="er-value">${fmtMi(o.v)}</span></button>`).join(''):
     `<div class="explorer-empty"><b>Nenhuma ficha demonstrativa preparada para ${UF_NAMES[uf]}.</b><br><span class="small">O mapa e o recorte estão funcionando; a lista será preenchida com os processos reais da base nacional.</span></div>`;
-  layer.classList.add('on');layer.setAttribute('aria-hidden','false');$('#stateExplorerClose').focus();
 }
 function closeStateExplorer(){const layer=$('#stateExplorer');layer.classList.remove('on');layer.setAttribute('aria-hidden','true');}
 $('#hmDrill').addEventListener('click',e=>{
@@ -1739,5 +1780,136 @@ $('#view-carteira').innerHTML=`
     <div class="p-foot">Fato ≠ inferência ≠ previsão: cada insight carrega sua classificação e evidências ao ser expandido.</div>
   </section>
 </div>`;
+
+/* ===================== DADOS REAIS: BASE NACIONAL ===================== */
+const formatDateTime=value=>{
+  if(!value)return '—';
+  const date=new Date(String(value).replace(' ','T'));
+  return Number.isNaN(date.getTime())?esc(value):date.toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'});
+};
+const formatDate=value=>{
+  if(!value)return '—';
+  const date=new Date(value);
+  return Number.isNaN(date.getTime())?esc(value):date.toLocaleDateString('pt-BR');
+};
+const deadlineLabel=value=>{
+  if(!value)return 'prazo não informado';
+  const ms=new Date(value).getTime()-Date.now();
+  if(Number.isNaN(ms))return formatDate(value);
+  const days=Math.ceil(ms/86400000);
+  return days<0?'prazo encerrado':days===0?'encerra hoje':`encerra em ${days}d`;
+};
+function realProcessRow(p){
+  return `<button class="explorer-result" data-real-id="${Number(p.id)}"><span><b>${esc(p.object||'Objeto não informado')}</b><small>${esc(p.organization_name||p.purchasing_unit_name||'Órgão não informado')} · ${esc(p.city_name||'—')}/${esc(p.state_code||'—')} · ${esc(p.pncp_control_number||p.process_number||'sem identificador')}</small><small>${esc(p.modality_name||'—')} · ${deadlineLabel(p.proposal_end)} · ${Number(p.items_count||0)} itens · ${Number(p.documents_count||0)} documentos</small></span><span class="er-value">${fmtMi(Number(p.estimated_value||0))}</span></button>`;
+}
+function realPanelRow(p,secondary){
+  return `<button class="opp-row" data-real-id="${Number(p.id)}" style="width:100%;text-align:left;color:inherit"><div class="opp-main"><div class="opp-t">${esc(p.object||'Objeto não informado')}</div><div class="opp-s">${esc(p.organization_name||'Órgão não informado')} · ${esc(p.city_name||'—')}/${esc(p.state_code||'—')} · ${esc(p.pncp_control_number||'—')}</div></div><div class="opp-fig"><b>${fmtMi(Number(p.estimated_value||0))}</b><span>${esc(secondary||deadlineLabel(p.proposal_end))}</span></div><span class="pill ok">REAL</span></button>`;
+}
+function applyRealSummary(summary){
+  const last=formatDateTime(summary.last_collected_at);
+  $('#briefBox').innerHTML=`<h2>Mercado real na <span class="amber-c">Bolsa</span></h2><p>Visão produzida exclusivamente a partir dos registros gravados na nossa base nacional. Última atualização: ${last}.</p><div class="fn">
+    ${[[summary.procurements,'processos públicos monitorados','f0',100],[summary.organizations,'órgãos compradores identificados','f1',82],[summary.contracts,'contratos públicos relacionados','f2',68],[summary.items,'itens estruturados','f3',54],[summary.documents,'documentos encontrados','f4',40],[summary.suppliers,'fornecedores públicos identificados','f5',26]].map(r=>`<div class="fn-row"><div class="fn-n">${fmtN(r[0])}</div><div class="fn-track"><div class="fn-bar ${r[2]}" style="width:${r[3]}%"></div></div><div class="fn-t">${r[1]}</div></div>`).join('')}</div><div style="margin-top:12px"><span class="conf c-conf">CONFIRMADO</span> <span class="note">Nenhuma projeção ou score simulado entra neste resumo.</span></div>`;
+  const cards=[
+    ['Processos monitorados',fmtN(summary.procurements),'registros normalizados do PNCP'],
+    ['Valor estimado conhecido',fmtMi(summary.estimated_value),'soma apenas de valores publicados'],
+    ['Estados cobertos',fmtN(summary.states),'com processos presentes na base'],
+    ['Órgãos compradores',fmtN(summary.organizations),'entidades públicas identificadas'],
+    ['Contratos coletados',fmtN(summary.contracts),'contratos públicos relacionados'],
+    ['Itens e documentos',`${fmtN(summary.items)} · ${fmtN(summary.documents)}`,'itens estruturados · documentos'],
+  ];
+  $('#kpis').innerHTML=cards.map((k,i)=>`<button class="kpi${i===1?' hot':''}" data-real-kpi="${i}" style="grid-column:span 1;text-align:left;color:inherit"><div class="k-label">${k[0]}</div><div class="k-val">${k[1]}</div><div class="k-sub">${k[2]} · <span class="conf c-conf">REAL</span></div></button>`).join('');
+}
+function applyRealStates(states){
+  realStateRows=states;
+  const byCode=new Map(states.map(state=>[state.code,state]));
+  ESTADOS.forEach(state=>{
+    const real=byCode.get(state[0]);state[3]=Number(real?.estimated_value||0)/1e9;state[4]=Number(real?.procurements||0);
+  });
+  const maxValue=Math.max(.000001,...ESTADOS.map(e=>e[3])),maxProcesses=Math.max(1,...ESTADOS.map(e=>e[4]));
+  HM_MODES.splice(0,HM_MODES.length,
+    {id:'valor',n:'Valor',leg:'valor estimado conhecido na base',fmt:e=>fmtMi(e[3]*1e9),val:e=>e[3],lo:0,hi:maxValue},
+    {id:'proc',n:'Processos',leg:'processos atualmente monitorados',fmt:e=>fmtN(e[4]),val:e=>e[4],lo:0,hi:maxProcesses}
+  );
+  hmMode=HM_MODES[0];
+  $('#hmModes').innerHTML=HM_MODES.map(m=>`<button class="hm-mode${m===hmMode?' on':''}" data-m="${m.id}">${m.n}</button>`).join('');
+  if(states.length){hmSel=states[0].code;}
+  renderHeat();
+  $('#heatTitle').textContent='🌎 Cobertura real por estado';
+  $('#heatSubtitle').textContent='presença atual na base nacional';
+  const total=states.reduce((sum,s)=>sum+Number(s.procurements||0),0)||1;
+  $('#heatIndex').innerHTML=states.slice(0,8).map(s=>`<button class="hbar geo-row" data-map-state="${esc(s.code)}" style="grid-template-columns:minmax(90px,1.15fr) 2fr auto"><span>${esc(UF_NAMES[s.code]||s.name||s.code)}</span><span class="hb-track"><span class="hb-fill" style="display:block;width:${Math.max(4,s.procurements/total*100)}%;background:var(--info)"></span></span><span class="hb-val">${fmtN(s.procurements)} · ${fmtMi(s.estimated_value)}</span></button>`).join('')+'<div class="note" style="margin-top:8px">A ausência de cor significa que ainda não há registro coletado para o estado — não significa inexistência de licitações.</div>';
+  $('#heatIndex').addEventListener('click',e=>{const state=e.target.closest('[data-map-state]');if(state){hmSel=state.dataset.mapState;$('#filterUf').value=hmSel;renderHeat();openStateExplorer(hmSel);}});
+}
+function applyRealLists(recent,value,deadline){
+  $('#quentesTitle').textContent='🔄 Processos mais recentes';$('#quentesSubtitle').textContent='ordem de entrada na base';
+  $('#margensTitle').textContent='💰 Maiores valores publicados';$('#margensSubtitle').textContent='valor estimado confirmado';
+  $('#chanceTitle').textContent='⏱️ Prazos mais próximos';$('#chanceSubtitle').textContent='encerramento de propostas';
+  $('#blkQuentes').innerHTML=recent.length?recent.map(p=>realPanelRow(p,formatDate(p.source_created_at||p.collected_at))).join(''):'<div class="explorer-empty">Nenhum processo no recorte.</div>';
+  $('#blkMargens').innerHTML=value.length?value.map(p=>realPanelRow(p,`${p.items_count||0} itens · ${p.documents_count||0} docs`)).join(''):'<div class="explorer-empty">Nenhum valor informado no recorte.</div>';
+  $('#blkChance').innerHTML=deadline.length?deadline.map(p=>realPanelRow(p,deadlineLabel(p.proposal_end))).join(''):'<div class="explorer-empty">Nenhum prazo informado no recorte.</div>';
+}
+function applyRealSources(sources,states){
+  const items=sources.map(s=>({n:s.nome.toUpperCase(),ok:s.last_run_status==='SUCCESS'||s.status==='OPERANDO',v:s.last_records_seen||0,t:`${s.status} · último sucesso ${formatDateTime(s.ultima_coleta_sucesso)}`}));
+  const item=s=>`<span class="tk-item" title="${esc(s.t)}"><span class="tk-name">${esc(s.n)}</span><span class="tk-val ${s.ok?'up':'warn-c'}">${s.ok?'● OPERANDO':'▲ '+esc(s.v||'PENDENTE')}</span></span>`;
+  $('#tickerTrack').innerHTML=items.map(item).join('')+items.map(item).join('');
+  const operating=sources.filter(s=>s.last_run_status==='SUCCESS'||s.status==='OPERANDO').length;
+  const latest=[...sources].filter(s=>s.last_finished_at).sort((a,b)=>String(b.last_finished_at).localeCompare(String(a.last_finished_at)))[0];
+  $('.statusbar').innerHTML=`<span><span class="sb-dot"></span>BASE NACIONAL CONECTADA</span><span>${operating} fontes operando</span><span>${states.length} estados presentes</span><span>última execução ${formatDateTime(latest?.last_finished_at)}</span><span class="sb-demo" style="color:var(--up)">● TERMINAL COM DADOS REAIS · MÓDULOS F2–F6 AINDA EM DEMONSTRAÇÃO</span>`;
+}
+function installRealSearch(){
+  $('.ask .p-title').textContent='⌕ Pesquisar na base real';
+  const oldInput=$('#askInput'),oldButton=$('#askBtn'),newInput=oldInput.cloneNode(true),newButton=oldButton.cloneNode(true);
+  oldInput.replaceWith(newInput);oldButton.replaceWith(newButton);newInput.placeholder='Busque objeto, processo, órgão ou número PNCP…';
+  $('#askChips').innerHTML=['material','engenharia','internet','veículos'].map(q=>`<button class="chip" data-real-search="${q}">${q}</button>`).join('');
+  const submit=()=>{const q=newInput.value.trim();if(q)performRealSearch(q);};
+  newButton.addEventListener('click',submit);newInput.addEventListener('keydown',e=>{if(e.key==='Enter')submit();});
+  $('#askChips').addEventListener('click',e=>{const chip=e.target.closest('[data-real-search]');if(chip){newInput.value=chip.dataset.realSearch;performRealSearch(chip.dataset.realSearch);}});
+  const oldGlobal=$('#globalSearch'),newGlobal=oldGlobal.cloneNode(true);oldGlobal.replaceWith(newGlobal);
+  newGlobal.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.value.trim()){goView('terminal');performRealSearch(e.target.value.trim());}});
+}
+async function performRealSearch(q){
+  const target=$('#askResp');target.classList.add('on');target.innerHTML='<div class="ai-tag">◆ CONSULTANDO A BASE NACIONAL</div><div class="ai-txt">Pesquisando registros reais…</div>';
+  try{
+    const response=await fetch(`/api/public/procurements?q=${encodeURIComponent(q)}&limit=5&sort=recent`);if(!response.ok)throw new Error();
+    const data=await response.json();
+    target.innerHTML=`<div class="ai-tag">◆ RESULTADO CONFIRMADO NA BASE</div><div class="ai-txt">Encontrei <b>${fmtN(data.total)} processos</b> para “${esc(q)}” no universo atualmente coletado.</div>${data.items.map(p=>realProcessRow(p)).join('')||'<div class="note">Nenhum processo encontrado. A cobertura ainda está crescendo.</div>'}<div class="ask-src">CONFIRMADO — consulta feita na base própria da Bolsa; cada resultado mantém a fonte oficial.</div>`;
+  }catch{target.innerHTML='<div class="ai-tag">BASE TEMPORARIAMENTE INDISPONÍVEL</div><div class="ai-txt">Não consegui concluir a consulta agora. Tente novamente em instantes.</div>';}
+}
+async function refreshRealLists(){
+  const uf=$('#filterUf').value,segment=$('#filterSegment').value,period=$('#filterPeriod').value,status=$('#filterStatus').value;
+  const query=new URLSearchParams({limit:'6',period,status});if(uf)query.set('uf',uf);if(segment!=='Todos os segmentos')query.set('q',segment);
+  try{
+    const [recent,value,deadline]=await Promise.all(['recent','value','deadline'].map(async sort=>{const q=new URLSearchParams(query);q.set('sort',sort);const r=await fetch(`/api/public/procurements?${q}`);if(!r.ok)throw new Error();return (await r.json()).items;}));
+    applyRealLists(recent,value,deadline);
+  }catch{toast('<b>Não foi possível atualizar o recorte</b><small>A visualização anterior foi preservada.</small>');}
+}
+async function openProcurementDetail(id){
+  const layer=$('#stateExplorer');layer.classList.add('on');layer.setAttribute('aria-hidden','false');
+  $('#stateExplorerTitle').textContent='Ficha real da licitação';$('#stateExplorerSub').textContent='Carregando dados e proveniência…';$('#stateExplorerList').innerHTML='<div class="explorer-empty">Consultando a base nacional…</div>';
+  try{
+    const response=await fetch(`/api/public/procurements/${Number(id)}`);if(!response.ok)throw new Error();const data=await response.json(),p=data.procurement;
+    $('#stateExplorerTitle').textContent=p.pncp_control_number||p.process_number||'Licitação';
+    $('#stateExplorerSub').textContent=`${p.organization_name||p.purchasing_unit_name||'Órgão não informado'} · ${p.city_name||'—'}/${p.state_code||'—'}`;
+    const items=data.items.map(i=>`<div class="detail-item"><b>Item ${esc(i.item_number)} · ${esc(i.description||'Descrição não informada')}</b><small>${i.quantity??'—'} ${esc(i.unit||'')} · estimado: ${fmtMi(Number(i.estimated_total_value||0))}</small></div>`).join('')||'<div class="note">Itens ainda não coletados para este processo.</div>';
+    const docs=data.documents.map(d=>`<a class="source-link" href="${safeUrl(d.source_download_url)}" target="_blank" rel="noopener noreferrer"><span>${esc(d.original_name||d.document_type||'Documento')}</span><span>↗</span></a>`).join('')||'<div class="note">Documentos ainda não coletados para este processo.</div>';
+    const sources=data.sources.map(s=>`<a class="source-link" href="${safeUrl(s.source_url)}" target="_blank" rel="noopener noreferrer"><span>${esc(s.nome)} · coletado ${formatDateTime(s.collected_at)}</span><span>↗</span></a>`).join('')||'<div class="note">Fonte estruturada não informada.</div>';
+    $('#stateExplorerList').innerHTML=`<div class="real-detail"><div><span class="pill ok">CONFIRMADO</span> <span class="pill info">${esc(p.status_name||'situação não informada')}</span></div><div class="detail-section"><h3>Objeto</h3><p>${esc(p.object||'Objeto não informado')}</p></div><div class="detail-grid"><div class="detail-metric"><span>Valor estimado</span><b>${fmtMi(Number(p.estimated_value||0))}</b></div><div class="detail-metric"><span>Modalidade</span><b>${esc(p.modality_name||'—')}</b></div><div class="detail-metric"><span>Início das propostas</span><b>${formatDateTime(p.proposal_start)}</b></div><div class="detail-metric"><span>Fim das propostas</span><b>${formatDateTime(p.proposal_end)}</b></div></div><div class="detail-section"><h3>Itens (${data.items.length})</h3>${items}</div><div class="detail-section"><h3>Documentos (${data.documents.length})</h3>${docs}</div><div class="detail-section"><h3>Fontes e rastreabilidade</h3>${sources}</div></div>`;
+  }catch{$('#stateExplorerSub').textContent='Consulta indisponível';$('#stateExplorerList').innerHTML='<div class="explorer-empty">Não foi possível abrir esta ficha agora.</div>';}
+}
+document.addEventListener('click',e=>{const row=e.target.closest('[data-real-id]');if(row){e.preventDefault();openProcurementDetail(Number(row.dataset.realId));}});
+$('#applyFilters').addEventListener('click',()=>{if(realStateRows)refreshRealLists();});
+async function loadPublicDashboard(){
+  try{
+    const [summary,states,recent,value,deadline,sources]=await Promise.all([
+      fetch('/api/public/summary'),fetch('/api/public/states'),fetch('/api/public/procurements?limit=6&sort=recent'),fetch('/api/public/procurements?limit=6&sort=value'),fetch('/api/public/procurements?limit=6&sort=deadline'),fetch('/api/public/sources')
+    ].map(async responsePromise=>{const response=await responsePromise;if(!response.ok)throw new Error(`HTTP ${response.status}`);return response.json();}));
+    applyRealSummary(summary);applyRealStates(states);applyRealLists(recent.items,value.items,deadline.items);applyRealSources(sources,states);installRealSearch();
+    document.body.dataset.dataMode='real';
+  }catch(error){
+    console.warn('Base real indisponível; protótipo preservado.',error);
+    toast('<b>Base real temporariamente indisponível</b><small>A demonstração visual foi preservada enquanto tentamos novamente.</small>');
+  }
+}
+loadPublicDashboard();
 /* ===JS-END=== */
 </script>
