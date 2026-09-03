@@ -38,7 +38,7 @@ docker compose --env-file deploy/vps/.env -f deploy/vps/docker-compose.yml confi
 docker compose --env-file deploy/vps/.env -f deploy/vps/docker-compose.yml up -d --build
 ```
 
-O staging publica somente em loopback: API em `127.0.0.1:18120` e interface em `127.0.0.1:18121`. Nada fica exposto na internet até que um domínio seja escolhido e o proxy HTTPS compartilhado seja configurado conscientemente.
+O staging publica somente em loopback: API em `127.0.0.1:18120` e interface em `127.0.0.1:18121`. A rede bridge permite saída para as APIs oficiais, mas nenhum contêiner recebe porta pública. Nada fica exposto na internet até que um domínio seja escolhido e o proxy HTTPS compartilhado seja configurado conscientemente.
 
 ## Backfill
 

@@ -71,4 +71,3 @@ services:
 networks:
   internal:
     name: licita-es-internal
-    internal: true
