@@ -370,15 +370,20 @@ class SupabasePublicApi:
                 "itens", "numero_controle_pncp,numero_item,descricao,catalogo_codigo,material_ou_servico,"
                 "quantidade,unidade,valor_unitario_estimado,valor_total_estimado", loaded_ncps,
             )
+            loaded_documents = self._related_rows("documentos", "numero_controle_pncp", loaded_ncps)
             loaded_org_ids = sorted({str(row.get("orgao_cnpj")) for row in loaded_rows if row.get("orgao_cnpj")})
             loaded_orgs = self._organization_names(loaded_org_ids)
             loaded_vocabulary = [
                 *(str(row.get("objeto") or "") for row in loaded_rows),
                 *(str(item.get("descricao") or "") for item in loaded_items),
             ]
-            return loaded_rows, loaded_items, loaded_orgs, loaded_vocabulary
+            return (
+                loaded_rows, loaded_items, loaded_orgs, loaded_vocabulary,
+                Counter(str(item.get("numero_controle_pncp") or "") for item in loaded_items),
+                Counter(str(item.get("numero_controle_pncp") or "") for item in loaded_documents),
+            )
 
-        candidate_rows, item_rows, org_names, vocabulary = self._cached(dataset_key, 20, load_dataset)
+        candidate_rows, item_rows, org_names, vocabulary, corpus_item_counts, corpus_document_counts = self._cached(dataset_key, 20, load_dataset)
         items_by_ncp: dict[str, list[dict[str, Any]]] = defaultdict(list)
         for item in item_rows:
             items_by_ncp[str(item.get("numero_controle_pncp") or "")].append(item)
@@ -411,7 +416,10 @@ class SupabasePublicApi:
         page_rows = matched_rows[offset:offset + limit]
         terms = plan.retrieval_terms
         intent = plan.synonyms[0] if plan.synonyms else None
-        items = self._enrich_procurements(page_rows, query=text, terms=terms, search_mode=plan.mode, hits=hit_by_ncp)
+        items = self._enrich_procurements(
+            page_rows, query=text, terms=terms, search_mode=plan.mode, hits=hit_by_ncp,
+            item_counts_override=corpus_item_counts, document_counts_override=corpus_document_counts,
+        )
         facets = self._facets(
             filters, terms=terms, text=text, catalog_code=catalog_code, scope=query,
             rows_override=matched_rows, plan=plan if search_active else None,
@@ -517,12 +525,14 @@ class SupabasePublicApi:
     def _enrich_procurements(
         self, rows: list[dict[str, Any]], *, query: str = "", terms: Optional[list[str]] = None,
         search_mode: str = "balanced", hits: Optional[Mapping[str, SearchHit]] = None,
+        item_counts_override: Optional[Counter[str]] = None,
+        document_counts_override: Optional[Counter[str]] = None,
     ) -> list[dict[str, Any]]:
         ncps = [str(row.get("numero_controle_pncp")) for row in rows if row.get("numero_controle_pncp")]
         org_ids = sorted({str(row.get("orgao_cnpj")) for row in rows if row.get("orgao_cnpj")})
         org_names = self._organization_names(org_ids)
-        item_counts = self._related_counts("itens", ncps)
-        document_counts = self._related_counts("documentos", ncps)
+        item_counts = item_counts_override if item_counts_override is not None else self._related_counts("itens", ncps)
+        document_counts = document_counts_override if document_counts_override is not None else self._related_counts("documentos", ncps)
         result = []
         for row in rows:
             ncp = str(row.get("numero_controle_pncp") or "")
