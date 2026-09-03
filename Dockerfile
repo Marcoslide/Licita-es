@@ -9,6 +9,7 @@ WORKDIR /app
 COPY pyproject.toml README.md ./
 COPY migrations ./migrations
 COPY src ./src
+COPY scripts ./scripts
 
 RUN pip install --no-cache-dir . \
     && groupadd --gid 10001 licita \

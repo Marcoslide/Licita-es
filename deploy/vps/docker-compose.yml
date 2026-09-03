@@ -47,6 +47,23 @@ services:
       api:
         condition: service_healthy
 
+  health-updater:
+    <<: *backend
+    entrypoint: ["python", "/app/scripts/refresh_health_enrichment.py"]
+    command:
+      - "--output"
+      - "/runtime/data/health_enrichment.db"
+      - "--state"
+      - "/runtime/data/health_enrichment.state.json"
+      - "--first-year"
+      - "2023"
+      - "--interval-seconds"
+      - "${BOLSA_HEALTH_REFRESH_SECONDS:-86400}"
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+
   web:
     image: nginx:1.27-alpine
     depends_on:
