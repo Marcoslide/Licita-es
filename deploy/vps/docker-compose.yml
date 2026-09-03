@@ -57,6 +57,7 @@ services:
       - /var/run:size=1m
     volumes:
       - ../../index.html:/usr/share/nginx/html/index.html:ro
+      - ../../assets:/usr/share/nginx/html/assets:ro
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
     ports:
       - "127.0.0.1:18121:8080"

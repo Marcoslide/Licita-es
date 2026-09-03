@@ -88,6 +88,27 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 .tab .tno{font-family:var(--mono);font-size:10px;color:var(--dim);margin-right:6px}
 .tab.on .tno{color:var(--amber-dim)}
 
+/* ---------- control deck ---------- */
+.control-deck{display:flex;align-items:center;gap:10px;padding:9px 18px;background:#0a111e;
+  border-bottom:1px solid var(--line);position:sticky;top:55px;z-index:35;box-shadow:0 10px 28px rgba(0,0,0,.2)}
+.control-intro{display:flex;align-items:center;gap:9px;margin-right:4px;white-space:nowrap}
+.control-kicker{font:700 10px var(--mono);letter-spacing:1.2px;text-transform:uppercase;color:var(--amber)}
+.control-context{font:600 12px var(--sans)}
+.control-fields{display:flex;align-items:center;gap:7px;flex:1;min-width:0;overflow-x:auto;scrollbar-width:none}
+.control-field{display:flex;align-items:center;gap:6px;background:var(--panel2);border:1px solid var(--line2);
+  border-radius:6px;padding:0 9px;height:34px;white-space:nowrap}
+.control-field label{font:600 9px var(--mono);letter-spacing:.8px;text-transform:uppercase;color:var(--dim)}
+.control-field select{appearance:none;background:transparent;border:0;color:var(--ink);font:600 11px var(--sans);
+  padding:0 15px 0 0;outline:0;background-image:linear-gradient(45deg,transparent 50%,var(--mut) 50%),linear-gradient(135deg,var(--mut) 50%,transparent 50%);
+  background-position:calc(100% - 6px) 48%,calc(100% - 2px) 48%;background-size:4px 4px;background-repeat:no-repeat}
+.control-field select option{background:var(--panel2)}
+.view-depth{white-space:nowrap;height:34px;display:flex;align-items:center;gap:7px}
+.view-depth .depth-dot{width:7px;height:7px;border-radius:50%;background:var(--up);box-shadow:0 0 0 4px var(--up-bg)}
+body.focus-mode .depth-secondary{display:none}
+body.comfortable main.view{padding:22px 24px 40px}
+body.comfortable .panel .p-body{padding-top:17px;padding-bottom:17px}
+@media(max-width:980px){.control-deck{align-items:flex-start;flex-wrap:wrap;position:relative;top:auto}.control-fields{order:3;flex-basis:100%}}
+
 /* ---------- layout ---------- */
 main.view{display:none;padding:16px 18px 30px;flex:1}
 main.view.on{display:block}
@@ -112,6 +133,7 @@ main.view.on{display:block}
 
 /* ---------- KPI cards ---------- */
 .kpi{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px 14px;min-width:0}
+.kpi{transition:border-color .16s ease,transform .16s ease,background .16s ease}.kpi:hover{border-color:var(--amber-dim);background:var(--panel2);transform:translateY(-1px)}
 .k-label{font:600 10px var(--sans);letter-spacing:1.1px;text-transform:uppercase;color:var(--mut)}
 .k-val{font:700 24px/1.15 var(--mono);margin-top:4px;letter-spacing:-.5px}
 .k-val small{font-size:13px;font-weight:600;color:var(--mut)}
@@ -198,6 +220,36 @@ main.view.on{display:block}
 .hm-mode.on{color:#141005;background:var(--amber);border-color:var(--amber)}
 .hm-flex{display:flex;gap:14px;flex-wrap:wrap}
 .hm-map{flex:1 1 340px;min-width:300px}
+.hm-stage{position:relative;min-height:390px;border-radius:8px;overflow:hidden;
+  background:radial-gradient(circle at 45% 42%,rgba(45,212,191,.08),transparent 45%),#070d17;
+  border:1px solid rgba(36,52,79,.72)}
+.hm-stage::before{content:"";position:absolute;inset:0;pointer-events:none;opacity:.22;
+  background-image:linear-gradient(rgba(96,165,250,.12) 1px,transparent 1px),linear-gradient(90deg,rgba(96,165,250,.12) 1px,transparent 1px);
+  background-size:32px 32px}
+.br-map{position:relative;width:100%;height:auto;min-height:390px;display:block;filter:drop-shadow(0 18px 28px rgba(0,0,0,.32))}
+.br-state{stroke:#09111f;stroke-width:1.15;vector-effect:non-scaling-stroke;cursor:pointer;transition:filter .16s ease,opacity .16s ease,stroke .16s ease}
+.br-state:hover,.br-state:focus{filter:brightness(1.22);stroke:#f8fafc;stroke-width:2;outline:none}
+.br-state.sel{stroke:var(--amber);stroke-width:3;filter:brightness(1.12) drop-shadow(0 0 6px rgba(255,176,32,.45))}
+.br-label{font:700 9px var(--mono);fill:#07101b;text-anchor:middle;dominant-baseline:central;pointer-events:none}
+.br-label.light{fill:#edf5ff;text-shadow:0 1px 2px #000}
+.map-tooltip{position:absolute;display:none;z-index:4;pointer-events:none;min-width:190px;padding:9px 11px;
+  border-radius:6px;background:rgba(7,12,22,.96);border:1px solid var(--line2);box-shadow:0 14px 35px rgba(0,0,0,.4)}
+.map-tooltip.on{display:block}.map-tooltip b{display:block;font:700 12px var(--disp);margin-bottom:3px}
+.map-tooltip span{display:block;font:500 10px/1.55 var(--mono);color:var(--mut)}
+.map-loading{position:absolute;inset:0;display:grid;place-items:center;color:var(--mut);font:600 11px var(--mono);letter-spacing:.6px}
+.geo-row{width:100%;display:flex;align-items:center;gap:8px;padding:6px 7px;border-radius:5px;text-align:left;color:var(--ink)}
+.geo-row:hover{background:var(--panel2);color:var(--amber)}.geo-row .geo-val{margin-left:auto;font:600 10.5px var(--mono);color:var(--mut)}
+.explorer-layer{position:fixed;inset:0;display:none;z-index:90;background:rgba(2,6,12,.68);backdrop-filter:blur(3px)}
+.explorer-layer.on{display:block}.explorer-panel{position:absolute;right:0;top:0;height:100%;width:min(560px,94vw);
+  background:#09111e;border-left:1px solid var(--line2);box-shadow:-24px 0 70px rgba(0,0,0,.5);display:flex;flex-direction:column}
+.explorer-head{padding:18px 20px 14px;border-bottom:1px solid var(--line);display:flex;align-items:flex-start;gap:12px}
+.explorer-head h2{margin:2px 0 3px;font:700 19px var(--disp)}.explorer-head p{margin:0;color:var(--mut);font-size:12px}
+.explorer-close{margin-left:auto;width:34px;height:34px;border:1px solid var(--line2);border-radius:6px;background:var(--panel2)}
+.explorer-close:hover{color:var(--amber);border-color:var(--amber-dim)}.explorer-tools{padding:12px 20px;border-bottom:1px solid var(--line);display:flex;gap:6px;flex-wrap:wrap}
+.explorer-list{padding:14px 20px 30px;overflow:auto}.explorer-result{width:100%;display:grid;grid-template-columns:1fr auto;gap:8px;
+  padding:13px 12px;margin-bottom:8px;border-radius:7px;border:1px solid var(--line);background:var(--panel2);text-align:left}
+.explorer-result:hover{border-color:var(--amber-dim);transform:translateX(-2px)}.explorer-result b{font-size:13px}.explorer-result small{display:block;color:var(--mut);margin-top:3px}
+.explorer-result .er-value{font:700 12px var(--mono);color:var(--amber);white-space:nowrap}.explorer-empty{padding:24px;border:1px dashed var(--line2);border-radius:8px;color:var(--mut);text-align:center}
 .hm-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;max-width:480px}
 .hm-tile{aspect-ratio:1;border-radius:4px;display:flex;flex-direction:column;align-items:center;
   justify-content:center;gap:1px;cursor:pointer;border:1px solid rgba(255,255,255,.06);
@@ -385,9 +437,9 @@ main.view.on{display:block}
         <div class="brand-sub">Terminal · Mercado Público</div>
       </div>
     </div>
-    <button class="tb-co" title="Conta multiempresa — trocar CNPJ operado (dados isolados por empresa)">
+    <button class="tb-co" title="Escopo atual da exploração do mercado público">
       <span class="co-dot"></span>
-      <div><b>PrimeMed Distribuidora</b><br><span>CNPJ 12.345.678/0001-90 · Medicamentos e mat. hospitalar</span></div>
+      <div><b>Mercado Público Nacional</b><br><span>Brasil · PNCP + Compras.gov · dados públicos</span></div>
       <span class="mut">▾</span>
     </button>
     <div class="tb-search">
@@ -395,7 +447,7 @@ main.view.on{display:block}
       <input id="globalSearch" type="search" placeholder="Busca global — processos, órgãos, objetos, concorrentes, CATMAT… (Enter)">
     </div>
     <div class="tb-right">
-      <div class="tb-live"><span class="pulse"></span>MERCADO ATIVO</div>
+      <div class="tb-live"><span class="pulse"></span>OBSERVATÓRIO ATIVO</div>
       <div class="tb-clock"><span id="clock">--:--:--</span><small id="clockDate"></small></div>
       <button class="tb-bell" id="bellBtn" title="Notificações e alertas">🔔<span class="badge">7</span></button>
       <div class="tb-user" title="marcos@primemed.com.br · Perfil: Licitações">MP</div>
@@ -417,6 +469,18 @@ main.view.on{display:block}
     <button class="tab" data-view="docs"><span class="tno">F5</span>Central de Documentação</button>
     <button class="tab" data-view="carteira"><span class="tno">F6</span>Carteira</button>
   </nav>
+
+  <section class="control-deck" aria-label="Controles da visão de mercado">
+    <div class="control-intro"><span class="control-kicker">Explorar</span><span class="control-context" id="controlContext">Brasil · mercado completo</span></div>
+    <div class="control-fields">
+      <div class="control-field"><label for="filterPeriod">Período</label><select id="filterPeriod"><option>Hoje</option><option>7 dias</option><option selected>30 dias</option><option>12 meses</option></select></div>
+      <div class="control-field"><label for="filterUf">Região</label><select id="filterUf"><option value="">Brasil inteiro</option></select></div>
+      <div class="control-field"><label for="filterSegment">Mercado</label><select id="filterSegment"><option>Todos os segmentos</option><option>Medicamentos</option><option>Material hospitalar</option><option>Construção</option><option>Tecnologia</option><option>Alimentação</option></select></div>
+      <div class="control-field"><label for="filterStatus">Situação</label><select id="filterStatus"><option>Oportunidades abertas</option><option>Publicadas hoje</option><option>Resultados</option><option>Contratos</option><option>Desertas e fracassadas</option></select></div>
+      <button class="btn primary" id="applyFilters">Atualizar visão</button>
+    </div>
+    <button class="btn view-depth" id="viewDepth" aria-pressed="false"><span class="depth-dot"></span><span>Visão completa</span></button>
+  </section>
 
   <!-- ===================== VIEW: TERMINAL ===================== -->
   <main class="view on" id="view-terminal">
@@ -442,13 +506,13 @@ main.view.on{display:block}
         <div class="p-body">
           <div class="hm-flex">
             <div class="hm-map">
-              <div class="hm-grid" id="hmGrid"></div>
+              <div class="hm-stage" id="hmGrid"><div class="map-loading">Carregando malha oficial do Brasil…</div><div class="map-tooltip" id="mapTooltip"></div></div>
               <div class="hm-legend"><span id="hmLegMin">frio</span><div class="hm-lgbar"></div><span id="hmLegMax">quente</span><span class="mut" id="hmLegDesc"></span></div>
             </div>
             <div class="hm-drill" id="hmDrill"></div>
           </div>
         </div>
-        <div class="p-foot">Drill-down: Brasil → Estado → Cidade → Órgão → Licitação. Clique em um estado para detalhar.</div>
+        <div class="p-foot">Drill-down: Brasil → Estado → Cidade → Órgão → Licitação. Clique em um estado para detalhar. Malha geográfica: IBGE.</div>
       </section>
 
       <section class="panel c5">
@@ -470,49 +534,49 @@ main.view.on{display:block}
         <div class="p-body flush" id="blkChance"></div>
       </section>
 
-      <section class="panel c4">
+      <section class="panel c4 depth-secondary">
         <div class="p-head"><span class="p-title">💎 Oportunidades Escondidas</span><span class="p-sub">desertas · fracassadas · baixa disputa</span></div>
         <div class="p-body flush" id="blkEscondidas"></div>
       </section>
-      <section class="panel c4">
+      <section class="panel c4 depth-secondary">
         <div class="p-head"><span class="p-title">⚡ Urgentes</span><span class="p-sub">abertura nas próximas horas</span></div>
         <div class="p-body flush" id="blkUrgentes"></div>
       </section>
-      <section class="panel c4">
+      <section class="panel c4 depth-secondary">
         <div class="p-head"><span class="p-title">🔮 Próximas Compras Previstas</span><span class="p-sub">PCA · contratos e atas vencendo · recompra</span></div>
         <div class="p-body flush" id="blkFuturas"></div>
         <div class="p-foot">Previsões probabilísticas <span class="conf c-prev" title="PREVISTO — estimativa estatística baseada em evidências; não é certeza">PREVISTO</span> — cada card mostra as evidências.</div>
       </section>
 
-      <section class="panel c3">
+      <section class="panel c3 depth-secondary">
         <div class="p-head"><span class="p-title">📈 Aquecendo</span></div>
         <div class="p-body" id="blkAquecendo"></div>
       </section>
-      <section class="panel c3">
+      <section class="panel c3 depth-secondary">
         <div class="p-head"><span class="p-title">📉 Esfriando</span></div>
         <div class="p-body" id="blkEsfriando"></div>
       </section>
-      <section class="panel c6">
+      <section class="panel c6 depth-secondary">
         <div class="p-head"><span class="p-title">👀 Minha Watchlist</span><span class="p-sub">mercados monitorados</span>
           <div class="p-tools"><button class="btn small" style="padding:3px 10px;font-size:11px">+ Monitorar</button></div>
         </div>
         <div class="p-body flush" id="blkWatchlist"></div>
       </section>
 
-      <section class="panel c4">
+      <section class="panel c4 depth-secondary">
         <div class="p-head"><span class="p-title">🚨 Alertas Críticos</span></div>
         <div class="p-body flush" id="blkAlertas"></div>
       </section>
-      <section class="panel c4">
+      <section class="panel c4 depth-secondary">
         <div class="p-head"><span class="p-title">📅 Agenda de Sessões</span><span class="p-sub">próximos 7 dias</span></div>
         <div class="p-body flush" id="blkAgenda"></div>
       </section>
-      <section class="panel c4">
+      <section class="panel c4 depth-secondary">
         <div class="p-head"><span class="p-title">⏳ Contratos Vencendo</span><span class="p-sub">radar de renovação</span></div>
         <div class="p-body flush" id="blkContratos"></div>
       </section>
 
-      <section class="panel c12">
+      <section class="panel c12 depth-secondary">
         <div class="p-head"><span class="p-title">💼 Carteira da Empresa</span><span class="p-sub">resumo do pipeline</span>
           <div class="p-tools"><button class="btn" data-goto="carteira" style="padding:3px 10px;font-size:11px">Abrir carteira →</button></div>
         </div>
@@ -545,6 +609,14 @@ main.view.on{display:block}
     <span title="A tecnologia trabalha. A pessoa decide.">⚙ 6 motores de inteligência em execução</span>
     <span class="sb-demo">▲ PROTÓTIPO — DADOS SIMULADOS PARA DEMONSTRAÇÃO</span>
   </footer>
+
+  <div class="explorer-layer" id="stateExplorer" aria-hidden="true">
+    <aside class="explorer-panel" role="dialog" aria-modal="true" aria-labelledby="stateExplorerTitle">
+      <div class="explorer-head"><div><span class="control-kicker">Explorador geográfico</span><h2 id="stateExplorerTitle">Processos por estado</h2><p id="stateExplorerSub"></p></div><button class="explorer-close" id="stateExplorerClose" aria-label="Fechar explorador">✕</button></div>
+      <div class="explorer-tools"><span class="pill info">DEMONSTRAÇÃO NAVEGÁVEL</span><span class="pill neu">ABERTAS</span><span class="pill neu">30 DIAS</span></div>
+      <div class="explorer-list" id="stateExplorerList"></div>
+    </aside>
+  </div>
 
   <div class="toast-wrap" id="toasts"></div>
 </div>
@@ -654,6 +726,8 @@ const ESTADOS=[
   ['RS',2,7,4.5,2980,6,37,6.9,11.9],
 ];
 const CAPITAIS={RR:'Boa Vista',AP:'Macapá',AM:'Manaus',PA:'Belém',MA:'São Luís',CE:'Fortaleza',RN:'Natal',AC:'Rio Branco',RO:'Porto Velho',MT:'Cuiabá',TO:'Palmas',PI:'Teresina',PB:'João Pessoa',MS:'Campo Grande',GO:'Goiânia',BA:'Salvador',PE:'Recife',SP:'São Paulo',DF:'Brasília',MG:'Belo Horizonte',AL:'Maceió',PR:'Curitiba',RJ:'Rio de Janeiro',ES:'Vitória',SE:'Aracaju',SC:'Florianópolis',RS:'Porto Alegre'};
+const UF_NAMES={AC:'Acre',AL:'Alagoas',AP:'Amapá',AM:'Amazonas',BA:'Bahia',CE:'Ceará',DF:'Distrito Federal',ES:'Espírito Santo',GO:'Goiás',MA:'Maranhão',MT:'Mato Grosso',MS:'Mato Grosso do Sul',MG:'Minas Gerais',PA:'Pará',PB:'Paraíba',PR:'Paraná',PE:'Pernambuco',PI:'Piauí',RJ:'Rio de Janeiro',RN:'Rio Grande do Norte',RS:'Rio Grande do Sul',RO:'Rondônia',RR:'Roraima',SC:'Santa Catarina',SP:'São Paulo',SE:'Sergipe',TO:'Tocantins'};
+const IBGE_UF={'11':'RO','12':'AC','13':'AM','14':'RR','15':'PA','16':'AP','17':'TO','21':'MA','22':'PI','23':'CE','24':'RN','25':'PB','26':'PE','27':'AL','28':'SE','29':'BA','31':'MG','32':'ES','33':'RJ','35':'SP','41':'PR','42':'SC','43':'RS','50':'MS','51':'MT','52':'GO','53':'DF'};
 const HM_MODES=[
   {id:'valor',n:'Valor',leg:'valor estimado publicado (R$)',fmt:e=>'R$'+e[3].toLocaleString('pt-BR',{maximumFractionDigits:1})+'bi',val:e=>e[3],lo:.2,hi:18.4},
   {id:'proc',n:'Processos',leg:'nº de processos abertos',fmt:e=>fmtN(e[4]),val:e=>e[4],lo:214,hi:9840},
@@ -784,6 +858,7 @@ const ASK_CHIPS=[
   'Contratos de ceftriaxona vencendo em 180 dias',
 ];
 /* ===================== RENDER: SHELL ===================== */
+document.body.classList.add('focus-mode');
 function renderClock(){
   const d=new Date();
   $('#clock').textContent=d.toLocaleTimeString('pt-BR');
@@ -807,6 +882,24 @@ $('#globalSearch').addEventListener('keydown',e=>{
     else toast(`<b>Busca global</b><small>No protótipo, experimente: "ceftriaxona", "seringa" ou "medfarma"</small>`);
   }
 });
+
+/* controles da visão: o usuário escolhe o recorte e a densidade da tela */
+$('#filterUf').innerHTML+=[...ESTADOS].sort((a,b)=>UF_NAMES[a[0]].localeCompare(UF_NAMES[b[0]],'pt-BR'))
+  .map(e=>`<option value="${e[0]}">${UF_NAMES[e[0]]}</option>`).join('');
+$('#viewDepth').addEventListener('click',e=>{
+  const expanded=document.body.classList.toggle('focus-mode')===false;
+  e.currentTarget.setAttribute('aria-pressed',String(expanded));
+  e.currentTarget.querySelector('span:last-child').textContent=expanded?'Visão essencial':'Visão completa';
+  toast(expanded?'<b>Visão completa ativada</b><small>Todos os radares e painéis operacionais estão visíveis.</small>':'<b>Visão essencial ativada</b><small>Somente os sinais necessários para decidir agora.</small>');
+});
+$('#applyFilters').addEventListener('click',()=>{
+  const uf=$('#filterUf').value, period=$('#filterPeriod').value, segment=$('#filterSegment').value, status=$('#filterStatus').value;
+  if(uf){hmSel=uf;renderHeat();}
+  $('#controlContext').textContent=`${uf?UF_NAMES[uf]:'Brasil'} · ${period.toLowerCase()} · ${segment.replace('Todos os segmentos','todos os mercados')}`;
+  toast(`<b>Visão atualizada</b><small>${uf?UF_NAMES[uf]:'Brasil inteiro'} · ${period} · ${segment} · ${status}. Protótipo visual: os números continuam identificados como simulados.</small>`);
+  document.querySelector('#hmGrid').scrollIntoView({behavior:'smooth',block:'center'});
+});
+$('#filterUf').addEventListener('change',e=>{if(e.target.value){hmSel=e.target.value;renderHeat();}});
 
 /* ticker (conteúdo duplicado para loop contínuo) */
 (function(){
@@ -853,13 +946,18 @@ $('#askChips').addEventListener('click',e=>{
 });
 
 /* KPIs */
-$('#kpis').innerHTML=KPIS.map(k=>`<div class="kpi${k.hot?' hot':''}" ${k.t?`title="${k.t}"`:''} style="grid-column:span 1">
+$('#kpis').innerHTML=KPIS.map((k,i)=>`<button class="kpi${k.hot?' hot':''}" data-kpi="${i}" ${k.t?`title="${k.t}"`:''} style="grid-column:span 1;text-align:left;color:inherit">
   <div class="k-label">${k.l}</div><div class="k-val">${k.v}</div>
-  <div class="k-sub">${k.s}${k.d?` · <span class="k-delta ${k.dc||'up'}">${k.d}</span>`:''}</div></div>`).join('');
+  <div class="k-sub">${k.s}${k.d?` · <span class="k-delta ${k.dc||'up'}">${k.d}</span>`:''}</div></button>`).join('');
 $('#kpis').style.gridTemplateColumns='repeat(auto-fit,minmax(170px,1fr))';
+$('#kpis').addEventListener('click',e=>{
+  const card=e.target.closest('[data-kpi]');if(!card)return;
+  const k=KPIS[Number(card.dataset.kpi)];
+  toast(`<b>${k.l}: ${k.v}</b><small>${k.s}${k.d?' · '+k.d:''}. O painel detalhado usará o mesmo recorte dos filtros globais.</small>`);
+});
 
-/* heatmap */
-let hmMode=HM_MODES[0], hmSel='MG';
+/* heatmap geográfico: malha oficial do IBGE, com dados do protótipo por UF */
+let hmMode=HM_MODES[0], hmSel='MG', mapGeo=null;
 $('#hmModes').innerHTML=HM_MODES.map(m=>`<button class="hm-mode${m===hmMode?' on':''}" data-m="${m.id}">${m.n}</button>`).join('');
 $('#hmModes').addEventListener('click',e=>{
   const b=e.target.closest('.hm-mode');if(!b)return;
@@ -868,20 +966,37 @@ $('#hmModes').addEventListener('click',e=>{
   renderHeat();
 });
 function renderHeat(){
-  const cols=7,rows=8;
-  const cells=Array.from({length:cols*rows},()=>null);
-  ESTADOS.forEach(e=>{cells[e[2]*cols+e[1]]=e;});
-  $('#hmGrid').innerHTML=cells.map(e=>{
-    if(!e)return '<div class="hm-tile hm-empty"></div>';
-    const t=(hmMode.val(e)-hmMode.lo)/((hmMode.hi-hmMode.lo)||1);
-    const bg=heatColor(t), dark=t>.55;
-    return `<div class="hm-tile${e[0]===hmSel?' sel':''}" data-uf="${e[0]}" role="button" tabindex="0"
-      style="background:${bg};color:${dark?'#10131b':'#dce6f5'}"
-      title="${e[0]} — ${fmtN(e[4])} processos · R$ ${e[3].toLocaleString('pt-BR')} bi · ${sgn(e[5])} · ${e[6]} compatíveis">
-      <span class="hm-uf">${e[0]}</span><span class="hm-v">${hmMode.fmt(e)}</span></div>`;
+  if(!mapGeo){renderTileFallback();return;}
+  const W=500,H=450,pad=18,minLon=-74.1,maxLon=-34.5,minLat=-34,maxLat=5.4;
+  const project=([lon,lat])=>[pad+(lon-minLon)/(maxLon-minLon)*(W-pad*2),pad+(maxLat-lat)/(maxLat-minLat)*(H-pad*2)];
+  const rings=g=>g.type==='Polygon'?g.coordinates:g.coordinates.flat();
+  const ringPath=r=>r.map((p,i)=>{const [x,y]=project(p);return `${i?'L':'M'}${x.toFixed(1)},${y.toFixed(1)}`;}).join('')+'Z';
+  const features=mapGeo.features.map(f=>{
+    const uf=IBGE_UF[String(f.properties.codarea)], e=ESTADOS.find(x=>x[0]===uf);if(!e)return '';
+    const rs=rings(f.geometry), path=rs.map(ringPath).join('');
+    const main=rs.reduce((a,r)=>r.length>a.length?r:a,[]), pts=main.map(project);
+    const xs=pts.map(p=>p[0]),ys=pts.map(p=>p[1]),cx=(Math.min(...xs)+Math.max(...xs))/2,cy=(Math.min(...ys)+Math.max(...ys))/2;
+    const t=(hmMode.val(e)-hmMode.lo)/((hmMode.hi-hmMode.lo)||1), fill=heatColor(t);
+    return `<path class="br-state hm-region${uf===hmSel?' sel':''}" data-uf="${uf}" d="${path}" fill="${fill}" fill-rule="evenodd" tabindex="0" role="button" aria-label="${UF_NAMES[uf]}: ${hmMode.fmt(e)} em ${hmMode.n.toLowerCase()}"></path>
+      <text class="br-label${t<.46?' light':''}" x="${cx.toFixed(1)}" y="${cy.toFixed(1)}">${uf}</text>`;
   }).join('');
+  $('#hmGrid').innerHTML=`<svg class="br-map" viewBox="0 0 ${W} ${H}" role="group" aria-label="Mapa interativo do Brasil por estado">${features}</svg><div class="map-tooltip" id="mapTooltip"></div>`;
   $('#hmLegDesc').textContent='· métrica: '+hmMode.leg;
   renderDrill();
+}
+function renderTileFallback(){
+  $('#hmGrid').innerHTML='<div class="map-loading">Preparando mapa geográfico do Brasil…</div><div class="map-tooltip" id="mapTooltip"></div>';
+  $('#hmLegDesc').textContent='· métrica: '+hmMode.leg;
+  renderDrill();
+}
+async function loadBrazilMap(){
+  try{
+    const response=await fetch('assets/brasil-estados.geojson');
+    if(!response.ok)throw new Error('malha indisponível');
+    mapGeo=await response.json();renderHeat();
+  }catch(err){
+    $('#hmGrid').innerHTML='<div class="map-loading">Não foi possível carregar a malha geográfica. Recarregue a página.</div>';
+  }
 }
 function renderDrill(){
   const e=ESTADOS.find(x=>x[0]===hmSel);if(!e)return;
@@ -892,7 +1007,7 @@ function renderDrill(){
     :[[`Secretaria de Saúde — ${e[0]}`,'—'],[`Secretaria de Educação — ${e[0]}`,'—'],[`Prefeitura de ${cap}`,'—'],[`Tribunal de Justiça — ${e[0]}`,'—']];
   const hot=e[5]>=25?['MUITO AQUECIDO','#ef4444']:e[5]>=12?['AQUECIDO','#ffb020']:e[5]>=5?['NEUTRO','#0ea5a3']:['FRIO','#1d4ed8'];
   $('#hmDrill').innerHTML=`
-    <h3>${e[0]} — ${cap}<span class="heat-tag" style="background:${hot[1]}22;color:${hot[1]}">${hot[0]}</span></h3>
+    <h3>${UF_NAMES[e[0]]}<span class="heat-tag" style="background:${hot[1]}22;color:${hot[1]}">${hot[0]}</span></h3>
     <div class="kv"><span class="mut">Processos abertos</span><b>${fmtN(e[4])}</b></div>
     <div class="kv"><span class="mut">Valor estimado</span><b>R$ ${e[3].toLocaleString('pt-BR',{maximumFractionDigits:1})} bi</b></div>
     <div class="kv"><span class="mut">Crescimento (30d)</span><b class="${cls(e[5])}">${sgn(e[5])}</b></div>
@@ -900,19 +1015,43 @@ function renderDrill(){
     <div class="kv"><span class="mut">Concorrência média</span><b>${e[7].toLocaleString('pt-BR',{maximumFractionDigits:1})} licitantes</b></div>
     <div class="kv"><span class="mut">Margem estimada média</span><b>${pct(e[8],1)} ${confBadge.CALC}</b></div>
     <h4>Cidades mais aquecidas</h4>
-    ${cidades.map(c=>`<div class="hbar"><span>${c[0]}</span><div class="hb-track"><div class="hb-fill" style="width:${c[1]}%;background:var(--amber)"></div></div><span class="hb-val">${c[1]}%</span></div>`).join('')}
+    ${cidades.map(c=>`<button class="geo-row" data-geo="${c[0]}"><span>◎</span><span>${c[0]}</span><span class="geo-val">${c[1]}% do calor estadual</span></button>`).join('')}
     <h4>Principais compradores</h4>
-    ${orgs.map(o=>`<div class="kv"><span>${o[0]}</span><b class="mut">${o[1]}</b></div>`).join('')}
-    ${e[0]==='MG'?'<div style="margin-top:10px"><button class="btn" data-goto="ficha">Ver oportunidade prioritária em MG →</button></div>':''}`;
+    ${orgs.map(o=>`<button class="geo-row" data-geo="${o[0]}"><span>⌂</span><span>${o[0]}</span><span class="geo-val">${o[1]}</span></button>`).join('')}
+    <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap"><button class="btn primary" data-open-state="${e[0]}">Explorar ${fmtN(e[4])} processos →</button>${e[0]==='MG'?'<button class="btn" data-goto="ficha">Abrir destaque de MG</button>':''}</div>`;
 }
 $('#hmGrid').addEventListener('click',e=>{
-  const t=e.target.closest('.hm-tile');if(t&&t.dataset.uf){hmSel=t.dataset.uf;renderHeat();}
+  const t=e.target.closest('.hm-region');if(t&&t.dataset.uf){hmSel=t.dataset.uf;$('#filterUf').value=hmSel;renderHeat();}
 });
 $('#hmGrid').addEventListener('keydown',e=>{
-  const t=e.target.closest('.hm-tile');
-  if(t&&t.dataset.uf&&(e.key==='Enter'||e.key===' ')){e.preventDefault();hmSel=t.dataset.uf;renderHeat();}
+  const t=e.target.closest('.hm-region');
+  if(t&&t.dataset.uf&&(e.key==='Enter'||e.key===' ')){e.preventDefault();hmSel=t.dataset.uf;$('#filterUf').value=hmSel;renderHeat();}
 });
-renderHeat();
+$('#hmGrid').addEventListener('pointermove',e=>{
+  const t=e.target.closest('.hm-region'),tip=$('#mapTooltip');if(!t||!tip){if(tip)tip.classList.remove('on');return;}
+  const data=ESTADOS.find(x=>x[0]===t.dataset.uf), box=$('#hmGrid').getBoundingClientRect();
+  tip.innerHTML=`<b>${UF_NAMES[data[0]]}</b><span>${fmtN(data[4])} processos abertos</span><span>R$ ${data[3].toLocaleString('pt-BR',{maximumFractionDigits:1})} bi estimados</span><span>${sgn(data[5])} em 30 dias · clique para explorar</span>`;
+  tip.style.left=Math.min(e.clientX-box.left+14,box.width-210)+'px';tip.style.top=Math.min(e.clientY-box.top+12,box.height-86)+'px';tip.classList.add('on');
+});
+$('#hmGrid').addEventListener('pointerleave',()=>$('#mapTooltip')?.classList.remove('on'));
+function openStateExplorer(uf){
+  const e=ESTADOS.find(x=>x[0]===uf), layer=$('#stateExplorer');
+  const matches=BLK_QUENTES.filter(o=>o.org.includes(`-${uf}`)||o.org.includes(`/${uf}`));
+  $('#stateExplorerTitle').textContent=`${UF_NAMES[uf]} · processos em destaque`;
+  $('#stateExplorerSub').textContent=`${fmtN(e[4])} processos abertos · R$ ${e[3].toLocaleString('pt-BR',{maximumFractionDigits:1})} bi estimados · recorte atual: 30 dias`;
+  $('#stateExplorerList').innerHTML=matches.length?matches.map(o=>`<button class="explorer-result" data-goto="ficha"><span><b>${o.t}</b><small>${o.org} · ${o.proc} · abertura em ${o.abre}</small></span><span class="er-value">${fmtMi(o.v)}</span></button>`).join(''):
+    `<div class="explorer-empty"><b>Nenhuma ficha demonstrativa preparada para ${UF_NAMES[uf]}.</b><br><span class="small">O mapa e o recorte estão funcionando; a lista será preenchida com os processos reais da base nacional.</span></div>`;
+  layer.classList.add('on');layer.setAttribute('aria-hidden','false');$('#stateExplorerClose').focus();
+}
+function closeStateExplorer(){const layer=$('#stateExplorer');layer.classList.remove('on');layer.setAttribute('aria-hidden','true');}
+$('#hmDrill').addEventListener('click',e=>{
+  const g=e.target.closest('[data-geo]');if(g)toast(`<b>${g.dataset.geo}</b><small>O próximo nível abrirá os processos e indicadores deste recorte.</small>`);
+  const s=e.target.closest('[data-open-state]');if(s)openStateExplorer(s.dataset.openState);
+});
+$('#stateExplorerClose').addEventListener('click',closeStateExplorer);
+$('#stateExplorer').addEventListener('click',e=>{if(e.target===$('#stateExplorer'))closeStateExplorer();if(e.target.closest('[data-goto]'))closeStateExplorer();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeStateExplorer();});
+renderHeat();loadBrazilMap();
 
 /* índice de aquecimento por segmento */
 $('#heatIndex').innerHTML=HEAT_SEGMENTS.map(s=>{
