@@ -8,15 +8,15 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="assets/portal.css">
 </head>
-<body>
+<body class="landing pricing-page">
 
 <nav class="nav"><div class="wrap nav-in">
-  <a class="brand" href="index.html"><span class="brand-mark">BL</span><b>Bolsa de Licitações</b></a>
+  <a class="brand brand-official" href="index.html" aria-label="Bolsa de Licitações — início"><span class="brand-symbol" aria-hidden="true"><img src="/brand-assets/bolsa-de-licitacoes-logo.png" alt=""></span><span class="brand-copy"><b>BOLSA</b><small>DE LICITAÇÕES</small></span></a>
   <div class="nav-links">
+    <a href="index.html#plataforma">Plataforma</a>
+    <a href="index.html#ficha">Ficha inteligente</a>
     <a href="index.html#recursos">Recursos</a>
-    <a href="precos.html" style="color:var(--amber)">Preços</a>
-    <a href="index.html#faq">Perguntas</a>
-    <a href="index.html#contato">Contato</a>
+    <a href="precos.html" aria-current="page">Planos</a>
   </div>
   <div class="nav-cta">
     <a class="btn ghost" href="login.html">Entrar</a>
@@ -24,12 +24,11 @@
   </div>
 </div></nav>
 
-<section class="sect" style="padding-top:60px">
+<section class="sect pricing-hero">
   <div class="wrap" style="text-align:center">
     <div class="sect-eyebrow">Planos e preços</div>
-    <h2>Escolha o nível de inteligência do seu negócio</h2>
-    <p class="sect-p" style="margin:10px auto 0">Comece grátis no Explorar. Faça upgrade quando o mercado exigir mais de você.
-      Cancele quando quiser — seu acesso permanece até o fim do período pago.</p>
+    <h1>Escolha como sua empresa quer operar o mercado público.</h1>
+    <p class="sect-p" style="margin:14px auto 0">Comece pesquisando gratuitamente. Evolua para agenda, ficha 360°, monitores, preços, concorrência e trabalho em equipe conforme sua operação crescer.</p>
     <div class="cycle-toggle" role="tablist" aria-label="Ciclo de cobrança">
       <button id="cyMensal" class="on" type="button">Mensal</button>
       <button id="cyAnual" type="button">Anual <span style="color:inherit;opacity:.8">(2 meses grátis)</span></button>
@@ -45,9 +44,7 @@
     <div class="sect-eyebrow">Comparação completa</div>
     <h2>O que cada plano entrega</h2>
     <div class="tblwrap"><table class="cmp" id="cmpTable"></table></div>
-    <p class="small" style="color:var(--dim);margin-top:14px">
-      Recursos marcados como <span class="stage beta">BETA</span> ou <span class="stage breve">EM BREVE</span> nas páginas do produto
-      seguem o mesmo rótulo aqui: nunca vendemos como pronto o que ainda não está.</p>
+    <p class="small" style="color:var(--dim);margin-top:14px">Recursos marcados como <span class="stage beta">BETA</span> ou <span class="stage breve">EM EVOLUÇÃO</span> mantêm esse rótulo em toda a plataforma. A disponibilidade final também depende da cobertura da fonte oficial.</p>
   </div>
 </section>
 
@@ -60,7 +57,8 @@
       <details><summary>Como funciona o teste dos planos pagos?</summary><p>Os planos pagos incluem período de teste (indicado em cada plano). Você pode cancelar durante o teste sem custo.</p></details>
       <details><summary>Posso trocar de plano depois?</summary><p>Sim, upgrade e downgrade a qualquer momento. No downgrade, o novo limite passa a valer no ciclo seguinte.</p></details>
       <details><summary>E se eu cancelar?</summary><p>Seu acesso continua até o fim do período já pago; depois, sua conta volta ao plano Explorar — seus dados e listas não são apagados.</p></details>
-      <details><summary>Como é feita a cobrança?</summary><p>A ativação da cobrança online (cartão/Pix/boleto) está em implantação. Nesta fase, a contratação de planos pagos é concluída com nosso time — fale conosco pelo formulário de contato.</p></details>
+      <details><summary>Os recursos Beta fazem parte do plano?</summary><p>O plano indica o nível de acesso previsto. Durante o Beta, recursos podem evoluir antes da disponibilidade comercial definitiva, sempre sem apresentar dado simulado como resultado oficial.</p></details>
+      <details><summary>Como é feita a cobrança?</summary><p>A ativação da cobrança online está em implantação. Nesta fase, valores e limites são referências comerciais; a contratação de planos pagos é concluída com nosso time.</p></details>
     </div>
   </div>
 </section>
@@ -68,10 +66,10 @@
 <footer class="footer"><div class="wrap">
   <div class="foot-grid">
     <div>
-      <a class="brand" href="index.html"><span class="brand-mark">BL</span><b>Bolsa de Licitações</b></a>
+      <a class="brand brand-official" href="index.html"><span class="brand-symbol" aria-hidden="true"><img src="/brand-assets/bolsa-de-licitacoes-logo.png" alt=""></span><span class="brand-copy"><b>BOLSA</b><small>DE LICITAÇÕES</small></span></a>
       <p class="small" style="color:var(--dim);margin-top:10px">Inteligência do mercado público brasileiro, construída sobre fontes oficiais.</p>
     </div>
-    <div><b>Produto</b><a href="index.html#recursos">Recursos</a><a href="precos.html">Preços</a><a href="status.html">Status das fontes</a></div>
+    <div><b>Produto</b><a href="index.html#ficha">Ficha inteligente</a><a href="index.html#recursos">Recursos</a><a href="precos.html">Planos</a><a href="status.html">Status das fontes</a></div>
     <div><b>Conta</b><a href="login.html">Entrar</a><a href="cadastro.html">Criar conta</a><a href="recuperar.html">Recuperar senha</a></div>
     <div><b>Legal</b><a href="termos.html">Termos de uso</a><a href="privacidade.html">Privacidade</a><a href="cookies.html">Cookies</a></div>
   </div>
@@ -86,34 +84,45 @@
 // Fallback estático (rotulado) — usado só se o banco estiver inacessível.
 // Espelha a seed de public.saas_planos; a fonte da verdade é sempre o banco (§119).
 const PLANOS_FALLBACK = [
-  { id:'explorar', nome:'Explorar', descricao:'Conheça o mercado público com acesso gratuito limitado.', destaque:false, preco_mensal:0, preco_anual:0, trial_dias:0, ordem:1,
-    entitlements:{pesquisas_dia:10,max_watchlists:3,history_days:30,can_view_competitors:false,can_export:false,can_use_ai:false,max_users:1,api_access:false} },
-  { id:'profissional', nome:'Profissional', descricao:'A Bolsa completa para quem vende ao governo.', destaque:false, preco_mensal:297, preco_anual:2970, trial_dias:7, ordem:2,
-    entitlements:{pesquisas_dia:200,max_watchlists:10,history_days:365,can_view_competitors:false,can_export:false,can_use_ai:false,max_users:1,api_access:false} },
-  { id:'inteligencia', nome:'Inteligência', descricao:'Concorrentes, rankings, market share e histórico profundo.', destaque:true, preco_mensal:597, preco_anual:5970, trial_dias:7, ordem:3,
-    entitlements:{pesquisas_dia:1000,max_watchlists:30,history_days:1825,can_view_competitors:true,can_export:true,can_use_ai:'quando_disponivel',max_users:3,api_access:false} },
-  { id:'business', nome:'Business', descricao:'Equipes, dashboards executivos e uso intensivo.', destaque:false, preco_mensal:997, preco_anual:9970, trial_dias:7, ordem:4,
-    entitlements:{pesquisas_dia:5000,max_watchlists:100,history_days:1825,can_view_competitors:true,can_export:true,can_use_ai:'quando_disponivel',max_users:10,api_access:'futuro'} },
+  { id:'explorar', nome:'Explorar', descricao:'Conheça o mercado e organize as primeiras oportunidades.', destaque:false, preco_mensal:0, preco_anual:0, trial_dias:0, ordem:1,
+    entitlements:{pesquisas_dia:10,max_watchlists:3,max_monitores:1,history_days:30,can_view_competitors:false,can_export:false,can_use_ai:false,can_use_prices:false,can_use_artifacts:false,max_users:1,api_access:false} },
+  { id:'profissional', nome:'Profissional', descricao:'Ficha 360°, agenda e acompanhamento para a rotina comercial.', destaque:false, preco_mensal:297, preco_anual:2970, trial_dias:7, ordem:2,
+    entitlements:{pesquisas_dia:200,max_watchlists:10,max_monitores:10,history_days:365,can_view_competitors:false,can_export:false,can_use_ai:false,can_use_prices:'basic',can_use_artifacts:false,max_users:1,api_access:false} },
+  { id:'inteligencia', nome:'Inteligência', descricao:'Preços, concorrentes, monitores e conhecimento estratégico.', destaque:true, preco_mensal:597, preco_anual:5970, trial_dias:7, ordem:3,
+    entitlements:{pesquisas_dia:1000,max_watchlists:30,max_monitores:50,history_days:1825,can_view_competitors:true,can_export:true,can_use_ai:'beta',can_use_prices:true,can_use_artifacts:true,max_users:3,api_access:false} },
+  { id:'business', nome:'Business', descricao:'Governança, equipe e operação intensiva do mercado público.', destaque:false, preco_mensal:997, preco_anual:9970, trial_dias:7, ordem:4,
+    entitlements:{pesquisas_dia:5000,max_watchlists:100,max_monitores:100,history_days:1825,can_view_competitors:true,can_export:true,can_use_ai:'beta',can_use_prices:true,can_use_artifacts:true,max_users:10,api_access:'futuro'} },
   { id:'enterprise', nome:'Enterprise', descricao:'Alto volume, integrações, SLA e onboarding dedicado.', destaque:false, preco_mensal:null, preco_anual:null, trial_dias:0, ordem:5,
     entitlements:{sob_consulta:true} }
 ];
 
-let planos = PLANOS_FALLBACK;
+const MODULE_DEFAULTS = {
+  explorar:{max_monitores:1,can_use_prices:false,can_use_artifacts:false},
+  profissional:{max_monitores:10,can_use_prices:'basic',can_use_artifacts:false},
+  inteligencia:{max_monitores:50,can_use_prices:true,can_use_artifacts:true},
+  business:{max_monitores:100,can_use_prices:true,can_use_artifacts:true}
+};
+function hydratePlan(plan) { return {...plan, entitlements:{...(MODULE_DEFAULTS[plan.id] || {}), ...(plan.entitlements || {})}}; }
+
+let planos = PLANOS_FALLBACK.map(hydratePlan);
 let ciclo = 'mensal';
 
 function beneficios(p) {
   const e = p.entitlements || {};
   if (e.sob_consulta) return [
-    'Tudo do Business', 'Volume e usuários sob medida', 'Integrações e API dedicadas',
-    'SLA e suporte prioritário', 'Onboarding assistido'
+    'Tudo do Business', 'Monitores, volume e usuários sob medida', 'Integrações e API dedicadas',
+    'Governança, SLA e suporte prioritário', 'Onboarding assistido'
   ].map(t => `<li>${t}</li>`).join('');
   const li = [];
   li.push(`<li><b>${fmtN(e.pesquisas_dia)}</b> pesquisas por dia</li>`);
-  li.push(`<li><b>${fmtN(e.max_watchlists)}</b> listas de acompanhamento</li>`);
+  li.push(`<li><b>${fmtN(e.max_monitores ?? e.max_watchlists ?? 0)}</b> monitores inteligentes</li>`);
   li.push(`<li>Histórico de <b>${e.history_days >= 365 ? Math.round(e.history_days / 365) + (e.history_days >= 730 ? ' anos' : ' ano') : e.history_days + ' dias'}</b></li>`);
+  li.push(`<li>Ficha 360°, favoritos e agenda</li>`);
+  li.push(`<li class="${e.can_use_prices ? '' : 'no'}">Central Nacional de Preços ${e.can_use_prices === 'basic' ? '<span class="stage beta">BÁSICA</span>' : ''}</li>`);
   li.push(`<li class="${e.can_view_competitors ? '' : 'no'}">Radar de concorrentes e market share</li>`);
+  li.push(`<li class="${e.can_use_artifacts ? '' : 'no'}">Memória Viva e artefatos <span class="stage beta">BETA</span></li>`);
   li.push(`<li class="${e.can_export ? '' : 'no'}">Exportação de dados e relatórios</li>`);
-  li.push(`<li class="${e.can_use_ai ? '' : 'no'}">Análises assistidas por IA <span class="stage breve">EM BREVE</span></li>`);
+  li.push(`<li class="${e.can_use_ai ? '' : 'no'}">IA contextual com evidências <span class="stage beta">BETA</span></li>`);
   li.push(`<li><b>${fmtN(e.max_users)}</b> ${e.max_users > 1 ? 'usuários' : 'usuário'}</li>`);
   li.push(`<li class="${e.api_access ? '' : 'no'}">Acesso via API ${e.api_access === 'futuro' ? '<span class="stage breve">EM BREVE</span>' : ''}</li>`);
   return li.join('');
@@ -153,11 +162,14 @@ function render() {
 
   const linhas = [
     ['Pesquisas por dia', p => p.entitlements.sob_consulta ? 'Sob medida' : fmtN(p.entitlements.pesquisas_dia)],
-    ['Listas de acompanhamento', p => p.entitlements.sob_consulta ? 'Sob medida' : fmtN(p.entitlements.max_watchlists)],
+    ['Monitores inteligentes', p => p.entitlements.sob_consulta ? 'Sob medida' : fmtN(p.entitlements.max_monitores ?? p.entitlements.max_watchlists ?? 0)],
     ['Histórico', p => p.entitlements.sob_consulta ? 'Completo' : (p.entitlements.history_days >= 365 ? Math.round(p.entitlements.history_days / 365) + ' ano(s)' : p.entitlements.history_days + ' dias')],
+    ['Ficha 360°, agenda e favoritos', () => '✓'],
+    ['Central Nacional de Preços', p => p.entitlements.sob_consulta || p.entitlements.can_use_prices ? (p.entitlements.can_use_prices === 'basic' ? 'Básica' : '✓') : '—'],
     ['Radar de concorrentes', p => p.entitlements.sob_consulta || p.entitlements.can_view_competitors ? '✓' : '—'],
+    ['Memória Viva e artefatos (Beta)', p => p.entitlements.sob_consulta || p.entitlements.can_use_artifacts ? '✓' : '—'],
     ['Exportação de dados', p => p.entitlements.sob_consulta || p.entitlements.can_export ? '✓' : '—'],
-    ['Análises com IA (em breve)', p => p.entitlements.sob_consulta || p.entitlements.can_use_ai ? '✓' : '—'],
+    ['IA contextual com evidências (Beta)', p => p.entitlements.sob_consulta || p.entitlements.can_use_ai ? '✓' : '—'],
     ['Usuários', p => p.entitlements.sob_consulta ? 'Sob medida' : fmtN(p.entitlements.max_users)],
     ['API', p => p.entitlements.sob_consulta ? '✓' : (p.entitlements.api_access ? (p.entitlements.api_access === 'futuro' ? 'Em breve' : '✓') : '—')]
   ];
@@ -171,7 +183,7 @@ async function carregar() {
   try {
     const rows = await bolsaView('saas_planos', 'select=*&ativo=eq.true&order=ordem.asc');
     if (Array.isArray(rows) && rows.length) {
-      planos = rows;
+      planos = rows.map(hydratePlan);
       $('#planosNota').textContent = 'Planos e preços carregados ao vivo da nossa base.';
     } else { throw new Error('vazio'); }
   } catch {
