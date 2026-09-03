@@ -469,7 +469,9 @@ button,input,select{transition:border-color .2s ease,background-color .2s ease,c
   width:42px;height:42px;border-radius:13px;color:#fff;font-size:14px;letter-spacing:-.7px;
   background:linear-gradient(145deg,#6f8cff,#9b7bff);box-shadow:0 10px 26px rgba(111,140,255,.28),inset 0 1px rgba(255,255,255,.25)
 }
-.brand-name{font-size:15px;letter-spacing:-.2px;text-transform:none}.brand-sub{margin-top:3px;color:#8ea2ff;font:600 9px var(--sans);letter-spacing:1.4px}
+.brand-mark.brand-logo-mark{display:block;flex:0 0 42px;overflow:hidden;border-radius:0;background:none;box-shadow:none}
+.brand-logo-mark img{display:block;width:auto;max-width:none;height:48px;transform:translate(-5px,-3px)}
+.brand-name{color:#fff;font-size:15px;letter-spacing:-.2px;text-transform:none}.brand-sub{margin-top:3px;color:#8ea2ff;font:600 9px var(--sans);letter-spacing:1.4px}
 .tb-co{padding:7px 11px;border-radius:12px;background:rgba(18,36,58,.72)}
 .tb-co:hover{border-color:var(--amber-dim);background:var(--panel2)}
 .tb-search{max-width:610px}.tb-search input{height:42px;border-radius:13px;background:rgba(18,36,58,.72);padding-left:38px;font-size:12.5px}
@@ -559,7 +561,7 @@ main.view{width:100%;max-width:1780px;margin:0 auto;padding:18px 24px 48px}.grid
   <!-- TOPBAR -->
   <header class="topbar">
     <div class="brand">
-      <div class="brand-mark">BL</div>
+      <div class="brand-mark brand-logo-mark" aria-hidden="true"><img src="assets/bolsa-de-licitacoes-logo.png" alt=""></div>
       <div>
         <div class="brand-name">Bolsa de Licitações</div>
         <div class="brand-sub">Inteligência do mercado público</div>
