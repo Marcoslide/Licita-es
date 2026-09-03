@@ -6,7 +6,7 @@ web_container="licita-es-web-1"
 nginx_container="orbita-vps-nginx-1"
 project_root="${LICITA_PROJECT_ROOT:-/opt/licita-es/app}"
 vhost_source="${project_root}/deploy/vps/proxy/bolsa.https.conf"
-vhost_target="/etc/nginx/conf.d/bolsa.conf"
+vhost_target="/etc/nginx/conf.d/bolsa.frontlinetec.com.br.conf"
 
 for container in "${web_container}" "${nginx_container}"; do
   docker inspect "${container}" >/dev/null
