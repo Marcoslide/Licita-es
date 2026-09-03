@@ -1,10 +1,16 @@
 // ============================================================
-// BOLSA DE LICITAÇÕES — Memória Histórica: importador BULK v10
+// BOLSA DE LICITAÇÕES — Memória Histórica: importador BULK v12
 // (estados PENDING/DOWNLOADING/IMPORTING/VALIDATING/COMPLETE/PARTIAL/
 //  SOURCE_NOT_AVAILABLE/FAILED; retomada intra-mês por fase/linha;
 //  CSV anual por Range com registros multiline; filas independentes por
 //  fonte (p.fonte) com lease anti-colisão; brutos no bucket memoria-bruta;
 //  parsers Contratos.gov (contratos + empenhos de contrato))
+// v12: todo merge em detalhe usa guard jsonb_typeof='object' — um detalhe
+//  corrompido (array/string) se auto-corrige em vez de quebrar lease/mapa
+//  para sempre; mapa nunca é gravado como null; tamanho_bytes vem do
+//  Content-Range; falha de upload do bruto fica registrada em detalhe.
+//  Cada fila roda no seu próprio slug (bulk=compras, -transp, -contratos)
+//  para não dividir o orçamento de CPU do isolate entre filas.
 // 1) job "descobrir": sonda programaticamente a cobertura real
 //    (earliest/latest) das fontes de arquivos oficiais (§3, §70)
 //    — Portal da Transparência (ZIPs mensais) e repositórios de
@@ -206,13 +212,13 @@ async function importarTransparenciaMes(ano: number, mes: number, deadline: numb
   const inicioDa = (f: string) => (f === faseIni ? linhaIni : 1);
   const salvaCursor = async (f: string, linha: number) => {
     cortouEm = { fase: f, linha };
-    await sql`update bolsa.arquivos_historicos set detalhe = coalesce(detalhe,'{}'::jsonb) || ${{ cursor: cortouEm }}::jsonb where id = ${arqId}`;
+    await sql`update bolsa.arquivos_historicos set detalhe = (case when jsonb_typeof(detalhe) = 'object' then detalhe else '{}'::jsonb end) || ${{ cursor: cortouEm }}::jsonb where id = ${arqId}`;
   };
   // checkpoint leve: se o worker morrer (limite de CPU/memória), a retomada
   // parte daqui em vez de refazer a fase inteira
   let lotesCk = 0;
   const anotaCursor = async (f: string, linha: number) => {
-    await sql`update bolsa.arquivos_historicos set detalhe = coalesce(detalhe,'{}'::jsonb) || ${{ cursor: { fase: f, linha } }}::jsonb where id = ${arqId}`;
+    await sql`update bolsa.arquivos_historicos set detalhe = (case when jsonb_typeof(detalhe) = 'object' then detalhe else '{}'::jsonb end) || ${{ cursor: { fase: f, linha } }}::jsonb where id = ${arqId}`;
   };
 
   const resp = await fetch(url, { headers: { "user-agent": UA }, signal: AbortSignal.timeout(60000) });
@@ -221,7 +227,7 @@ async function importarTransparenciaMes(ano: number, mes: number, deadline: numb
     // mês nunca publicado (403/404) não é falha da Bolsa
     const st = (resp.status === 403 || resp.status === 404) ? "SOURCE_NOT_AVAILABLE" : "FAILED";
     await sql`update bolsa.arquivos_historicos set import_status = ${st},
-              detalhe = coalesce(detalhe,'{}'::jsonb) || ${{ http: resp.status }}::jsonb where id = ${arqId}`;
+              detalhe = (case when jsonb_typeof(detalhe) = 'object' then detalhe else '{}'::jsonb end) || ${{ http: resp.status }}::jsonb where id = ${arqId}`;
     return { ym, status: st, http: resp.status };
   }
   let buf: Uint8Array | null = new Uint8Array(await resp.arrayBuffer());
@@ -237,12 +243,22 @@ async function importarTransparenciaMes(ano: number, mes: number, deadline: numb
         method: "POST",
         headers: { authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
                    "content-type": "application/zip", "x-upsert": "true" },
-        body: buf,
+        body: buf as unknown as BodyInit,
       });
       if (up.ok) await sql`update bolsa.arquivos_historicos set storage_path = ${sp},
-          detalhe = coalesce(detalhe,'{}'::jsonb) || ${{ storage_path: sp }}::jsonb where id = ${arqId}`;
-      else await up.body?.cancel();
-    } catch { /* upload de bruto nunca derruba a importação */ }
+          detalhe = (case when jsonb_typeof(detalhe) = 'object' then detalhe else '{}'::jsonb end) || ${{ storage_path: sp, storage_upload_http: null, storage_upload_err: null }}::jsonb where id = ${arqId}`;
+      else {
+        // falha visível no detalhe (§19: sem verdade silenciosa) — nunca derruba a importação
+        const corpo = (await up.text().catch(() => "")).slice(0, 300);
+        console.log(`upload memoria-bruta falhou HTTP ${up.status}: ${corpo}`);
+        await sql`update bolsa.arquivos_historicos set
+            detalhe = (case when jsonb_typeof(detalhe) = 'object' then detalhe else '{}'::jsonb end) || ${{ storage_upload_http: up.status, storage_upload_err: corpo }}::jsonb where id = ${arqId}`;
+      }
+    } catch (e) {
+      console.log(`upload memoria-bruta lançou: ${String((e as Error).message)}`);
+      await sql`update bolsa.arquivos_historicos set
+          detalhe = (case when jsonb_typeof(detalhe) = 'object' then detalhe else '{}'::jsonb end) || ${{ storage_upload_err: String((e as Error).message).slice(0, 300) }}::jsonb where id = ${arqId}`.catch(() => {});
+    }
   }
 
   // NÃO inflar o ZIP inteiro (os 4 CSVs juntos estouram a memória do worker):
@@ -482,7 +498,11 @@ async function importarTransparenciaMes(ano: number, mes: number, deadline: numb
       inseridos = inseridos + ${cnt.lics + cnt.itens + cnt.parts + cnt.emps},
       erros = erros + ${cnt.erros},
       finalizado_em = case when ${completo} then now() else null end,
-      detalhe = coalesce(detalhe,'{}'::jsonb) || ${Object.assign({ arquivos_no_zip: nomes, contagem_por_arquivo: detArquivos, parcial: !completo }, completo ? { cursor: null } : {})}::jsonb
+      detalhe = (case when jsonb_typeof(detalhe) = 'object' then detalhe else '{}'::jsonb end)
+                || ${Object.assign({ arquivos_no_zip: nomes, parcial: !completo }, completo ? { cursor: null } : {})}::jsonb
+                || jsonb_build_object('contagem_por_arquivo',
+                     (case when jsonb_typeof(detalhe->'contagem_por_arquivo') = 'object' then detalhe->'contagem_por_arquivo' else '{}'::jsonb end)
+                     || ${detArquivos}::jsonb)
     where id = ${arqId}`;
 
   // validação de cobertura (§8/§76): linhas processadas × linhas dos arquivos do ZIP.
@@ -490,7 +510,7 @@ async function importarTransparenciaMes(ano: number, mes: number, deadline: numb
   if (completo) {
     await sql`update bolsa.arquivos_historicos a set
         import_status = 'COMPLETE',
-        detalhe = coalesce(a.detalhe,'{}'::jsonb) || jsonb_build_object(
+        detalhe = (case when jsonb_typeof(a.detalhe) = 'object' then a.detalhe else '{}'::jsonb end) || jsonb_build_object(
           'validacao', jsonb_build_object(
              'esperado_linhas', (select coalesce(sum((v.value)::bigint),0) from jsonb_each_text(coalesce(a.detalhe->'contagem_por_arquivo','{}'::jsonb)) v),
              'processado_linhas', a.linhas_processadas, 'erros', a.erros, 'em', now()),
@@ -526,13 +546,14 @@ async function importarCsvRange(arq: any, deadline: number): Promise<Record<stri
         inseridos = inseridos + ${st.inseridos}, erros = erros + ${st.erros},
         import_status = coalesce(${status}, import_status),
         finalizado_em = case when ${status === "COMPLETE"} then now() else finalizado_em end,
-        detalhe = coalesce(detalhe,'{}'::jsonb) || ${Object.assign({ mapa, sep }, extra)}::jsonb
+        detalhe = (case when jsonb_typeof(detalhe) = 'object' then detalhe else '{}'::jsonb end)
+                  || ${Object.assign({ sep }, mapa ? { mapa } : {}, extra)}::jsonb
       where id = ${arq.id}`;
     st.lidas = 0; st.inseridos = 0; st.erros = 0;
     if (status === "COMPLETE") {
       // validação: cursor final × tamanho sondado; e memória por ano da fonte
       await sql`update bolsa.arquivos_historicos set
-          detalhe = coalesce(detalhe,'{}'::jsonb) || jsonb_build_object(
+          detalhe = (case when jsonb_typeof(detalhe) = 'object' then detalhe else '{}'::jsonb end) || jsonb_build_object(
             'validacao', jsonb_build_object('fim_bytes', cursor_bytes, 'tamanho_sondado', tamanho_bytes, 'em', now()),
             'coverage_mismatch', (tamanho_bytes is not null and cursor_bytes < tamanho_bytes))
         where id = ${arq.id}`;
@@ -577,6 +598,15 @@ async function importarCsvRange(arq: any, deadline: number): Promise<Record<stri
         await r.body?.cancel();
         await salvar("FAILED", { motivo: "servidor ignorou Range (HTTP 200) em arquivo grande", content_length: cl || null });
         return { arquivo: arq.id, erro: "range ignorado" };
+      }
+    }
+    if (r.status === 206 && arq.tamanho_bytes == null) {
+      // total real vem do Content-Range (bytes ini-fim/total) — necessário
+      // para o coverage_mismatch (§8) validar cursor final × tamanho
+      const total = Number((r.headers.get("content-range") ?? "").split("/")[1]);
+      if (Number.isFinite(total) && total > 0) {
+        arq.tamanho_bytes = total;
+        await sql`update bolsa.arquivos_historicos set tamanho_bytes = ${total} where id = ${arq.id}`;
       }
     }
     const bytes = new Uint8Array(await r.arrayBuffer());
@@ -833,27 +863,30 @@ async function jobAuto(deadline: number, fonte?: string): Promise<Record<string,
   // prioridade: compras (licitações) -> resultados -> itens -> contratos -> empenhos de contrato
   const claimCompras = () => sql`
     update bolsa.arquivos_historicos a
-       set detalhe = coalesce(a.detalhe,'{}'::jsonb) || jsonb_build_object('lease_ate', (now() + interval '90 seconds')::text)
+       set detalhe = (case when jsonb_typeof(a.detalhe) = 'object' then a.detalhe else '{}'::jsonb end) || jsonb_build_object('lease_ate', (now() + interval '90 seconds')::text)
      where a.id = (
        select id from bolsa.arquivos_historicos
        where import_status in ('PENDING','PARTIAL','IMPORTING')
          and dataset = any(${dsFila}::text[])
-         and (detalhe->>'hold') is null
-         and coalesce(nullif(detalhe->>'lease_ate','')::timestamptz, '-infinity') < now()
+         and (jsonb_typeof(detalhe) <> 'object' or ((detalhe->>'hold') is null
+              and coalesce(nullif(detalhe->>'lease_ate','')::timestamptz, '-infinity') < now()))
        order by import_status in ('IMPORTING','PARTIAL') desc,
                 case dataset when 'comprasgov_anual_compras' then 1
                              when 'comprasgov_anual_resultados' then 2
                              when 'comprasgov_anual_itens' then 3
                              when 'contratos_anual' then 4 else 5 end,
                 ano desc limit 1)
-     returning a.id, a.fonte, a.dataset, a.ano, a.url, a.cursor_bytes, a.resto_linha, a.detalhe`;
+     returning a.id, a.fonte, a.dataset, a.ano, a.url, a.cursor_bytes, a.tamanho_bytes, a.resto_linha, a.detalhe`;
+  // lease 100s < tick de 120s: o mesmo mês é retomado a cada tick até
+  // COMPLETE, em vez de abrir um segundo mês em paralelo (CPU do isolate)
   const claimTransp = () => sql`
     update bolsa.arquivos_historicos a
-       set detalhe = coalesce(a.detalhe,'{}'::jsonb) || jsonb_build_object('lease_ate', (now() + interval '120 seconds')::text)
+       set detalhe = (case when jsonb_typeof(a.detalhe) = 'object' then a.detalhe else '{}'::jsonb end) || jsonb_build_object('lease_ate', (now() + interval '100 seconds')::text)
      where a.id = (
        select id from bolsa.arquivos_historicos
        where import_status in ('PENDING','PARTIAL','IMPORTING','DOWNLOADING') and fonte = 'transparencia'
-         and coalesce(nullif(detalhe->>'lease_ate','')::timestamptz, '-infinity') < now()
+         and (jsonb_typeof(detalhe) <> 'object'
+              or coalesce(nullif(detalhe->>'lease_ate','')::timestamptz, '-infinity') < now())
        order by import_status in ('IMPORTING','PARTIAL','DOWNLOADING') desc, ano desc, mes desc limit 1)
      returning a.id, a.ano, a.mes`;
   if (vezCompras) {
