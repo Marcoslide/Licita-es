@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Monitoramento — Bolsa de Licitações</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="assets/portal.css">
+<style>
+.mon-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+.mon-card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;cursor:pointer;transition:border-color .15s}
+.mon-card:hover{border-color:var(--amber)}
+.mon-card h3{margin:0 0 4px;font:700 15px var(--disp)}
+.mon-kv{display:flex;justify-content:space-between;font-size:12.5px;color:var(--mut);padding:3px 0}
+.mon-kv b{font-family:var(--mono);color:var(--ink)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.chip{background:var(--panel3);border-radius:9px;padding:2px 9px;font:500 11px var(--mono);color:var(--mut)}
+.chip.x{cursor:pointer}
+.chip.ok{color:var(--up);background:rgba(52,211,153,.12)}
+.wiz{max-width:720px}
+.wiz .sec{margin:18px 0 6px;font:700 12px var(--sans);letter-spacing:1px;text-transform:uppercase;color:var(--mut)}
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <aside class="side">
+    <a class="brand" href="index.html"><span class="brand-mark">BL</span><b>Bolsa</b></a>
+    <a href="app.html">Visão geral</a>
+    <a class="on" href="monitores.html">Monitoramento</a>
+    <a id="lnkTerminal" href="#" target="_blank" rel="noopener">Abrir o Terminal</a>
+    <a href="precos.html">Planos e upgrade</a>
+    <a href="conta.html">Minha conta</a>
+    <a id="lnkAdmin" href="admin/index.html" hidden>Central administrativa</a>
+    <div class="spacer"></div>
+    <button class="nav-item" type="button" onclick="sair()">Sair</button>
+  </aside>
+
+  <main class="main">
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:6px">
+      <div>
+        <div class="eyebrow">Central de monitoramentos</div>
+        <h2 style="margin:4px 0 0">Seus analistas digitais permanentes</h2>
+      </div>
+      <button class="btn primary" style="margin-left:auto" id="btnNovo" type="button">+ Novo monitoramento</button>
+    </div>
+    <p class="mut" style="margin:0 0 20px;font-size:13.5px">Cada monitor estuda um mercado continuamente: procura, compara com o histórico,
+      acompanha concorrentes, contratos, atas e PCA — e avisa quando algo relevante muda. Reavaliação automática a cada ~10 minutos.</p>
+
+    <div class="mon-cards" id="cards"><span class="mut">Carregando monitores…</span></div>
+
+    <!-- WIZARD -->
+    <div class="panelbox wiz" id="wiz" hidden>
+      <div class="ph">NOVO MONITORAMENTO</div>
+      <div class="pb">
+        <div class="field"><label>Nome do monitor</label><input id="wNome" type="text" placeholder='ex.: "Medicamentos MG", "Cadeiras Escolares Sudeste"'></div>
+        <div class="field"><label>Nicho / mercado (texto livre)</label><input id="wNicho" type="text" placeholder="medicamentos, mobiliário, construção, tecnologia…" list="nichos">
+          <datalist id="nichos"><option>medicamentos</option><option>mobiliário</option><option>construção</option><option>alimentação</option><option>tecnologia</option><option>serviços</option><option>obras</option><option>equipamentos</option></datalist></div>
+
+        <div class="sec">Palavras-chave</div>
+        <div class="field-row">
+          <div class="field"><label>Incluir (Enter adiciona)</label><input id="wInc" type="text" placeholder="ceftriaxona"></div>
+          <div class="field"><label>Excluir (Enter adiciona)</label><input id="wExc" type="text" placeholder="veterinário"></div>
+        </div>
+        <div class="chips" id="chipsInc"></div>
+        <div class="chips" id="chipsExc"></div>
+
+        <div class="sec">Busca inteligente (expansões visíveis — você aprova ou remove)</div>
+        <button class="btn ghost" type="button" id="btnExpandir">Sugerir termos relacionados da base real</button>
+        <div class="chips" id="chipsExp"></div>
+        <p class="small" style="color:var(--dim);margin:6px 0 0">As sugestões vêm das descrições de itens realmente coletados (nada é expandido silenciosamente). Clique para aprovar/remover.</p>
+
+        <div class="sec">Filtros</div>
+        <div class="field-row">
+          <div class="field"><label>UFs (ex.: MG,SP — vazio = Brasil)</label><input id="wUfs" type="text" placeholder="MG,SP"></div>
+          <div class="field"><label>Modalidades (vazio = todas)</label><input id="wMod" type="text" placeholder="pregão,dispensa"></div>
+        </div>
+        <div class="field-row">
+          <div class="field"><label>Valor mínimo da licitação (R$)</label><input id="wVmin" type="number" min="0"></div>
+          <div class="field"><label>Valor máximo (R$)</label><input id="wVmax" type="number" min="0"></div>
+        </div>
+        <div class="field-row">
+          <div class="field"><label>Preço unitário mín. do item (R$)</label><input id="wPmin" type="number" min="0" step="0.01"></div>
+          <div class="field"><label>Preço unitário máx. (R$)</label><input id="wPmax" type="number" min="0" step="0.01"></div>
+        </div>
+        <div class="field"><label>Concorrentes monitorados (CNPJs separados por vírgula)</label><input id="wForn" type="text" placeholder="00000000000000, 11111111111111"></div>
+        <div class="field-row">
+          <label class="check"><input id="wPca" type="checkbox" checked> Avisar sobre PCA (compras futuras)</label>
+          <label class="check"><input id="wAtas" type="checkbox" checked> Monitorar atas</label>
+        </div>
+        <div class="field-row">
+          <label class="check"><input id="wCtr" type="checkbox" checked> Contratos vencendo (180 dias)</label>
+          <label class="check"><input id="wDes" type="checkbox" checked> Desertos e fracassados</label>
+        </div>
+
+        <div class="form-msg" id="wMsg"></div>
+        <div style="display:flex;gap:10px">
+          <button class="btn primary" type="button" id="btnCriar">Criar e analisar histórico agora</button>
+          <button class="btn ghost" type="button" onclick="document.getElementById('wiz').hidden=true">Cancelar</button>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="assets/config.js"></script>
+<script src="assets/portal.js"></script>
+<script>
+"use strict";
+const inc = [], exc = [], expAprov = [], expBloq = [];
+
+function chip(list, el, cls) {
+  el.innerHTML = list.map((t, i) => `<span class="chip x ${cls || ''}" data-i="${i}">${t} ✕</span>`).join('');
+  $$('.chip', el).forEach(c => c.addEventListener('click', () => { list.splice(+c.dataset.i, 1); chip(list, el, cls); }));
+}
+function bindAdd(input, list, el, cls) {
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && input.value.trim()) {
+      e.preventDefault(); list.push(input.value.trim().toLowerCase()); input.value = ''; chip(list, el, cls);
+    }
+  });
+}
+
+async function carregarCards() {
+  try {
+    const { data, error } = await sb.rpc('saas_meus_monitores');
+    if (error) throw error;
+    const box = $('#cards');
+    if (!data || !data.length) {
+      box.innerHTML = '<div class="mon-card" style="cursor:default"><h3>Nenhum monitor ainda</h3><p class="mut" style="font-size:13px">Crie seu primeiro monitoramento: diga o mercado que quer estudar e a Bolsa passa a acompanhá-lo por você — histórico, novidades, concorrentes e futuro.</p></div>';
+      return;
+    }
+    box.innerHTML = data.map(m => {
+      const min = m.last_run_at ? Math.round((Date.now() - new Date(m.last_run_at)) / 60000) : null;
+      const prox = m.next_run_at ? Math.max(0, Math.round((new Date(m.next_run_at) - Date.now()) / 60000)) : null;
+      return `<div class="mon-card" data-id="${m.id}">
+        <div style="display:flex;gap:8px;align-items:center">
+          <h3 style="flex:1">${m.nome}</h3>
+          <span class="pill ${m.status === 'ativo' ? 'ok' : 'neu'}">${m.status === 'ativo' ? '🟢 ATIVO' : '⏸ PAUSADO'}</span>
+        </div>
+        ${m.nicho ? `<div class="mut" style="font-size:12px">${m.nicho}</div>` : ''}
+        <div class="mon-kv"><span>Registros no radar</span><b>${fmtN(m.matches)}</b></div>
+        <div class="mon-kv"><span>Licitações</span><b>${fmtN(m.licitacoes)}</b></div>
+        <div class="mon-kv"><span>Novidades 24h</span><b>${fmtN(m.novidades_24h)}</b></div>
+        ${m.alertas_nao_lidos > 0 ? `<div class="mon-kv"><span>Alertas importantes</span><b style="color:var(--warn)">${m.alertas_nao_lidos}</b></div>` : ''}
+        <div class="chips">${(m.termos || []).slice(0, 4).map(t => `<span class="chip">${t}</span>`).join('')}</div>
+        <div class="mut" style="font-size:11.5px;margin-top:10px">
+          ${min != null ? `Atualizado há ${min} min` : 'Nunca executado'} ·
+          ${prox != null ? `próxima verificação em ~${prox} min` : ''}</div>
+      </div>`;
+    }).join('');
+    $$('.mon-card[data-id]').forEach(c => c.addEventListener('click', () => location.href = 'monitor.html?id=' + c.dataset.id));
+  } catch { $('#cards').innerHTML = '<span class="mut">Não foi possível carregar seus monitores agora.</span>'; }
+}
+
+(async function init() {
+  const u = await guardAuth();
+  if (!u) return;
+  $('#lnkTerminal').href = CFG.LINK_TERMINAL;
+  if (await isAdmin()) $('#lnkAdmin').hidden = false;
+
+  bindAdd($('#wInc'), inc, $('#chipsInc'));
+  bindAdd($('#wExc'), exc, $('#chipsExc'));
+  $('#btnNovo').addEventListener('click', () => { $('#wiz').hidden = false; $('#wiz').scrollIntoView({ behavior: 'smooth' }); });
+
+  $('#btnExpandir').addEventListener('click', async () => {
+    if (!inc.length) { formMsg($('#wMsg'), 'err', 'Adicione pelo menos uma palavra-chave antes de expandir.'); return; }
+    try {
+      const { data, error } = await sb.rpc('saas_monitor_sugerir_expansoes', { p_termos: inc });
+      if (error) throw error;
+      const el = $('#chipsExp');
+      if (!data || !data.length) { el.innerHTML = '<span class="mut" style="font-size:12px">Nenhuma variação encontrada na base para esses termos.</span>'; return; }
+      el.innerHTML = data.slice(0, 12).map((s, i) =>
+        `<span class="chip x" data-t="${encodeURIComponent(s.sugestao)}">${s.sugestao.slice(0, 46)} (${s.ocorrencias}×)</span>`).join('');
+      $$('.chip', el).forEach(c => c.addEventListener('click', () => {
+        const t = decodeURIComponent(c.dataset.t);
+        if (expAprov.includes(t)) { expAprov.splice(expAprov.indexOf(t), 1); c.classList.remove('ok'); }
+        else { expAprov.push(t); c.classList.add('ok'); }
+      }));
+    } catch { formMsg($('#wMsg'), 'err', 'Falha ao buscar sugestões.'); }
+  });
+
+  $('#btnCriar').addEventListener('click', async () => {
+    const m = $('#wMsg');
+    const nome = $('#wNome').value.trim();
+    if (!nome) { formMsg(m, 'err', 'Dê um nome ao monitor.'); return; }
+    if (!inc.length) { formMsg(m, 'err', 'Adicione ao menos uma palavra-chave para incluir.'); return; }
+    const csv = v => v.split(',').map(s => s.trim()).filter(Boolean);
+    formMsg(m, 'ok', 'Criando monitor e executando a análise histórica inicial…');
+    try {
+      const { data, error } = await sb.rpc('saas_monitor_criar', {
+        p_nome: nome,
+        p_regras: {
+          nicho: $('#wNicho').value.trim() || null,
+          incluir: inc, excluir: exc,
+          expansoes: { sugeridas: [], aprovadas: expAprov, bloqueadas: expBloq },
+          ufs: csv($('#wUfs').value.toUpperCase()),
+          modalidades: csv($('#wMod').value),
+          fornecedores: csv($('#wForn').value).map(s => s.replace(/\D/g, '')),
+          valor_min: $('#wVmin').value || null, valor_max: $('#wVmax').value || null,
+          preco_unit_min: $('#wPmin').value || null, preco_unit_max: $('#wPmax').value || null,
+          monitorar_pca: $('#wPca').checked, monitorar_atas: $('#wAtas').checked,
+          monitorar_contratos: $('#wCtr').checked,
+          monitorar_desertos: $('#wDes').checked, monitorar_fracassados: $('#wDes').checked
+        }
+      });
+      if (error) throw error;
+      track('monitor_created', { id: data.id });
+      location.href = 'monitor.html?id=' + data.id;
+    } catch (e) {
+      const t = (e && e.message) || '';
+      if (/LIMITE_PLANO/.test(t)) {
+        gateUpgrade('Mais monitores de mercado', 'Profissional',
+          'Seu plano atual chegou ao limite de monitores. Nos planos superiores você acompanha até 10, 50 ou monitores ilimitados, cada um com histórico, concorrentes e alertas próprios.');
+        formMsg(m, 'err', 'Limite de monitores do seu plano atingido.');
+      } else formMsg(m, 'err', 'Não foi possível criar o monitor agora.');
+    }
+  });
+
+  carregarCards();
+  setInterval(carregarCards, 60000); // cards se atualizam sem F5
+  track('monitores_view');
+})();
+</script>
+</body>
+</html>

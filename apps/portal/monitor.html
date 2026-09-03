@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Monitor — Bolsa de Licitações</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="assets/portal.css">
+<style>
+.tl{list-style:none;margin:0;padding:0}
+.tl li{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid rgba(27,41,64,.5);font-size:13px}
+.tl .quando{font:500 11px var(--mono);color:var(--dim);white-space:nowrap;min-width:110px}
+.imp{width:8px;height:8px;border-radius:50%;margin-top:5px;flex:none}
+.imp.baixa{background:var(--dim)} .imp.media{background:var(--info)} .imp.alta{background:var(--warn)} .imp.critica{background:var(--down)}
+.delta{font:600 11px var(--mono);padding:1px 7px;border-radius:8px}
+.delta.up{color:var(--up);background:rgba(52,211,153,.12)} .delta.down{color:var(--down);background:rgba(248,113,113,.12)}
+.barra{height:8px;background:var(--panel3);border-radius:4px;overflow:hidden}
+.barra i{display:block;height:100%;background:var(--amber)}
+.novidade-banner{background:rgba(255,176,32,.1);border:1px solid rgba(255,176,32,.4);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:13px;display:none}
+.novidade-banner.on{display:block}
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <aside class="side">
+    <a class="brand" href="index.html"><span class="brand-mark">BL</span><b>Bolsa</b></a>
+    <a href="app.html">Visão geral</a>
+    <a class="on" href="monitores.html">Monitoramento</a>
+    <a id="lnkTerminal" href="#" target="_blank" rel="noopener">Abrir o Terminal</a>
+    <a href="conta.html">Minha conta</a>
+    <div class="spacer"></div>
+    <button class="nav-item" type="button" onclick="sair()">Sair</button>
+  </aside>
+
+  <main class="main">
+    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:4px">
+      <h2 id="mNome" style="margin:0">Carregando…</h2>
+      <span class="pill ok" id="mStatus" hidden></span>
+      <span class="mut mono" id="mAtualizado" style="font-size:12px;margin-left:auto"></span>
+      <button class="btn ghost" style="padding:5px 12px;font-size:12px" type="button" id="btnPausar" hidden>Pausar</button>
+      <button class="btn ghost" style="padding:5px 12px;font-size:12px" type="button" id="btnDuplicar" hidden>Duplicar</button>
+    </div>
+    <div class="chips" id="mTermos" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px"></div>
+
+    <div class="novidade-banner" id="banner"></div>
+
+    <div class="kpis">
+      <div class="kpi"><div class="k-l">Agora — recebendo propostas</div><div class="k-v" id="kAbertas">—</div><div class="k-s" id="kAbertasV">—</div></div>
+      <div class="kpi"><div class="k-l">Mercado monitorado</div><div class="k-v" id="kMercado">—</div><div class="k-s" id="kMatches">—</div></div>
+      <div class="kpi"><div class="k-l">Novidades 24h</div><div class="k-v" id="kNovidades">—</div><div class="k-s">eventos no período</div></div>
+      <div class="kpi"><div class="k-l">Futuro — contratos vencendo</div><div class="k-v" id="kFuturo">—</div><div class="k-s" id="kFuturoN">—</div></div>
+    </div>
+
+    <div class="grid" style="display:grid;grid-template-columns:1.5fr 1fr;gap:16px">
+      <div>
+        <div class="panelbox">
+          <div class="ph">AGORA — OPORTUNIDADES ABERTAS <span class="mut" style="font-weight:400" id="hAbertas"></span></div>
+          <div class="pb flush tblwrap"><table class="tbl" id="tblAbertas">
+            <thead><tr><th>Objeto</th><th>UF</th><th class="num">Valor estimado</th><th>Encerra</th></tr></thead>
+            <tbody><tr><td colspan="4" class="mut">Carregando…</td></tr></tbody>
+          </table></div>
+        </div>
+
+        <div class="panelbox">
+          <div class="ph">HISTÓRICO vs AGORA <span class="mut" style="font-weight:400">— comparação automática com o baseline (§38)</span></div>
+          <div class="pb" id="boxComparacao"><span class="mut">Carregando…</span></div>
+        </div>
+
+        <div class="panelbox">
+          <div class="ph">CONCORRENTES — PADRÃO PÚBLICO OBSERVADO</div>
+          <div class="pb flush tblwrap"><table class="tbl" id="tblConc">
+            <thead><tr><th>Fornecedor</th><th class="num">Vitórias</th><th class="num">Valor homologado</th><th class="num">Preço mediano</th></tr></thead>
+            <tbody><tr><td colspan="4" class="mut">Carregando…</td></tr></tbody>
+          </table></div>
+          <div class="pb" style="border-top:1px solid var(--line)"><p class="small" style="color:var(--dim);margin:0" id="concNota"></p></div>
+        </div>
+
+        <div class="panelbox">
+          <div class="ph">FUTURO — CONTRATOS VENCENDO · ATAS · PCA</div>
+          <div class="pb flush tblwrap"><table class="tbl" id="tblFuturo">
+            <thead><tr><th>Tipo</th><th>Objeto</th><th class="num">Valor</th><th>Referência</th></tr></thead>
+            <tbody><tr><td colspan="4" class="mut">Carregando…</td></tr></tbody>
+          </table></div>
+        </div>
+      </div>
+
+      <div>
+        <div class="panelbox">
+          <div class="ph">O QUE MUDOU — TIMELINE</div>
+          <div class="pb"><ul class="tl" id="timeline"><li class="mut">Carregando…</li></ul></div>
+        </div>
+        <div class="panelbox">
+          <div class="ph">MERCADO POR UF</div>
+          <div class="pb" id="boxUfs"><span class="mut">Carregando…</span></div>
+        </div>
+        <div class="panelbox">
+          <div class="ph">SÉRIE MENSAL</div>
+          <div class="pb" id="boxSerie"><span class="mut">Carregando…</span></div>
+        </div>
+        <div class="panelbox">
+          <div class="ph">ÓRGÃOS COMPRADORES</div>
+          <div class="pb flush tblwrap"><table class="tbl" id="tblOrgaos">
+            <thead><tr><th>CNPJ do órgão</th><th class="num">Processos</th><th class="num">Valor</th></tr></thead>
+            <tbody><tr><td colspan="3" class="mut">Carregando…</td></tr></tbody>
+          </table></div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="assets/config.js"></script>
+<script src="assets/portal.js"></script>
+<script>
+"use strict";
+const MON_ID = Number(new URLSearchParams(location.search).get('id'));
+let ultimoEventoId = null;
+
+const dt = s => s ? new Date(s).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
+
+function pctDelta(atual, base) {
+  if (base == null || atual == null || Number(base) === 0) return null;
+  return ((Number(atual) - Number(base)) / Number(base)) * 100;
+}
+function deltaTag(p) {
+  if (p == null) return '';
+  const cls = p >= 0 ? 'up' : 'down';
+  return `<span class="delta ${cls}">${p >= 0 ? '+' : ''}${p.toFixed(1)}%</span>`;
+}
+
+async function render(primeira) {
+  let p;
+  try {
+    const { data, error } = await sb.rpc('saas_monitor_painel', { p_monitor: MON_ID });
+    if (error) throw error;
+    p = data;
+  } catch {
+    if (primeira) $('#mNome').textContent = 'Monitor não encontrado ou sem permissão.';
+    return;
+  }
+  const m = p.monitor, ag = p.agora || {}, base = p.baseline || {};
+
+  $('#mNome').textContent = m.nome;
+  const st = $('#mStatus'); st.hidden = false;
+  st.className = 'pill ' + (m.status === 'ativo' ? 'ok' : 'neu');
+  st.textContent = m.status === 'ativo' ? '🟢 ATIVO' : '⏸ PAUSADO';
+  $('#btnPausar').hidden = false; $('#btnDuplicar').hidden = false;
+  $('#btnPausar').textContent = m.status === 'ativo' ? 'Pausar' : 'Reativar';
+
+  const min = m.last_run_at ? Math.round((Date.now() - new Date(m.last_run_at)) / 60000) : null;
+  const prox = m.next_run_at ? Math.max(0, Math.round((new Date(m.next_run_at) - Date.now()) / 60000)) : null;
+  $('#mAtualizado').textContent =
+    (min != null ? `Atualizado há ${min} min` : '') + (prox != null ? ` · próxima verificação em ~${prox} min` : '');
+
+  const termos = (p.regras && p.regras.incluir) || [];
+  const aprov = (p.regras && p.regras.expansoes && p.regras.expansoes.aprovadas) || [];
+  $('#mTermos').innerHTML = termos.map(t => `<span class="chip">${t}</span>`).join('') +
+    aprov.map(t => `<span class="chip" style="opacity:.7">≈ ${t}</span>`).join('');
+
+  $('#kAbertas').textContent = fmtN(ag.abertas);
+  $('#kAbertasV').textContent = ag.valor_aberto ? fmtMi(Number(ag.valor_aberto)) + ' em disputa' : 'sem valor em disputa';
+  $('#kMercado').textContent = ag.valor_mercado ? fmtMi(Number(ag.valor_mercado)) : '—';
+  $('#kMatches').textContent = fmtN(ag.total_matches) + ' registros no radar';
+  $('#kNovidades').textContent = fmtN(ag.novidades_24h);
+  const fut = p.futuro || {};
+  $('#kFuturo').textContent = fut.valor_contratos_vencendo ? fmtMi(Number(fut.valor_contratos_vencendo)) : 'R$ 0';
+  $('#kFuturoN').textContent = `${(fut.contratos_vencendo || []).length} contratos · ${(fut.atas || []).length} atas · ${(fut.pca || []).length} PCA`;
+
+  // não apagar visão anterior silenciosamente (§28): banner de novidade
+  const tl = p.timeline || [];
+  if (!primeira && tl.length && ultimoEventoId != null) {
+    const novos = tl.filter(e => e.id > ultimoEventoId);
+    if (novos.length) {
+      $('#banner').innerHTML = `✨ <b>${novos.length}</b> novidade(s) desde a última atualização: ` +
+        novos.slice(0, 3).map(e => e.titulo).join(' · ');
+      $('#banner').classList.add('on');
+    }
+  }
+  if (tl.length) ultimoEventoId = Math.max(...tl.map(e => e.id));
+
+  $('#timeline').innerHTML = tl.length ? tl.map(e => `
+    <li><span class="imp ${e.importancia}"></span>
+      <span class="quando">${dt(e.criado_em)}</span>
+      <span>${e.titulo}</span></li>`).join('')
+    : '<li class="mut">Nenhum evento ainda — o monitor acabou de nascer. A partir de agora, toda mudança aparece aqui.</li>';
+
+  const ab = p.oportunidades_abertas || [];
+  $('#hAbertas').textContent = `— ${ab.length} processos`;
+  $('#tblAbertas tbody').innerHTML = ab.length ? ab.map(o => `
+    <tr><td style="max-width:340px">${o.link_sistema_origem ? `<a href="${o.link_sistema_origem}" target="_blank" rel="noopener">${o.objeto}</a>` : o.objeto}</td>
+      <td>${o.uf || '—'}</td>
+      <td class="num">${o.valor_total_estimado ? fmtBRL(o.valor_total_estimado) : '—'}</td>
+      <td class="mono mut">${dt(o.data_encerramento_proposta)}</td></tr>`).join('')
+    : '<tr><td colspan="4" class="mut">Nenhum processo aberto agora neste mercado (dentro da cobertura atual da base).</td></tr>';
+
+  // comparação com baseline (§38)
+  const bx = $('#boxComparacao');
+  const amostra = (base.amostra && base.amostra.processos) || 0;
+  if (amostra > 0) {
+    const mesAtual = new Date().toISOString().slice(0, 7);
+    const porMes = base.processos_por_mes || {};
+    const meses = Object.keys(porMes).filter(k => k !== mesAtual);
+    const mediaMes = meses.length ? meses.reduce((a, k) => a + porMes[k], 0) / meses.length : null;
+    const doMes = porMes[mesAtual] || 0;
+    const dProc = mediaMes ? pctDelta(doMes, mediaMes) : null;
+    bx.innerHTML = `
+      <div class="kv"><span>Processos no mês atual vs média histórica</span>
+        <b>${fmtN(doMes)} vs ${mediaMes ? mediaMes.toFixed(1) : '—'} ${deltaTag(dProc)}</b></div>
+      <div class="kv"><span>Valor mediano por processo (baseline)</span>
+        <b>${base.valor_mediano_processo ? fmtBRL(base.valor_mediano_processo) : '—'}</b></div>
+      <div class="kv"><span>Preço unitário homologado mediano</span>
+        <b>${base.preco_unitario && base.preco_unitario.mediana_homologada
+             ? fmtBRL(base.preco_unitario.mediana_homologada, 2) + ` (amostra: ${base.preco_unitario.amostra_itens} itens)` : 'sem resultados coletados ainda'}</b></div>
+      <div class="kv"><span>Concorrência média (fornecedores/processo)</span>
+        <b>${base.concorrencia_media ?? 'sem dados de disputa coletados'}</b></div>
+      <div class="kv"><span>Desertos / fracassados no período</span><b>${base.desertos} / ${base.fracassados}</b></div>
+      <p class="small" style="color:var(--dim);margin:10px 0 0">Amostra: ${amostra} processos reais, de ${base.amostra.periodo_inicio || '—'} a ${base.amostra.periodo_fim || '—'}. ${base.metodologia || ''}</p>`;
+  } else {
+    bx.innerHTML = '<span class="mut">Ainda não há processos deste mercado na cobertura atual da base — o baseline será calculado assim que surgirem. Nada é inventado para preencher este espaço.</span>';
+  }
+
+  const conc = p.concorrentes || [];
+  $('#tblConc tbody').innerHTML = conc.length ? conc.map(c => `
+    <tr><td><b>${c.nome || c.ni}</b><div class="mut mono" style="font-size:11px">${c.ni}</div></td>
+      <td class="num">${fmtN(c.vitorias)}</td>
+      <td class="num">${c.valor ? fmtBRL(c.valor) : '—'}</td>
+      <td class="num">${c.preco_mediano ? fmtBRL(c.preco_mediano, 2) : '—'}</td></tr>`).join('')
+    : '<tr><td colspan="4" class="mut">Nenhum resultado homologado coletado ainda para os processos deste monitor.</td></tr>';
+  $('#concNota').textContent = conc.length
+    ? 'Comportamento histórico observado em dados públicos (amostra e período do baseline acima). Não é afirmação sobre estratégia interna de nenhuma empresa.'
+    : '';
+
+  const linhasFuturo = [
+    ...(fut.contratos_vencendo || []).map(c => ['Contrato', c.snapshot]),
+    ...(fut.atas || []).map(a => ['Ata', a.snapshot]),
+    ...(fut.pca || []).map(x => ['PCA', x.snapshot])
+  ];
+  $('#tblFuturo tbody').innerHTML = linhasFuturo.length ? linhasFuturo.slice(0, 30).map(([t, s]) => `
+    <tr><td><span class="pill ${t === 'Contrato' ? 'warn' : t === 'Ata' ? 'info' : 'neu'}">${t.toUpperCase()}</span></td>
+      <td style="max-width:320px">${(s.objeto || s.descricao || '').slice(0, 120)}</td>
+      <td class="num">${s.valor ? fmtBRL(Number(s.valor)) : '—'}</td>
+      <td class="mono mut">${s.vigencia_fim ? 'vence ' + new Date(s.vigencia_fim + 'T00:00:00').toLocaleDateString('pt-BR')
+        : s.data_desejada ? 'desejada ' + new Date(s.data_desejada + 'T00:00:00').toLocaleDateString('pt-BR')
+        : s.ano ? 'PCA ' + s.ano : '—'}</td></tr>`).join('')
+    : '<tr><td colspan="4" class="mut">Nenhum sinal de compra futura identificado neste mercado até agora.</td></tr>';
+
+  const ufs = p.mapa_ufs || {};
+  const maxUf = Math.max(1, ...Object.values(ufs).map(Number));
+  $('#boxUfs').innerHTML = Object.entries(ufs).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([uf, v]) => `
+    <div style="display:flex;gap:8px;align-items:center;margin:5px 0;font-size:12.5px">
+      <b class="mono" style="width:28px">${uf}</b>
+      <div class="barra" style="flex:1"><i style="width:${Math.max(3, Number(v) / maxUf * 100)}%"></i></div>
+      <span class="mono mut" style="min-width:80px;text-align:right">${fmtMi(Number(v))}</span></div>`).join('')
+    || '<span class="mut">Sem dados geográficos ainda.</span>';
+
+  const serie = p.serie_mensal || {};
+  const maxS = Math.max(1, ...Object.values(serie).map(s => s.processos));
+  $('#boxSerie').innerHTML = Object.entries(serie).map(([mes, s]) => `
+    <div style="display:flex;gap:8px;align-items:center;margin:5px 0;font-size:12.5px">
+      <b class="mono" style="width:60px">${mes}</b>
+      <div class="barra" style="flex:1"><i style="width:${Math.max(3, s.processos / maxS * 100)}%"></i></div>
+      <span class="mono mut" style="min-width:110px;text-align:right">${s.processos} · ${fmtMi(Number(s.valor || 0))}</span></div>`).join('')
+    || '<span class="mut">Sem série histórica ainda.</span>';
+
+  $('#tblOrgaos tbody').innerHTML = (p.orgaos || []).map(o => `
+    <tr><td class="mono" style="font-size:12px">${o.orgao_cnpj}${o.uf ? ' · ' + o.uf : ''}</td>
+      <td class="num">${fmtN(o.processos)}</td><td class="num">${o.valor ? fmtBRL(o.valor) : '—'}</td></tr>`).join('')
+    || '<tr><td colspan="3" class="mut">Sem órgãos ainda.</td></tr>';
+}
+
+(async function init() {
+  const u = await guardAuth();
+  if (!u) return;
+  $('#lnkTerminal').href = CFG.LINK_TERMINAL;
+  if (!MON_ID) { location.href = 'monitores.html'; return; }
+
+  $('#btnPausar').addEventListener('click', async () => {
+    const novo = $('#btnPausar').textContent === 'Pausar' ? 'pausado' : 'ativo';
+    await sb.from('saas_monitores').update({ status: novo }).eq('id', MON_ID);
+    render(false);
+    toast(novo === 'pausado' ? 'Monitor pausado — o histórico foi preservado.' : 'Monitor reativado.');
+  });
+  $('#btnDuplicar').addEventListener('click', async () => {
+    const nome = prompt('Nome do novo monitor (cópia das regras):');
+    if (!nome) return;
+    try {
+      const { data, error } = await sb.rpc('saas_monitor_duplicar', { p_monitor: MON_ID, p_novo_nome: nome });
+      if (error) throw error;
+      location.href = 'monitor.html?id=' + data;
+    } catch (e) { toast('Não foi possível duplicar: ' + ((e && e.message) || 'erro')); }
+  });
+
+  await render(true);
+  setInterval(() => render(false), 60000); // auto-refresh sem F5 (§27); motor reavalia a cada ~10min
+  track('monitor_view', { id: MON_ID });
+})();
+</script>
+</body>
+</html>

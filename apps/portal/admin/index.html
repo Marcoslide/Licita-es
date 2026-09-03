@@ -17,7 +17,9 @@
     <button class="nav-item" type="button" data-sec="planos">Planos</button>
     <button class="nav-item" type="button" data-sec="cupons">Cupons</button>
     <button class="nav-item" type="button" data-sec="leads">Leads</button>
+    <button class="nav-item" type="button" data-sec="monitoramento">Monitoramento</button>
     <button class="nav-item" type="button" data-sec="fontes">Fontes e coletas</button>
+    <button class="nav-item" type="button" data-sec="memoria">Memória histórica</button>
     <button class="nav-item" type="button" data-sec="auditoria">Auditoria</button>
     <div class="spacer"></div>
     <a href="../app.html">← Voltar ao app</a>
@@ -107,10 +109,35 @@
       </table></div></div>
     </section>
 
+    <!-- MONITORAMENTO (§97) -->
+    <section data-sec="monitoramento" hidden>
+      <h2 style="margin:0 0 16px">Monitoramento — operação</h2>
+      <div class="kpis">
+        <div class="kpi"><div class="k-l">Monitores</div><div class="k-v" id="moTotal">—</div><div class="k-s"><span id="moAtivos">—</span> ativos</div></div>
+        <div class="kpi"><div class="k-l">Registros no radar</div><div class="k-v" id="moMatches">—</div><div class="k-s">matches persistentes</div></div>
+        <div class="kpi"><div class="k-l">Eventos 24h</div><div class="k-v" id="moEventos">—</div><div class="k-s"><span id="moCriticos">—</span> críticos</div></div>
+        <div class="kpi"><div class="k-l">Próxima execução</div><div class="k-v" id="moProx" style="font-size:15px">—</div><div class="k-s">tick a cada ~10 min</div></div>
+      </div>
+      <p class="small" style="color:var(--dim)">Reavaliação automática via <span class="mono">saas_monitor_tick()</span> (pg_cron */10). A ingestão das fontes mantém frequência própria; o tick reavalia a nossa base.</p>
+    </section>
+
     <!-- FONTES -->
     <section data-sec="fontes" hidden>
       <h2 style="margin:0 0 16px">Fontes e coletas</h2>
       <div id="boxFontes"><span class="mut">Carregando…</span></div>
+    </section>
+
+    <!-- MEMÓRIA HISTÓRICA (§98) -->
+    <section data-sec="memoria" hidden>
+      <h2 style="margin:0 0 8px">Memória da Bolsa</h2>
+      <p class="mut" style="margin:0 0 16px;font-size:13px" id="memMetodologia">Carregando…</p>
+      <div class="panelbox"><div class="ph">COBERTURA POR ANO (dados reais gravados)</div>
+        <div class="pb" id="memCobertura"><span class="mut">Carregando…</span></div></div>
+      <div class="panelbox"><div class="ph">FILA DE BACKFILL <span class="mut" style="font-weight:400" id="memResumoFila"></span></div>
+        <div class="pb flush tblwrap"><table class="tbl" id="tblBackfill">
+          <thead><tr><th>Fonte</th><th>Dataset</th><th>Período</th><th>Status</th><th class="num">Processados</th><th class="num">Inseridos</th><th class="num">Erros</th><th>Detalhe</th></tr></thead>
+          <tbody><tr><td colspan="8" class="mut">Carregando…</td></tr></tbody>
+        </table></div></div>
     </section>
 
     <!-- AUDITORIA -->
@@ -158,7 +185,8 @@ function mostrar(sec) {
   $$('#adminMain > section').forEach(s => s.hidden = s.dataset.sec !== sec);
   $$('.side .nav-item[data-sec]').forEach(b => b.classList.toggle('on', b.dataset.sec === sec));
   const load = { visao: carregarVisao, clientes: carregarClientes, planos: carregarPlanos,
-    cupons: carregarCupons, leads: carregarLeads, fontes: carregarFontes, auditoria: carregarAuditoria };
+    cupons: carregarCupons, leads: carregarLeads, fontes: carregarFontes, auditoria: carregarAuditoria,
+    monitoramento: carregarMonitoramento, memoria: carregarMemoria };
   if (load[sec]) load[sec]();
 }
 
@@ -333,6 +361,50 @@ async function carregarFontes() {
         </table></div></div>`;
     }).join('');
   } catch { $('#boxFontes').innerHTML = '<span class="mut">Falha ao carregar a saúde das fontes.</span>'; }
+}
+
+async function carregarMonitoramento() {
+  try {
+    const { data: m, error } = await sb.rpc('saas_admin_monitor_stats');
+    if (error) throw error;
+    $('#moTotal').textContent = fmtN(m.monitores_total);
+    $('#moAtivos').textContent = fmtN(m.monitores_ativos);
+    $('#moMatches').textContent = fmtN(m.matches_total);
+    $('#moEventos').textContent = fmtN(m.eventos_24h);
+    $('#moCriticos').textContent = fmtN(m.eventos_criticos_24h);
+    $('#moProx').textContent = m.proxima_execucao ? new Date(m.proxima_execucao).toLocaleTimeString('pt-BR') : '—';
+  } catch { toast('Falha ao carregar métricas de monitoramento.'); }
+}
+
+async function carregarMemoria() {
+  try {
+    const { data: m, error } = await sb.rpc('saas_admin_memoria');
+    if (error) throw error;
+    $('#memMetodologia').textContent = m.metodologia || '';
+    const cob = m.cobertura || [];
+    const maxLic = Math.max(1, ...cob.map(c => Number(c.licitacoes)));
+    $('#memCobertura').innerHTML = cob.map(c => `
+      <div style="display:flex;gap:10px;align-items:center;margin:7px 0;font-size:13px">
+        <b class="mono" style="width:44px">${c.ano}</b>
+        <div class="barra" style="flex:1;height:10px;background:var(--panel3);border-radius:5px;overflow:hidden">
+          <i style="display:block;height:100%;background:var(--amber);width:${Math.max(2, Number(c.cobertura_pct))}%"></i></div>
+        <span class="mono" style="min-width:52px;text-align:right">${c.cobertura_pct}%</span>
+        <span class="mono mut" style="min-width:220px;text-align:right">${fmtN(c.licitacoes)} lic · ${fmtN(c.itens)} itens · ${fmtN(c.resultados)} result.</span>
+      </div>
+      <div class="mut" style="font-size:11px;margin:-4px 0 6px 54px">${c.primeiro_registro ? 'de ' + c.primeiro_registro + ' a ' + c.ultimo_registro : 'nenhum registro deste ano na base ainda'}</div>`).join('')
+      || '<span class="mut">Sem dados de cobertura.</span>';
+    const rf = m.resumo_fila || {};
+    $('#memResumoFila').textContent = '— ' + Object.entries(rf).map(([k, v]) => `${v} ${k}`).join(' · ');
+    const stB = { COMPLETED: 'ok', RUNNING: 'info', PARTIAL: 'warn', QUEUED: 'neu', PAUSED: 'neu', FAILED: 'bad' };
+    $('#tblBackfill tbody').innerHTML = (m.fila || []).map(j => `
+      <tr><td>${j.fonte}</td><td class="mono" style="font-size:12px">${j.dataset}</td>
+        <td class="mono">${j.ano}${j.mes ? '-' + String(j.mes).padStart(2, '0') : ''}</td>
+        <td><span class="pill ${stB[j.status] || 'neu'}">${j.status}</span></td>
+        <td class="num">${fmtN(j.processed_records)}</td><td class="num">${fmtN(j.inserted)}</td>
+        <td class="num">${j.errors > 0 ? '<span class="pill bad">' + fmtN(j.errors) + '</span>' : '0'}</td>
+        <td class="mut" style="font-size:11.5px;max-width:260px">${(j.detalhe && j.detalhe.motivo) || (j.cursor && j.cursor.pagina ? 'cursor pág. ' + j.cursor.pagina : '')}</td></tr>`).join('')
+      || '<tr><td colspan="8" class="mut">Fila vazia.</td></tr>';
+  } catch { toast('Falha ao carregar a memória histórica.'); }
 }
 
 async function carregarAuditoria() {
