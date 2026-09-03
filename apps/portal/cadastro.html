@@ -1,0 +1,69 @@
+<!doctype html><html lang="pt-BR"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="assets/portal.css">
+<title>Criar conta — Bolsa de Licitações</title>
+</head><body>
+<nav class="nav"><div class="wrap nav-in">
+  <a class="brand" href="index.html"><span class="brand-mark">BL</span><b>Bolsa de Licitações</b></a>
+  <div class="nav-cta"><a class="btn ghost" href="index.html">← Voltar ao site</a></div>
+</div></nav>
+<div class="auth-wrap"><div class="auth-card">
+  <h1>Criar conta</h1>
+  <div class="sub">Comece grátis no plano Explorar. Sem cartão de crédito.</div>
+  <form id="f">
+    <div class="field-row">
+      <div class="field"><label for="nome">Nome*</label><input id="nome" required autocomplete="given-name"></div>
+      <div class="field"><label for="sobrenome">Sobrenome*</label><input id="sobrenome" required autocomplete="family-name"></div>
+    </div>
+    <div class="field"><label for="email">E-mail*</label><input id="email" type="email" required autocomplete="email"></div>
+    <div class="field"><label for="senha">Senha* <span class="mut">(mínimo 8 caracteres)</span></label>
+      <input id="senha" type="password" minlength="8" required autocomplete="new-password"></div>
+    <div class="field"><label for="tel">Telefone <span class="mut">(opcional)</span></label><input id="tel" autocomplete="tel"></div>
+    <div class="field check"><input id="termos" type="checkbox" required>
+      <label for="termos">Li e aceito os <a href="termos.html" target="_blank">Termos de Uso</a> e a
+      <a href="privacidade.html" target="_blank">Política de Privacidade</a>.</label></div>
+    <div class="form-msg" id="msg"></div>
+    <button class="btn primary big full" type="submit" id="btn">Criar conta gratuita</button>
+  </form>
+  <div class="auth-links"><span></span><a href="login.html">Já tenho conta — entrar</a></div>
+</div></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="assets/config.js"></script>
+<script src="assets/portal.js"></script>
+<script>
+"use strict";
+track("signup_started");
+document.getElementById("f").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const msg = document.getElementById("msg"), btn = document.getElementById("btn");
+  btn.disabled = true;
+  try {
+    const params = new URLSearchParams(location.search);
+    const { error } = await sb.auth.signUp({
+      email: document.getElementById("email").value.trim(),
+      password: document.getElementById("senha").value,
+      options: {
+        emailRedirectTo: new URL("login.html?verificado=1", location.href).href,
+        data: {
+          nome: document.getElementById("nome").value.trim(),
+          sobrenome: document.getElementById("sobrenome").value.trim(),
+          telefone: document.getElementById("tel").value.trim() || null,
+          aceitou_termos: "true",
+          plano_interesse: params.get("plano") || null,
+          utm: getUTM()
+        }
+      }
+    });
+    if (error) throw error;
+    location.href = "verificar-email.html?email=" + encodeURIComponent(document.getElementById("email").value.trim());
+  } catch (err) {
+    formMsg(msg, "err", /already/i.test(err.message || "") ?
+      "Este e-mail já possui conta. Tente entrar ou recuperar a senha." :
+      "Não foi possível criar a conta: " + (err.message || "tente novamente."));
+    btn.disabled = false;
+  }
+});
+</script>
+</body></html>

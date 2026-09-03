@@ -1,0 +1,45 @@
+<!doctype html><html lang="pt-BR"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="assets/portal.css">
+<title>Nova senha — Bolsa de Licitações</title>
+</head><body>
+<nav class="nav"><div class="wrap nav-in">
+  <a class="brand" href="index.html"><span class="brand-mark">BL</span><b>Bolsa de Licitações</b></a>
+  <div class="nav-cta"><a class="btn ghost" href="index.html">← Voltar ao site</a></div>
+</div></nav>
+<div class="auth-wrap"><div class="auth-card">
+  <h1>Definir nova senha</h1>
+  <div class="sub">Você chegou aqui pelo link enviado ao seu e-mail.</div>
+  <form id="f">
+    <div class="field"><label for="s1">Nova senha (mínimo 8 caracteres)</label><input id="s1" type="password" minlength="8" required autocomplete="new-password"></div>
+    <div class="field"><label for="s2">Repita a nova senha</label><input id="s2" type="password" minlength="8" required autocomplete="new-password"></div>
+    <div class="form-msg" id="msg"></div>
+    <button class="btn primary big full" type="submit" id="btn">Salvar nova senha</button>
+  </form>
+</div></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="assets/config.js"></script>
+<script src="assets/portal.js"></script>
+<script>
+"use strict";
+const msg = document.getElementById("msg");
+if (sb) sb.auth.onAuthStateChange((ev) => { if (ev === "PASSWORD_RECOVERY") formMsg(msg, "ok", "Link válido — defina sua nova senha."); });
+document.getElementById("f").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const s1 = document.getElementById("s1").value, s2 = document.getElementById("s2").value;
+  if (s1 !== s2) { formMsg(msg, "err", "As senhas não conferem."); return; }
+  const btn = document.getElementById("btn"); btn.disabled = true;
+  try {
+    const { error } = await sb.auth.updateUser({ password: s1 });
+    if (error) throw error;
+    formMsg(msg, "ok", "Senha atualizada! Redirecionando…");
+    setTimeout(() => location.href = "app.html", 1200);
+  } catch (err) {
+    formMsg(msg, "err", "Não foi possível atualizar: " + (err.message || "o link pode ter expirado. Solicite um novo."));
+    btn.disabled = false;
+  }
+});
+</script>
+</body></html>

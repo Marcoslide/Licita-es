@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preços — Bolsa de Licitações</title>
+<meta name="description" content="Planos da Bolsa de Licitações: comece grátis e evolua para inteligência competitiva completa do mercado público.">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="assets/portal.css">
+</head>
+<body>
+
+<nav class="nav"><div class="wrap nav-in">
+  <a class="brand" href="index.html"><span class="brand-mark">BL</span><b>Bolsa de Licitações</b></a>
+  <div class="nav-links">
+    <a href="index.html#recursos">Recursos</a>
+    <a href="precos.html" style="color:var(--amber)">Preços</a>
+    <a href="index.html#faq">Perguntas</a>
+    <a href="index.html#contato">Contato</a>
+  </div>
+  <div class="nav-cta">
+    <a class="btn ghost" href="login.html">Entrar</a>
+    <a class="btn primary" href="cadastro.html">Testar a Bolsa</a>
+  </div>
+</div></nav>
+
+<section class="sect" style="padding-top:60px">
+  <div class="wrap" style="text-align:center">
+    <div class="sect-eyebrow">Planos e preços</div>
+    <h2>Escolha o nível de inteligência do seu negócio</h2>
+    <p class="sect-p" style="margin:10px auto 0">Comece grátis no Explorar. Faça upgrade quando o mercado exigir mais de você.
+      Cancele quando quiser — seu acesso permanece até o fim do período pago.</p>
+    <div class="cycle-toggle" role="tablist" aria-label="Ciclo de cobrança">
+      <button id="cyMensal" class="on" type="button">Mensal</button>
+      <button id="cyAnual" type="button">Anual <span style="color:inherit;opacity:.8">(2 meses grátis)</span></button>
+    </div>
+    <div class="small" id="planosNota" style="color:var(--dim);margin-top:10px"></div>
+
+    <div class="plans" id="plansGrid" aria-live="polite"></div>
+  </div>
+</section>
+
+<section class="sect alt">
+  <div class="wrap">
+    <div class="sect-eyebrow">Comparação completa</div>
+    <h2>O que cada plano entrega</h2>
+    <div class="tblwrap"><table class="cmp" id="cmpTable"></table></div>
+    <p class="small" style="color:var(--dim);margin-top:14px">
+      Recursos marcados como <span class="stage beta">BETA</span> ou <span class="stage breve">EM BREVE</span> nas páginas do produto
+      seguem o mesmo rótulo aqui: nunca vendemos como pronto o que ainda não está.</p>
+  </div>
+</section>
+
+<section class="sect">
+  <div class="wrap" style="max-width:760px">
+    <div class="sect-eyebrow">Perguntas sobre cobrança</div>
+    <h2>Transparência antes de tudo</h2>
+    <div class="faq">
+      <details><summary>Preciso de cartão para começar?</summary><p>Não. O plano Explorar é gratuito e não pede cartão de crédito.</p></details>
+      <details><summary>Como funciona o teste dos planos pagos?</summary><p>Os planos pagos incluem período de teste (indicado em cada plano). Você pode cancelar durante o teste sem custo.</p></details>
+      <details><summary>Posso trocar de plano depois?</summary><p>Sim, upgrade e downgrade a qualquer momento. No downgrade, o novo limite passa a valer no ciclo seguinte.</p></details>
+      <details><summary>E se eu cancelar?</summary><p>Seu acesso continua até o fim do período já pago; depois, sua conta volta ao plano Explorar — seus dados e listas não são apagados.</p></details>
+      <details><summary>Como é feita a cobrança?</summary><p>A ativação da cobrança online (cartão/Pix/boleto) está em implantação. Nesta fase, a contratação de planos pagos é concluída com nosso time — fale conosco pelo formulário de contato.</p></details>
+    </div>
+  </div>
+</section>
+
+<footer class="footer"><div class="wrap">
+  <div class="foot-grid">
+    <div>
+      <a class="brand" href="index.html"><span class="brand-mark">BL</span><b>Bolsa de Licitações</b></a>
+      <p class="small" style="color:var(--dim);margin-top:10px">Inteligência do mercado público brasileiro, construída sobre fontes oficiais.</p>
+    </div>
+    <div><b>Produto</b><a href="index.html#recursos">Recursos</a><a href="precos.html">Preços</a><a href="status.html">Status das fontes</a></div>
+    <div><b>Conta</b><a href="login.html">Entrar</a><a href="cadastro.html">Criar conta</a><a href="recuperar.html">Recuperar senha</a></div>
+    <div><b>Legal</b><a href="termos.html">Termos de uso</a><a href="privacidade.html">Privacidade</a><a href="cookies.html">Cookies</a></div>
+  </div>
+  <div class="foot-legal">© 2026 Bolsa de Licitações. Dados públicos obtidos de fontes oficiais do governo brasileiro.</div>
+</div></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="assets/config.js"></script>
+<script src="assets/portal.js"></script>
+<script>
+"use strict";
+// Fallback estático (rotulado) — usado só se o banco estiver inacessível.
+// Espelha a seed de public.saas_planos; a fonte da verdade é sempre o banco (§119).
+const PLANOS_FALLBACK = [
+  { id:'explorar', nome:'Explorar', descricao:'Conheça o mercado público com acesso gratuito limitado.', destaque:false, preco_mensal:0, preco_anual:0, trial_dias:0, ordem:1,
+    entitlements:{pesquisas_dia:10,max_watchlists:3,history_days:30,can_view_competitors:false,can_export:false,can_use_ai:false,max_users:1,api_access:false} },
+  { id:'profissional', nome:'Profissional', descricao:'A Bolsa completa para quem vende ao governo.', destaque:false, preco_mensal:297, preco_anual:2970, trial_dias:7, ordem:2,
+    entitlements:{pesquisas_dia:200,max_watchlists:10,history_days:365,can_view_competitors:false,can_export:false,can_use_ai:false,max_users:1,api_access:false} },
+  { id:'inteligencia', nome:'Inteligência', descricao:'Concorrentes, rankings, market share e histórico profundo.', destaque:true, preco_mensal:597, preco_anual:5970, trial_dias:7, ordem:3,
+    entitlements:{pesquisas_dia:1000,max_watchlists:30,history_days:1825,can_view_competitors:true,can_export:true,can_use_ai:'quando_disponivel',max_users:3,api_access:false} },
+  { id:'business', nome:'Business', descricao:'Equipes, dashboards executivos e uso intensivo.', destaque:false, preco_mensal:997, preco_anual:9970, trial_dias:7, ordem:4,
+    entitlements:{pesquisas_dia:5000,max_watchlists:100,history_days:1825,can_view_competitors:true,can_export:true,can_use_ai:'quando_disponivel',max_users:10,api_access:'futuro'} },
+  { id:'enterprise', nome:'Enterprise', descricao:'Alto volume, integrações, SLA e onboarding dedicado.', destaque:false, preco_mensal:null, preco_anual:null, trial_dias:0, ordem:5,
+    entitlements:{sob_consulta:true} }
+];
+
+let planos = PLANOS_FALLBACK;
+let ciclo = 'mensal';
+
+function beneficios(p) {
+  const e = p.entitlements || {};
+  if (e.sob_consulta) return [
+    'Tudo do Business', 'Volume e usuários sob medida', 'Integrações e API dedicadas',
+    'SLA e suporte prioritário', 'Onboarding assistido'
+  ].map(t => `<li>${t}</li>`).join('');
+  const li = [];
+  li.push(`<li><b>${fmtN(e.pesquisas_dia)}</b> pesquisas por dia</li>`);
+  li.push(`<li><b>${fmtN(e.max_watchlists)}</b> listas de acompanhamento</li>`);
+  li.push(`<li>Histórico de <b>${e.history_days >= 365 ? Math.round(e.history_days / 365) + (e.history_days >= 730 ? ' anos' : ' ano') : e.history_days + ' dias'}</b></li>`);
+  li.push(`<li class="${e.can_view_competitors ? '' : 'no'}">Radar de concorrentes e market share</li>`);
+  li.push(`<li class="${e.can_export ? '' : 'no'}">Exportação de dados e relatórios</li>`);
+  li.push(`<li class="${e.can_use_ai ? '' : 'no'}">Análises assistidas por IA <span class="stage breve">EM BREVE</span></li>`);
+  li.push(`<li><b>${fmtN(e.max_users)}</b> ${e.max_users > 1 ? 'usuários' : 'usuário'}</li>`);
+  li.push(`<li class="${e.api_access ? '' : 'no'}">Acesso via API ${e.api_access === 'futuro' ? '<span class="stage breve">EM BREVE</span>' : ''}</li>`);
+  return li.join('');
+}
+
+function precoTxt(p) {
+  if (p.preco_mensal === null || p.preco_mensal === undefined) return '<span style="font-size:20px">Sob consulta</span>';
+  if (Number(p.preco_mensal) === 0) return 'R$ 0<small>/mês</small>';
+  if (ciclo === 'anual' && p.preco_anual) {
+    const mensalEquiv = Number(p.preco_anual) / 12;
+    return `${fmtBRL(mensalEquiv)}<small>/mês · ${fmtBRL(p.preco_anual)}/ano</small>`;
+  }
+  return `${fmtBRL(p.preco_mensal)}<small>/mês</small>`;
+}
+
+function ctaPlano(p) {
+  if (p.entitlements && p.entitlements.sob_consulta)
+    return `<a class="btn ghost" href="index.html#contato" data-track="cta_plano_enterprise">Fale conosco</a>`;
+  if (Number(p.preco_mensal) === 0)
+    return `<a class="btn ghost" href="cadastro.html?plano=${p.id}" data-track="cta_plano_${p.id}">Começar grátis</a>`;
+  const cls = p.destaque ? 'btn primary' : 'btn ghost';
+  const trial = p.trial_dias > 0 ? `Testar ${p.trial_dias} dias` : 'Assinar';
+  return `<a class="${cls}" href="cadastro.html?plano=${p.id}" data-track="cta_plano_${p.id}">${trial}</a>`;
+}
+
+function render() {
+  const grid = $('#plansGrid');
+  grid.innerHTML = planos.map(p => `
+    <div class="plan ${p.destaque ? 'hl' : ''}" style="text-align:left">
+      ${p.destaque ? '<div class="plan-tag">MAIS ESCOLHIDO</div>' : ''}
+      <h3>${p.nome}</h3>
+      <p class="p-desc">${p.descricao || ''}</p>
+      <div class="p-price">${precoTxt(p)}</div>
+      <ul>${beneficios(p)}</ul>
+      ${ctaPlano(p)}
+    </div>`).join('');
+
+  const linhas = [
+    ['Pesquisas por dia', p => p.entitlements.sob_consulta ? 'Sob medida' : fmtN(p.entitlements.pesquisas_dia)],
+    ['Listas de acompanhamento', p => p.entitlements.sob_consulta ? 'Sob medida' : fmtN(p.entitlements.max_watchlists)],
+    ['Histórico', p => p.entitlements.sob_consulta ? 'Completo' : (p.entitlements.history_days >= 365 ? Math.round(p.entitlements.history_days / 365) + ' ano(s)' : p.entitlements.history_days + ' dias')],
+    ['Radar de concorrentes', p => p.entitlements.sob_consulta || p.entitlements.can_view_competitors ? '✓' : '—'],
+    ['Exportação de dados', p => p.entitlements.sob_consulta || p.entitlements.can_export ? '✓' : '—'],
+    ['Análises com IA (em breve)', p => p.entitlements.sob_consulta || p.entitlements.can_use_ai ? '✓' : '—'],
+    ['Usuários', p => p.entitlements.sob_consulta ? 'Sob medida' : fmtN(p.entitlements.max_users)],
+    ['API', p => p.entitlements.sob_consulta ? '✓' : (p.entitlements.api_access ? (p.entitlements.api_access === 'futuro' ? 'Em breve' : '✓') : '—')]
+  ];
+  $('#cmpTable').innerHTML =
+    `<thead><tr><th>Recurso</th>${planos.map(p => `<th>${p.nome}</th>`).join('')}</tr></thead>` +
+    `<tbody>${linhas.map(([nome, fn]) =>
+      `<tr><td>${nome}</td>${planos.map(p => `<td>${fn(p)}</td>`).join('')}</tr>`).join('')}</tbody>`;
+}
+
+async function carregar() {
+  try {
+    const rows = await bolsaView('saas_planos', 'select=*&ativo=eq.true&order=ordem.asc');
+    if (Array.isArray(rows) && rows.length) {
+      planos = rows;
+      $('#planosNota').textContent = 'Planos e preços carregados ao vivo da nossa base.';
+    } else { throw new Error('vazio'); }
+  } catch {
+    $('#planosNota').textContent = 'Exibindo tabela de referência (não foi possível carregar os preços ao vivo).';
+  }
+  render();
+}
+
+$('#cyMensal').addEventListener('click', () => { ciclo = 'mensal'; $('#cyMensal').classList.add('on'); $('#cyAnual').classList.remove('on'); render(); });
+$('#cyAnual').addEventListener('click', () => { ciclo = 'anual'; $('#cyAnual').classList.add('on'); $('#cyMensal').classList.remove('on'); render(); });
+
+render();      // pinta imediatamente com o fallback rotulado
+carregar();    // troca pelos dados vivos assim que chegarem
+track('pricing_view');
+</script>
+</body>
+</html>

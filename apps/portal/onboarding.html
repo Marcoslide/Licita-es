@@ -1,0 +1,64 @@
+<!doctype html><html lang="pt-BR"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="assets/portal.css">
+<title>Bem-vindo — Bolsa de Licitações</title>
+</head><body>
+<div class="auth-wrap"><div class="auth-card" style="max-width:520px">
+  <div class="eyebrow">Passo único · opcional</div>
+  <h1>Personalize sua Bolsa</h1>
+  <div class="sub">Isso só ajusta sua experiência inicial — você terá acesso à base nacional inteira.</div>
+  <form id="f">
+    <div class="field"><label>O que você procura?</label>
+      <div id="segs" style="display:flex;gap:6px;flex-wrap:wrap">
+        <button type="button" class="btn" data-v="materiais">Materiais</button>
+        <button type="button" class="btn" data-v="servicos">Serviços</button>
+        <button type="button" class="btn" data-v="obras">Obras</button>
+        <button type="button" class="btn" data-v="medicamentos">Medicamentos</button>
+        <button type="button" class="btn" data-v="tecnologia">Tecnologia</button>
+        <button type="button" class="btn" data-v="alimentacao">Alimentação</button>
+      </div></div>
+    <div class="field"><label for="regiao">Onde costuma atuar?</label>
+      <select id="regiao"><option value="brasil">Brasil inteiro</option><option value="norte">Norte</option>
+      <option value="nordeste">Nordeste</option><option value="centro-oeste">Centro-Oeste</option>
+      <option value="sudeste">Sudeste</option><option value="sul">Sul</option></select></div>
+    <div class="field"><label for="temas">Temas para acompanhar <span class="mut">(palavras separadas por vírgula)</span></label>
+      <input id="temas" placeholder="ex.: seringa, vigilância patrimonial, notebooks"></div>
+    <div class="form-msg" id="msg"></div>
+    <div style="display:flex;gap:10px">
+      <button class="btn primary big" type="submit">Começar a explorar</button>
+      <a class="btn big ghost" href="app.html">Pular</a>
+    </div>
+  </form>
+</div></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="assets/config.js"></script>
+<script src="assets/portal.js"></script>
+<script>
+"use strict";
+(async () => { if (!await guardAuth()) return; })();
+const sel = new Set();
+document.getElementById("segs").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-v]"); if (!b) return;
+  b.classList.toggle("primary");
+  b.classList.contains("primary") ? sel.add(b.dataset.v) : sel.delete(b.dataset.v);
+});
+document.getElementById("f").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  try {
+    const u = (await sb.auth.getUser()).data.user;
+    const onboarding = {
+      segmentos: [...sel],
+      regiao: document.getElementById("regiao").value,
+      temas: document.getElementById("temas").value.split(",").map(s => s.trim()).filter(Boolean),
+      concluido_em: new Date().toISOString()
+    };
+    const { error } = await sb.from("saas_perfis").update({ onboarding }).eq("user_id", u.id);
+    if (error) throw error;
+    track("onboarding_completed", onboarding);
+    location.href = "app.html";
+  } catch { formMsg(document.getElementById("msg"), "err", "Não foi possível salvar — você pode pular e ajustar depois."); }
+});
+</script>
+</body></html>
