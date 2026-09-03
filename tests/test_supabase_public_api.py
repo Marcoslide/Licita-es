@@ -31,6 +31,7 @@ class FakeClient:
                 "orgao_cnpj": "07615750000117", "processo": "63/2026",
                 "objeto": "Aquisição de materiais hospitalares", "modalidade_nome": "Pregão",
                 "situacao_nome": "Divulgada", "valor_total_estimado": 120000,
+                "modo_disputa": "Aberto", "srp": True,
                 "uf": "MG", "municipio_nome": "Belo Horizonte",
             }], 1)
         if resource == "orgaos":
@@ -42,6 +43,7 @@ class FakeClient:
                 "unidade": "UN", "valor_unitario_estimado": 12.5,
                 "valor_total_estimado": 1250, "catalogo_codigo": "12345",
                 "material_ou_servico": "MATERIAL",
+                "criterio_julgamento": "Menor preço", "orcamento_sigiloso": False,
             }], None)
         if resource == "resultados_itens":
             return ([{
@@ -128,6 +130,13 @@ class SupabasePublicApiTests(unittest.TestCase):
         self.assertEqual("FORNECEDOR TESTE", result["competitors"][0]["name"])
         self.assertEqual(1, result["competitors"][0]["wins"])
         self.assertIn("não representam faturamento contábil", result["method_note"])
+
+    def test_detail_exposes_structured_dispute_and_item_conditions(self) -> None:
+        detail = SupabasePublicApi(FakeClient()).procurement_detail("07615750000117-1-000063/2026")
+        self.assertEqual("Aberto", detail["procurement"]["dispute_mode"])
+        self.assertTrue(detail["procurement"]["is_price_registry"])
+        self.assertEqual("Menor preço", detail["items"][0]["judgment_criterion"])
+        self.assertFalse(detail["items"][0]["confidential_budget"])
 
 
 if __name__ == "__main__":

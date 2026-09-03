@@ -462,6 +462,7 @@ class SupabasePublicApi:
             "id": ncp, "pncp_control_number": ncp, "purchase_number": row.get("numero_compra"),
             "process_number": row.get("processo"), "object": row.get("objeto"),
             "modality_name": row.get("modalidade_nome"), "status_name": row.get("situacao_nome"),
+            "dispute_mode": row.get("modo_disputa"), "is_price_registry": row.get("srp"),
             "proposal_start": row.get("data_abertura_proposta"), "proposal_end": row.get("data_encerramento_proposta"),
             "estimated_value": _float(row.get("valor_total_estimado")), "homologated_value": _float(row.get("valor_total_homologado")),
             "source_system": "pncp", "source_url": source_url, "source_created_at": row.get("data_publicacao_pncp"),
@@ -476,6 +477,7 @@ class SupabasePublicApi:
             "unit": item.get("unidade"), "estimated_unit_value": item.get("valor_unitario_estimado"),
             "estimated_total_value": item.get("valor_total_estimado"), "status_name": item.get("situacao_fonte"),
             "has_result": item.get("tem_resultado"), "catalog_item_code": item.get("catalogo_codigo"),
+            "judgment_criterion": item.get("criterio_julgamento"), "confidential_budget": item.get("orcamento_sigiloso"),
         } for item in item_rows]
         documents = [{
             "id": document.get("id"), "original_name": document.get("titulo"),
