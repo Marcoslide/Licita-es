@@ -48,3 +48,5 @@ Este branch acrescenta a primeira implementação real da Fase 1, sem substituir
 Comece em [docs/OPERACAO.md](docs/OPERACAO.md). Os catálogos extraídos dos OpenAPIs oficiais estão em [docs/ENDPOINTS_PNCP.md](docs/ENDPOINTS_PNCP.md) e [docs/ENDPOINTS_COMPRAS.md](docs/ENDPOINTS_COMPRAS.md).
 
 O resultado comprovado da primeira execução está em [docs/RELATORIO_EXECUCAO_2026-09-02.md](docs/RELATORIO_EXECUCAO_2026-09-02.md), com exemplos factuais em [docs/EXEMPLOS_REAIS.md](docs/EXEMPLOS_REAIS.md).
+
+O staging para VPS compartilhada está definido em [deploy/vps/docker-compose.yml](deploy/vps/docker-compose.yml). Ele mantém API e interface apenas em `127.0.0.1`, usa volumes exclusivos e executa coletas pequenas por um scheduler sem sobreposição. Consulte [docs/OPERACAO.md](docs/OPERACAO.md) antes de expor qualquer serviço no proxy HTTPS.

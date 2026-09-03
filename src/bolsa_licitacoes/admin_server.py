@@ -8,12 +8,14 @@ from urllib.parse import parse_qs, urlparse
 from .db import Database
 
 
-def serve(db: Database, host: str = "127.0.0.1", port: int = 8088) -> None:
+def serve(db: Database, host: str = "127.0.0.1", port: int = 8088, token: str = "") -> None:
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self) -> None:  # noqa: N802
             parsed = urlparse(self.path)
             if parsed.path == "/health":
                 self._json(200, {"status": "ok"})
+            elif token and self.headers.get("Authorization") != f"Bearer {token}":
+                self._json(401, {"error": "unauthorized"})
             elif parsed.path == "/api/admin/stats":
                 self._json(200, db.table_counts())
             elif parsed.path == "/api/admin/sources":

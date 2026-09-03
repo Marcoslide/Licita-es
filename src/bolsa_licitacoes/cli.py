@@ -14,6 +14,7 @@ from .documents import DocumentService
 from .http import PublicHttpClient
 from .logging import configure_logging
 from .replay import replay_pncp_capture, replay_pncp_detail_capture, replay_pncp_entity_capture
+from .scheduler import run_scheduler
 
 
 def main() -> None:
@@ -25,6 +26,7 @@ def main() -> None:
     server = sub.add_parser("serve-admin")
     server.add_argument("--host", default="127.0.0.1")
     server.add_argument("--port", type=int, default=8088)
+    sub.add_parser("run-scheduler")
 
     pncp = sub.add_parser("collect-pncp")
     _date_args(pncp)
@@ -83,7 +85,9 @@ def main() -> None:
     elif args.command == "stats":
         print(json.dumps(db.table_counts(), ensure_ascii=False, indent=2))
     elif args.command == "serve-admin":
-        serve(db, args.host, args.port)
+        serve(db, args.host, args.port, settings.admin_api_token)
+    elif args.command == "run-scheduler":
+        run_scheduler(db, settings)
     elif args.command == "collect-pncp":
         metrics = pncp_connector.collect_publications(
             _date(args.start), _date(args.end), modalities=_ints(args.modalities), max_pages=args.max_pages,

@@ -1,6 +1,7 @@
 __pycache__/
 *.py[cod]
 .env
+deploy/vps/.env
 .venv/
 data/*.db
 data/*.db-*

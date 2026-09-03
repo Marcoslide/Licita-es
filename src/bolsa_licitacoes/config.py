@@ -12,6 +12,7 @@ class Settings:
     timeout: float
     retries: int
     user_agent: str
+    admin_api_token: str
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -24,4 +25,5 @@ class Settings:
                 "BOLSA_HTTP_USER_AGENT",
                 "BolsaDeLicitacoes/0.1 (+contato-do-operador)",
             ),
+            admin_api_token=os.getenv("BOLSA_ADMIN_API_TOKEN", ""),
         )
