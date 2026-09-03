@@ -419,6 +419,7 @@ class SupabasePublicApi:
         items = self._enrich_procurements(
             page_rows, query=text, terms=terms, search_mode=plan.mode, hits=hit_by_ncp,
             item_counts_override=corpus_item_counts, document_counts_override=corpus_document_counts,
+            org_names_override=org_names,
         )
         facets = self._facets(
             filters, terms=terms, text=text, catalog_code=catalog_code, scope=query,
@@ -527,10 +528,11 @@ class SupabasePublicApi:
         search_mode: str = "balanced", hits: Optional[Mapping[str, SearchHit]] = None,
         item_counts_override: Optional[Counter[str]] = None,
         document_counts_override: Optional[Counter[str]] = None,
+        org_names_override: Optional[Mapping[str, str]] = None,
     ) -> list[dict[str, Any]]:
         ncps = [str(row.get("numero_controle_pncp")) for row in rows if row.get("numero_controle_pncp")]
         org_ids = sorted({str(row.get("orgao_cnpj")) for row in rows if row.get("orgao_cnpj")})
-        org_names = self._organization_names(org_ids)
+        org_names = dict(org_names_override) if org_names_override is not None else self._organization_names(org_ids)
         item_counts = item_counts_override if item_counts_override is not None else self._related_counts("itens", ncps)
         document_counts = document_counts_override if document_counts_override is not None else self._related_counts("documentos", ncps)
         result = []
