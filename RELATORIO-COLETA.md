@@ -104,3 +104,91 @@ retry exponencial com jitter (§52-55).
   (limite de 2 projetos ativos no plano free impediu criar projeto dedicado; nada do
   schema `public` foi alterado). Migração para projeto próprio: rodar `supabase/migrations/`
   + implantar a função + recriar os crons.
+
+---
+
+# Etapas 2–4 — Compras.gov.br, Contratos.gov.br e Portal da Transparência
+### (+ atas e PCA completando o PNCP) — implantadas em 03/09/2026 ~02:30 UTC
+
+Metodologia: cada fonte foi **sondada primeiro** (função `coleta-diagnostico`, que lê
+status, formas de resposta e até os parâmetros do OpenAPI de dadosabertos), e o conector
+foi escrito sobre o que a fonte responde de fato — nada foi presumido.
+
+## PNCP — atas e PCA (completando a Etapa 1)
+
+- **Áreas acessadas**: `/api/consulta/v1/atas` (496.254 atas vigentes no universo da
+  janela sondada) e `/api/consulta/v1/pca/atualizacao`.
+- **Coletado**: **150 atas** (número, órgão, unidade, objeto, assinatura, vigência,
+  cancelamento; 102 vencendo em ≤180d) e **100 itens reais de PCA** (descrição,
+  quantidade, valor, data desejada, classificação — ex.: "Manutenção de veículos leves e
+  pesados, R$ 7,1 mi, desejada 14/12/2026").
+- **Incidente e correção**: o payload de PCA é um envelope por órgão com `itens[]`
+  dentro; a 1ª gravação leu o nível errado. Correção dupla: **reprocesso via SQL a partir
+  do RAW imutável** (prova prática do §24) + função v2 iterando `itens[]`.
+- **Qualidade observada na fonte**: atas com vigência digitada errada pelos órgãos
+  (ex.: fim em "7203" e "3025") — preservadas como estão, com payload original (§44/§58).
+- Cron: atas a cada 2h; PCA diário. Idempotência verificada (2ª rodada: 150 revisitadas,
+  0 duplicadas).
+
+## Compras.gov.br (Dados Abertos) — Etapa 2
+
+- **Rotas confirmadas via OpenAPI** (`/v3/api-docs`, 79 rotas mapeadas): CATMAT
+  (`modulo-material/4_consultarItemMaterial`, 344.727 itens na fonte), CATSER
+  (`modulo-servico/6_consultarItemServico`), pesquisa de preços
+  (`modulo-pesquisa-preco/1_consultarMaterial` [tipo*, codigo*] e `3_consultarServico`
+  [codigoItemCatalogo*]), ARP com **saldo de empenho por item**
+  (`modulo-arp/4_consultarEmpenhosSaldoItem` [numeroAta*, unidadeGerenciadora*]),
+  UASGs (21.970) e módulo legado (licitações/pregões pré-14133, com parâmetros mapeados).
+- **Estratégia**: enriquecimento **direcionado** — só busca códigos de catálogo que
+  aparecem nos NOSSOS itens (nada de sincronizar 344 mil itens no free tier), preços
+  praticados por esses códigos, e saldo de ARP para as atas coletadas do PNCP.
+- **Coletado até o fechamento**: 1 código CATMAT real resolvido (cód. 19 — "Japona
+  masculina", grupo Vestuários); 9 códigos marcados `NAO_ENCONTRADO_NA_FONTE`
+  (itens municipais usam catálogos próprios — registrado, não descartado, §58);
+  preços/saldos ainda zerados (os crons horários continuam o trabalho).
+- **Status**: a fonte oscilou (timeout) e o marcador automático `TEMPORARILY_UNAVAILABLE`
+  funcionou como projetado (§54) — o cron seguinte retoma sozinho.
+- **Limitação honesta**: módulo legado (histórico pré-PNCP) sondado e documentado, mas o
+  conector ainda não grava — entidade própria a definir para não colidir com o modelo (§31).
+
+## Contratos.gov.br (Comprasnet Contratos) — Etapa 3
+
+- **Área acessada**: `/api/contrato/ug/{uasg}` (confirmado por sondagem: UG 510180/INSS
+  retornou 617 contratos, 1,7 MB) + sub-recursos por contrato
+  (`/api/contrato/{id}/empenhos|faturas|garantias|ocorrencias`).
+- **Alvo inteligente**: as UGs vêm da NOSSA base (unidades federais vistas nas licitações
+  do PNCP — Ministério da Defesa, DNIT, Comando do Exército, INSS…), com checkpoint por UG.
+- **Coletado**: **94 contratos federais (R$ 165,8 mi em valor global)** com vigência,
+  fornecedor (CNPJ validado), processo, modalidade; **26 empenhos** com
+  empenhado/a-liquidar/liquidado/pago **separados** (§17/§41) — ex.: 2025NE003378,
+  R$ 12.572,98 empenhados. Idempotência verificada (2ª rodada: 94 revisitados, 0 duplicados).
+- Faturas/garantias/ocorrências: endpoints implementados; os contratos visitados até
+  agora não expunham registros (contagem 0 é real, não falha).
+- Cron: a cada 3h (contratos + execução).
+
+## Portal da Transparência — Etapa 4
+
+- A API **exige chave gratuita** (cadastro por e-mail). Conforme §5, **nada foi
+  coletado**: a fonte está `AGUARDANDO_CHAVE`, com o conector completo implantado
+  (despesas/documentos → fases EMPENHO/LIQUIDAÇÃO/PAGAMENTO em `pagamentos_transparencia`).
+- **Para ativar**: cadastrar e-mail em `portaldatransparencia.gov.br/api-de-dados/cadastrar-email`
+  e gravar a chave: `insert into bolsa.segredos (chave, valor) values ('transparencia_api_key', '<chave>');`
+  O cron de 6h em 6h passa a coletar sozinho — sem tocar em código.
+
+## Agendamentos ativos (pg_cron — 10 jobs)
+
+| Job | Frequência | | Job | Frequência |
+|---|---|---|---|---|
+| pncp delta | 20 min | | comprasgov catálogo+preços | 1 h |
+| pncp detalhes | 3×/h | | comprasgov preços | 2 h |
+| pncp contratos | 1 h | | comprasgov saldo ARP | 4 h |
+| pncp atas | 2 h | | contratosgov | 3 h |
+| pncp PCA | diário | | transparência | 6 h |
+
+## Estado consolidado da base (03/09 02:28 UTC)
+
+596 licitações (R$ 2,42 bi) · 1.462 itens · 201 documentos · 31 resultados (R$ 3,6 mi
+homologados) · 282 fornecedores · 485 órgãos · 250 contratos PNCP (R$ 85,1 mi) ·
+**150 atas · 100 itens de PCA · 94 contratos federais (R$ 165,9 mi) · 26 empenhos** ·
+265 payloads RAW · 840 eventos · 4 fontes conectadas (2 coletando no fechamento,
+1 instável com retry automático, 1 aguardando chave).

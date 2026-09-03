@@ -1643,11 +1643,11 @@ $('#view-carteira').innerHTML=`
   <div class="grid">
     <section class="ficha-head c12" style="border-color:rgba(52,211,153,.45)">
       <div class="fh-main">
-        <div class="fh-crumb">MOTOR NACIONAL DE DADOS › fonte: PNCP (coleta própria) › ${REAL}</div>
+        <div class="fh-crumb">MOTOR NACIONAL DE DADOS › ${(S.fontes ?? []).filter(f => f.status === 'ATIVA').length || 1} fonte(s) coletando · 4 conectadas › ${REAL}</div>
         <h1 class="fh-title">Coleta Nacional — Base Real da Bolsa</h1>
         <div class="fh-meta">
-          <span>Fonte <b>${S.fonte_primaria}</b></span>
-          <span>Infra <b>Supabase Postgres · sa-east-1 · Edge Function + pg_cron</b></span>
+          <span>Fontes <b>PNCP · Compras.gov · Contratos.gov · Transparência</b></span>
+          <span>Infra <b>Supabase Postgres · sa-east-1 · 4 Edge Functions + pg_cron (10 agendamentos)</b></span>
           <span>Instantâneo <b id="colSnapWhen">${dt(S.gerado_em)}</b> <span id="colLive" class="pill neu">INSTANTÂNEO</span></span>
         </div>
       </div>
@@ -1756,18 +1756,42 @@ $('#view-carteira').innerHTML=`
       </div>
     </section>
 
-    <section class="panel c12">
-      <div class="p-head"><span class="p-title">🧭 Fontes — roadmap de conectores</span></div>
-      <div class="p-body" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px">
-        ${[['PNCP', 'ATIVA — licitações, itens, documentos, resultados, contratos', 'ok'],
-           ['Compras.gov.br', 'Etapa 2 — planejada', 'neu'],
-           ['Contratos.gov.br', 'Etapa 3 — planejada', 'neu'],
-           ['Portal da Transparência', 'Etapa 4 — planejada (pagamentos/empenhos)', 'neu'],
-           ['Portais complementares', 'Etapa 5 — planejada', 'neu'],
-           ['Estaduais e municipais', 'Etapa 6 — planejada', 'neu']]
-          .map(f => `<div class="sc" style="text-align:left"><b>${f[0]}</b><div class="small mut" style="margin:3px 0 6px">${f[1]}</div><span class="pill ${f[2]}">${f[2] === 'ok' ? '🟢 COLETANDO' : 'PLANEJADA'}</span></div>`).join('')}
+    ${S.multifonte ? `
+    <section class="panel c6">
+      <div class="p-head"><span class="p-title">📜 Atas de RP e PCA (PNCP)</span><span class="p-sub">radar de renovação + previsão de compras</span></div>
+      <div class="p-body">
+        <div class="kv"><span class="mut">Atas de registro de preços coletadas</span><b>${fmtN(S.multifonte.atas)} · ${fmtN(S.multifonte.atas_vencendo_180d)} vencem em ≤180d</b></div>
+        <div class="kv"><span class="mut">Exemplo real</span><b style="text-align:right">${S.amostras_novas.ata.numero} — ${S.amostras_novas.ata.objeto}</b></div>
+        <hr class="divline">
+        <div class="kv"><span class="mut">Itens de PCA (planos de contratação)</span><b>${fmtN(S.multifonte.pca_itens)} itens ${REAL}</b></div>
+        ${S.amostras_novas.pca.map(x => `<div class="kv"><span>${x.descricao}</span><b>${fmtMi(x.valor)} · desejada ${x.desejada.split('-').reverse().join('/')}</b></div>`).join('')}
+        <div class="note" style="margin-top:6px">PCA = o que os órgãos PLANEJAM comprar — semente real da previsão de oportunidades (§14/§24: reprocessado a partir do RAW imutável).</div>
       </div>
-      <div class="p-foot">Só listamos como ativa a fonte que está de fato coletando, com job rodando, dados gravados e log verificável (§60/§97).</div>
+    </section>
+
+    <section class="panel c6">
+      <div class="p-head"><span class="p-title">🧾 Execução contratual federal (Contratos.gov)</span><span class="p-sub">níveis de valor separados: global · empenhado · pago</span></div>
+      <div class="p-body">
+        <div class="kv"><span class="mut">Contratos federais coletados (por UG)</span><b>${fmtN(S.multifonte.contratos_gov)} · ${fmtMi(S.multifonte.valor_contratos_gov)} global</b></div>
+        <div class="kv"><span class="mut">Empenhos vinculados</span><b>${fmtN(S.multifonte.empenhos)} · ${fmtMi(S.multifonte.valor_empenhado)} empenhado · ${fmtMi(S.multifonte.valor_pago)} pago</b></div>
+        <div class="kv"><span class="mut">Exemplo real de contrato</span><b style="text-align:right">${S.amostras_novas.contrato_gov.numero} — ${S.amostras_novas.contrato_gov.fornecedor}<br>${fmtMi(S.amostras_novas.contrato_gov.valor)} · vigência até ${S.amostras_novas.contrato_gov.fim.split('-').reverse().join('/')}</b></div>
+        <div class="kv"><span class="mut">Exemplo real de empenho</span><b>${S.amostras_novas.empenho.numero} · ${fmtBRL(S.amostras_novas.empenho.empenhado, 2)} empenhado</b></div>
+        <hr class="divline">
+        <div class="kv"><span class="mut">Catálogo CATMAT/CATSER resolvido</span><b>${fmtN(S.multifonte.catalogo_itens)} código(s) · enriquecimento contínuo por hora</b></div>
+        <div class="note" style="margin-top:6px">Estimado ≠ contratado ≠ empenhado ≠ pago — cada nível em seu campo (§17/§41), nunca somados num "preço" único.</div>
+      </div>
+    </section>` : ''}
+
+    <section class="panel c12">
+      <div class="p-head"><span class="p-title">🧭 Fontes conectadas</span><span class="p-sub">status real — só é "coletando" quem tem job rodando, dados gravados e log (§60/§97)</span></div>
+      <div class="p-body" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px">
+        ${(S.fontes ?? []).map(f => {
+          const st = f.status === 'ATIVA' ? ['ok', '🟢 COLETANDO'] : f.status === 'TEMPORARILY_UNAVAILABLE' ? ['warn', '🟡 INSTÁVEL — retry automático'] : f.status === 'AGUARDANDO_CHAVE' ? ['info', '🔵 AGUARDANDO CHAVE GRATUITA'] : ['neu', f.status];
+          return `<div class="sc" style="text-align:left"><b>${f.nome}</b><div class="small mut" style="margin:3px 0 6px">${f.cobre}${f.ok ? ' · último sucesso ' + new Date(f.ok).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : ''}</div><span class="pill ${st[0]}">${st[1]}</span></div>`;
+        }).join('')}
+        <div class="sc" style="text-align:left"><b>Portais complementares / estaduais / municipais</b><div class="small mut" style="margin:3px 0 6px">Etapas 5–6 do roadmap</div><span class="pill neu">PLANEJADAS</span></div>
+      </div>
+      <div class="p-foot">Portal da Transparência: conector implantado; para ativar, cadastre a chave gratuita em portaldatransparencia.gov.br/api-de-dados/cadastrar-email e grave-a em <code>bolsa.segredos</code> (chave <code>transparencia_api_key</code>) — nada é coletado sem ela (§5).</div>
     </section>
   </div>`;
 

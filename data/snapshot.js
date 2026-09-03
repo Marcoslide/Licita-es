@@ -6,18 +6,46 @@
 // nas views public.bolsa_vw_* do projeto.
 // ============================================================
 window.BOLSA_SNAPSHOT = {
-  gerado_em: "2026-09-03T01:34:39Z",
+  gerado_em: "2026-09-03T02:28:00Z",
   fonte_primaria: "PNCP — Portal Nacional de Contratações Públicas",
   resumo: {
     licitacoes: 596, recebendo_propostas: 288,
     valor_estimado_total: 2423540684.07,
-    itens: 1007, documentos: 102, resultados: 21,
-    valor_homologado_total: 1857703.80,
-    fornecedores: 191, orgaos: 428,
+    itens: 1462, documentos: 201, resultados: 31,
+    valor_homologado_total: 3597703.80,
+    fornecedores: 282, orgaos: 485,
     contratos: 250, valor_contratado_total: 85113966.67,
     contratos_vencendo_180d: 169,
-    eventos: 596, eventos_alteracao: 0, raw_payloads: 113,
-    ultima_coleta_em: "2026-09-03T01:30:41Z"
+    eventos: 840, eventos_alteracao: 0, raw_payloads: 265,
+    ultima_coleta_em: "2026-09-03T02:28:00Z"
+  },
+  multifonte: {
+    atas: 150, atas_vencendo_180d: 102,
+    pca_itens: 100,
+    catalogo_itens: 1,
+    precos_praticados: 0,
+    contratos_gov: 94, valor_contratos_gov: 165853091,
+    empenhos: 26, valor_empenhado: 161346.31, valor_pago: 89037.52,
+    faturas: 0, garantias: 0, arp_saldos: 0, pagamentos_transparencia: 0
+  },
+  fontes: [
+    { id: "pncp", nome: "PNCP", status: "ATIVA", ok: "2026-09-03T02:28:07Z",
+      cobre: "licitações · itens · documentos · resultados · contratos · atas · PCA" },
+    { id: "compras_gov", nome: "Compras.gov.br (Dados Abertos)", status: "TEMPORARILY_UNAVAILABLE", ok: "2026-09-03T02:24:43Z",
+      cobre: "CATMAT/CATSER · pesquisa de preços · saldo de ARP (retomada automática pelo cron)" },
+    { id: "contratos_gov", nome: "Contratos.gov.br", status: "ATIVA", ok: "2026-09-03T02:24:50Z",
+      cobre: "contratos federais por UG · empenhos · faturas · garantias · ocorrências" },
+    { id: "portal_transparencia", nome: "Portal da Transparência", status: "AGUARDANDO_CHAVE", ok: null,
+      cobre: "empenho/liquidação/pagamento — exige chave gratuita (conector pronto)" }
+  ],
+  amostras_novas: {
+    ata: { numero: "RP 16", objeto: "Registro de preço para aquisição de medicamentos", cnpj_orgao: "01621539000120" },
+    contrato_gov: { numero: "00065/2025", fornecedor: "VIVACOM COMERCIO E SERVICOS LTDA", objeto: "Serviços contínuos de manutenção", valor: 12679132.18, fim: "2027-11-13" },
+    empenho: { numero: "2025NE003378", empenhado: 12572.98, pago: 0, emissao: "2025-09-04" },
+    pca: [
+      { descricao: "MANUTENÇÃO DE VEÍCULOS LEVES E PESADOS", valor: 7125322.05, desejada: "2026-12-14" },
+      { descricao: "SOFTWARE", valor: 4735200.68, desejada: "2026-11-20" }
+    ]
   },
   por_uf: [
     { uf: "AC", processos: 3, valor: 1410366.25, abertas: 3 },
