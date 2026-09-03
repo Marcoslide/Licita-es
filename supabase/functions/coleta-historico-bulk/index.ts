@@ -239,9 +239,13 @@ async function importarTransparenciaMes(ano: number, mes: number, deadline: numb
   if (!arqRows[0].detalhe?.storage_path) {
     try {
       const sp = `transparencia/${ym}.zip`;
+      // env pode trazer JWT legacy (eyJ...) ou chave nova (sb_secret_...):
+      // manda nos dois headers que o Storage aceita; o prefixo (público) vai
+      // para o diagnóstico quando falha — nunca a chave inteira
+      const chave = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
       const up = await fetch(`${Deno.env.get("SUPABASE_URL")}/storage/v1/object/memoria-bruta/${sp}`, {
         method: "POST",
-        headers: { authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+        headers: { authorization: `Bearer ${chave}`, apikey: chave,
                    "content-type": "application/zip", "x-upsert": "true" },
         body: buf as unknown as BodyInit,
       });
@@ -250,9 +254,10 @@ async function importarTransparenciaMes(ano: number, mes: number, deadline: numb
       else {
         // falha visível no detalhe (§19: sem verdade silenciosa) — nunca derruba a importação
         const corpo = (await up.text().catch(() => "")).slice(0, 300);
-        console.log(`upload memoria-bruta falhou HTTP ${up.status}: ${corpo}`);
+        const tipoChave = chave ? chave.slice(0, 10) + "… (" + chave.length + " chars)" : "AUSENTE";
+        console.log(`upload memoria-bruta falhou HTTP ${up.status} (chave ${tipoChave}): ${corpo}`);
         await sql`update bolsa.arquivos_historicos set
-            detalhe = (case when jsonb_typeof(detalhe) = 'object' then detalhe else '{}'::jsonb end) || ${{ storage_upload_http: up.status, storage_upload_err: corpo }}::jsonb where id = ${arqId}`;
+            detalhe = (case when jsonb_typeof(detalhe) = 'object' then detalhe else '{}'::jsonb end) || ${{ storage_upload_http: up.status, storage_upload_err: corpo, storage_upload_key_tipo: tipoChave }}::jsonb where id = ${arqId}`;
       }
     } catch (e) {
       console.log(`upload memoria-bruta lançou: ${String((e as Error).message)}`);

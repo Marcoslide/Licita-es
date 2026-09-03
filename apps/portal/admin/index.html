@@ -124,6 +124,37 @@
     <!-- FONTES -->
     <section data-sec="fontes" hidden>
       <h2 style="margin:0 0 16px">Fontes e coletas</h2>
+
+      <!-- SOURCE REGISTRY (PROMPT 01 §24): cadastro central das fontes -->
+      <div class="kpis" id="frCards" hidden>
+        <div class="kpi"><div class="k-l">Fontes mapeadas</div><div class="k-v" id="frTotal">—</div><div class="k-s"><span id="frP0">—</span> P0 · <span id="frP1">—</span> P1 · <span id="frP2">—</span> P2</div></div>
+        <div class="kpi"><div class="k-l">Ativas</div><div class="k-v" id="frAtivas">—</div><div class="k-s">conector real com dado gravado</div></div>
+        <div class="kpi"><div class="k-l">Em desenvolvimento</div><div class="k-v" id="frDev">—</div><div class="k-s">integração em construção</div></div>
+        <div class="kpi"><div class="k-l">Em análise</div><div class="k-v" id="frAnalise">—</div><div class="k-s">URL/API confirmada, sem conector</div></div>
+        <div class="kpi"><div class="k-l">Descoberta</div><div class="k-v" id="frDesc">—</div><div class="k-s">aguardando análise técnica</div></div>
+        <div class="kpi"><div class="k-l">Processos canônicos</div><div class="k-v" id="frCanon">—</div><div class="k-s"><span id="frCross">—</span> casados entre fontes</div></div>
+      </div>
+      <div class="panelbox" id="frMatrizBox" hidden>
+        <div class="ph">MATRIZ DE CAPACIDADES — o que cada conector REALMENTE entrega (contagens ao vivo do banco)</div>
+        <div class="pb flush tblwrap"><table class="tbl" id="tblFrMatriz">
+          <thead><tr><th>Conector</th><th>Fonte</th><th>Capacidade</th><th class="num">Registros gravados</th></tr></thead>
+          <tbody></tbody></table></div></div>
+      <div class="panelbox" id="frListaBox" hidden>
+        <div class="ph">REGISTRO DE FONTES
+          <span style="margin-left:auto;display:flex;gap:8px;font-weight:400">
+            <select id="frFiltroPri" style="font-size:12px"><option value="">prioridade: todas</option><option>P0</option><option>P1</option><option>P2</option></select>
+            <select id="frFiltroStatus" style="font-size:12px"><option value="">status: todos</option>
+              <option value="ativa">ativa</option><option value="desenvolvimento">desenvolvimento</option>
+              <option value="em_analise">em análise</option><option value="descoberta">descoberta</option></select>
+            <input id="frBusca" type="search" placeholder="buscar nome/UF…" style="font-size:12px;min-width:160px">
+          </span></div>
+        <div class="pb flush tblwrap" style="max-height:520px;overflow:auto"><table class="tbl" id="tblFrLista">
+          <thead><tr><th>ID</th><th>Fonte</th><th>Camada</th><th>UF</th><th>Prioridade</th><th>Status</th><th>Conector</th></tr></thead>
+          <tbody><tr><td colspan="7" class="mut">Carregando…</td></tr></tbody></table></div></div>
+      <div class="panelbox" id="frPendente" hidden><div class="pb">
+        <span class="mut">Registro de fontes ainda não aplicado no banco (migração <span class="mono">prompt01_fontes_registro</span> aguarda o plano Pro ativo — o banco está em somente-leitura pelo limite do plano Free).</span>
+      </div></div>
+
       <div id="boxFontes"><span class="mut">Carregando…</span></div>
     </section>
 
@@ -348,7 +379,54 @@ async function statusLead(id, status) {
   } catch { toast('Falha ao atualizar o lead.'); }
 }
 
+let frFontes = [];
+function frRender() {
+  const pri = $('#frFiltroPri').value, st = $('#frFiltroStatus').value,
+    q = ($('#frBusca').value || '').toLowerCase();
+  const pillSt = s => s === 'ativa' ? 'ok' : (s === 'desenvolvimento' || s === 'homologacao' ? 'info' :
+    (s === 'em_analise' ? 'warn' : ''));
+  const rot = { em_analise: 'em análise', descoberta: 'descoberta' };
+  const linhas = frFontes.filter(f =>
+    (!pri || f.pri === pri) && (!st || f.status === st) &&
+    (!q || (f.nome + ' ' + (f.uf || '') + ' ' + (f.camada || '')).toLowerCase().includes(q)));
+  $('#tblFrLista tbody').innerHTML = linhas.slice(0, 800).map(f => `
+    <tr><td class="mono mut" style="font-size:11.5px">${f.sid}</td>
+      <td><b style="font-size:12.5px">${f.nome}</b>${f.url ? ` <a href="${f.url}" target="_blank" rel="noopener" class="mut" style="font-size:11px">abrir ↗</a>` : ''}
+        ${f.entrega ? `<div class="mut" style="font-size:11px;max-width:420px">${f.entrega}</div>` : ''}</td>
+      <td class="mut" style="font-size:12px">${f.camada || '—'}</td>
+      <td class="mono">${f.uf || '—'}</td>
+      <td><span class="pill ${f.pri === 'P0' ? 'bad' : (f.pri === 'P1' ? 'warn' : '')}">${f.pri}</span></td>
+      <td><span class="pill ${pillSt(f.status)}">${rot[f.status] || f.status}</span></td>
+      <td class="mono" style="font-size:11.5px">${f.conector || '<span class="mut">aguardando integração</span>'}</td></tr>`).join('')
+    || '<tr><td colspan="7" class="mut">Nenhuma fonte com esses filtros.</td></tr>';
+}
+
 async function carregarFontes() {
+  // SOURCE REGISTRY (PROMPT 01): cadastro central + matriz comprovada
+  try {
+    const { data: fr, error: eFr } = await sb.rpc('bolsa_admin_fontes');
+    if (eFr) throw eFr;
+    const c = fr.cards || {};
+    $('#frTotal').textContent = fmtN(c.total); $('#frP0').textContent = fmtN(c.p0);
+    $('#frP1').textContent = fmtN(c.p1); $('#frP2').textContent = fmtN(c.p2);
+    $('#frAtivas').textContent = fmtN(c.ativa); $('#frDev').textContent = fmtN(c.desenvolvimento);
+    $('#frAnalise').textContent = fmtN(c.em_analise); $('#frDesc').textContent = fmtN(c.descoberta);
+    $('#frCanon').textContent = fmtN((fr.canonico || {}).total);
+    $('#frCross').textContent = fmtN((fr.canonico || {}).cross_source);
+    $('#tblFrMatriz tbody').innerHTML = (fr.matriz || []).map(m => `
+      <tr><td class="mono" style="font-size:12px">${m.conector}</td><td class="mono mut" style="font-size:12px">${m.fonte}</td>
+        <td>${m.capacidade}</td><td class="num">${m.registros > 0 ? '<b>' + fmtN(m.registros) + '</b>' : '<span class="mut">0 — não disponível/ainda sem dado</span>'}</td></tr>`).join('');
+    frFontes = fr.fontes || [];
+    ['frFiltroPri', 'frFiltroStatus'].forEach(id => $('#' + id).onchange = frRender);
+    $('#frBusca').oninput = frRender;
+    frRender();
+    $('#frCards').hidden = $('#frMatrizBox').hidden = $('#frListaBox').hidden = false;
+    $('#frPendente').hidden = true;
+  } catch {
+    // registry ainda não aplicado (banco somente-leitura / migração pendente): aviso honesto
+    $('#frCards').hidden = $('#frMatrizBox').hidden = $('#frListaBox').hidden = true;
+    $('#frPendente').hidden = false;
+  }
   try {
     const fs = await bolsaView('bolsa_vw_saude', 'select=*&order=id.asc');
     const pill = s => s === 'ATIVA' ? 'ok' : (s === 'AGUARDANDO_CHAVE' ? 'info' : 'warn');
