@@ -43,6 +43,7 @@ async function sha256hex(buf: Uint8Array): Promise<string> {
 
 // CSV ';' com aspas (sem quebras de linha dentro de campos — desvios vão para import_erros)
 function parseCsvLinha(l: string, sep = ";"): string[] {
+  if (!l.includes('"')) return l.split(sep); // fast-path: split nativo poupa CPU do worker
   const out: string[] = [];
   let cur = "", dentro = false;
   for (let i = 0; i < l.length; i++) {
@@ -444,7 +445,7 @@ async function importarTransparenciaMes(ano: number, mes: number, deadline: numb
 // ---------- AUTO: próximo arquivo agendado ----------
 
 // ---------- COMPRAS.GOV: CSV anual por Range (§5-7, retomada por byte §59) ----------
-const CHUNK = 2 * 1024 * 1024;
+const CHUNK = 1536 * 1024;
 
 async function importarCsvRange(arq: any, deadline: number): Promise<Record<string, unknown>> {
   const st = { lidas: 0, inseridos: 0, erros: 0 };
