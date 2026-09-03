@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bolsa-licitacoes"
+version = "0.1.0"
+description = "Coletores públicos, camada bruta e normalização da Bolsa de Licitações"
+requires-python = ">=3.9"
+dependencies = []
+
+[project.scripts]
+bolsa-coleta = "bolsa_licitacoes.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]

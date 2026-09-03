@@ -33,3 +33,18 @@ cruzada entre oportunidade → mercado → concorrente → documentos → cartei
 Fase 1 do roadmap da especificação: modelagem das entidades centrais (licitação, órgão,
 item, fornecedor, documento…), conectores de coleta (PNCP, Compras.gov), normalização/
 deduplicação e busca — mantendo esta experiência como norte da interface.
+
+## Backend de coleta pública
+
+Este branch acrescenta a primeira implementação real da Fase 1, sem substituir o protótipo:
+
+- conectores backend PNCP e Compras.gov.br;
+- SQLite local para prova de coleta (configurável por ambiente), 27 tabelas de domínio/operação e migrations;
+- camada bruta JSON versionada por SHA-256;
+- normalização e consolidação pelo número de controle PNCP;
+- downloads documentais fora do banco, também versionados por SHA-256;
+- API administrativa somente leitura e testes unitários + integração pública opt-in.
+
+Comece em [docs/OPERACAO.md](docs/OPERACAO.md). Os catálogos extraídos dos OpenAPIs oficiais estão em [docs/ENDPOINTS_PNCP.md](docs/ENDPOINTS_PNCP.md) e [docs/ENDPOINTS_COMPRAS.md](docs/ENDPOINTS_COMPRAS.md).
+
+O resultado comprovado da primeira execução está em [docs/RELATORIO_EXECUCAO_2026-09-02.md](docs/RELATORIO_EXECUCAO_2026-09-02.md), com exemplos factuais em [docs/EXEMPLOS_REAIS.md](docs/EXEMPLOS_REAIS.md).
