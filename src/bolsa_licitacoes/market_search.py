@@ -184,7 +184,8 @@ class QueryCompiler:
         fuzzy_terms: list[str] = []
         corrections: list[str] = []
         confidence_values: list[float] = []
-        vocab = sorted({token for value in vocabulary for token in meaningful_tokens(normalize_text(str(value))) if len(token) >= 4})
+        vocabulary_values = [*vocabulary, *(entry.primary for entry in self.synonyms), *(entry.synonym for entry in self.synonyms)]
+        vocab = sorted({token for value in vocabulary_values for token in meaningful_tokens(normalize_text(str(value))) if len(token) >= 4})
         for token in tokens:
             if token in vocab or len(token) < 4:
                 corrections.append(token)

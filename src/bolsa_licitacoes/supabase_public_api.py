@@ -354,33 +354,34 @@ class SupabasePublicApi:
         elif logical:
             filters.append(("and", f"({','.join(logical)})"))
 
-        order = {
-            "value": "valor_total_estimado.desc.nullslast,data_publicacao_pncp.desc",
-            "deadline": "data_encerramento_proposta.asc.nullslast,data_publicacao_pncp.desc",
-            "recent": "data_publicacao_pncp.desc.nullslast,last_seen_at.desc",
-            "relevance": "data_publicacao_pncp.desc.nullslast,last_seen_at.desc",
-        }.get(sort, "data_publicacao_pncp.desc.nullslast,last_seen_at.desc")
         select = (
             "numero_controle_pncp,orgao_cnpj,unidade_codigo,numero_compra,processo,objeto,modalidade_nome,"
             "situacao_nome,data_abertura_proposta,data_encerramento_proposta,valor_total_estimado,"
             "valor_total_homologado,data_publicacao_pncp,source_updated_at,last_seen_at,uf,municipio_nome,"
             "link_sistema_origem"
         )
-        candidate_rows = self._all_rows("licitacoes", [("select", select), *filters, ("order", order)])
-        candidate_ncps = [str(row.get("numero_controle_pncp") or "") for row in candidate_rows if row.get("numero_controle_pncp")]
-        item_rows = self._related_rows(
-            "itens", "numero_controle_pncp,numero_item,descricao,catalogo_codigo,material_ou_servico,"
-            "quantidade,unidade,valor_unitario_estimado,valor_total_estimado", candidate_ncps,
-        )
+        cache_scope = {key: list(value) for key, value in query.items() if key not in {"limit", "offset", "sort", "facets"}}
+        dataset_key = "search-dataset:" + json.dumps(cache_scope, ensure_ascii=False, sort_keys=True)
+
+        def load_dataset():
+            loaded_rows = self._all_rows("licitacoes", [("select", select), *filters])
+            loaded_ncps = [str(row.get("numero_controle_pncp") or "") for row in loaded_rows if row.get("numero_controle_pncp")]
+            loaded_items = self._related_rows(
+                "itens", "numero_controle_pncp,numero_item,descricao,catalogo_codigo,material_ou_servico,"
+                "quantidade,unidade,valor_unitario_estimado,valor_total_estimado", loaded_ncps,
+            )
+            loaded_org_ids = sorted({str(row.get("orgao_cnpj")) for row in loaded_rows if row.get("orgao_cnpj")})
+            loaded_orgs = self._organization_names(loaded_org_ids)
+            loaded_vocabulary = [
+                *(str(row.get("objeto") or "") for row in loaded_rows),
+                *(str(item.get("descricao") or "") for item in loaded_items),
+            ]
+            return loaded_rows, loaded_items, loaded_orgs, loaded_vocabulary
+
+        candidate_rows, item_rows, org_names, vocabulary = self._cached(dataset_key, 20, load_dataset)
         items_by_ncp: dict[str, list[dict[str, Any]]] = defaultdict(list)
         for item in item_rows:
             items_by_ncp[str(item.get("numero_controle_pncp") or "")].append(item)
-        org_ids = sorted({str(row.get("orgao_cnpj")) for row in candidate_rows if row.get("orgao_cnpj")})
-        org_names = self._organization_names(org_ids)
-        vocabulary = [
-            *(str(row.get("objeto") or "") for row in candidate_rows),
-            *(str(item.get("descricao") or "") for item in item_rows),
-        ]
         plan = self.search_engine.compile(
             text, mode=search_mode, include=include_terms, should=should_terms, exclude=exclude_terms,
             catalog_codes=[item for item in catalog_code.split(",") if item],
@@ -401,7 +402,11 @@ class SupabasePublicApi:
                         if search_active else candidate_rows)
         if search_active and sort != "relevance":
             matched_keys = set(hit_by_ncp)
-            matched_rows = [row for row in candidate_rows if str(row.get("numero_controle_pncp") or "") in matched_keys]
+            matched_rows = _sort_procurement_rows(
+                [row for row in candidate_rows if str(row.get("numero_controle_pncp") or "") in matched_keys], sort,
+            )
+        elif not search_active:
+            matched_rows = _sort_procurement_rows(matched_rows, sort)
         total = len(matched_rows)
         page_rows = matched_rows[offset:offset + limit]
         terms = plan.retrieval_terms
@@ -993,8 +998,7 @@ class SupabasePublicApi:
             cached = self._cache.get(key)
             if cached and cached[0] > now:
                 return cached[1]
-        value = loader()
-        with self._cache_lock:
+            value = loader()
             self._cache[key] = (now + ttl, value)
         return value
 
@@ -1039,6 +1043,14 @@ def _query_list(query: Mapping[str, list[str]], key: str) -> list[str]:
     for raw in query.get(key, []):
         values.extend(item.strip() for item in str(raw).split(",") if item.strip())
     return values[:30]
+
+
+def _sort_procurement_rows(rows: list[dict[str, Any]], sort: str) -> list[dict[str, Any]]:
+    if sort == "value":
+        return sorted(rows, key=lambda row: (_float(row.get("valor_total_estimado")), str(row.get("data_publicacao_pncp") or "")), reverse=True)
+    if sort == "deadline":
+        return sorted(rows, key=lambda row: (not bool(row.get("data_encerramento_proposta")), str(row.get("data_encerramento_proposta") or "9999")))
+    return sorted(rows, key=lambda row: (str(row.get("data_publicacao_pncp") or ""), str(row.get("last_seen_at") or "")), reverse=True)
 
 
 def _matches_terms(value: str, terms: list[str]) -> bool:
