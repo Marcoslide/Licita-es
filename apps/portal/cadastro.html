@@ -41,9 +41,10 @@ document.getElementById("f").addEventListener("submit", async (e) => {
   btn.disabled = true;
   try {
     const params = new URLSearchParams(location.search);
-    const { error } = await sb.auth.signUp({
-      email: document.getElementById("email").value.trim(),
-      password: document.getElementById("senha").value,
+    const email = document.getElementById("email").value.trim();
+    const senha = document.getElementById("senha").value;
+    const { data, error } = await sb.auth.signUp({
+      email, password: senha,
       options: {
         emailRedirectTo: new URL("login.html?verificado=1", location.href).href,
         data: {
@@ -57,7 +58,19 @@ document.getElementById("f").addEventListener("submit", async (e) => {
       }
     });
     if (error) throw error;
-    location.href = "verificar-email.html?email=" + encodeURIComponent(document.getElementById("email").value.trim());
+    // e-mail já cadastrado: o Supabase não retorna erro (anti-enumeração),
+    // mas devolve um usuário sem identidades — não há e-mail a esperar
+    if (data && data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+      msg.className = "form-msg on err";
+      msg.innerHTML = "Este e-mail já possui conta. <a href='login.html'>Entrar</a> ou <a href='recuperar.html'>recuperar a senha</a>.";
+      btn.disabled = false;
+      return;
+    }
+    // cadastro já veio com sessão ou a conta já sai confirmada: entra direto
+    if (data && data.session) { location.href = "app.html?bemvindo=1"; return; }
+    const { data: li } = await sb.auth.signInWithPassword({ email, password: senha });
+    if (li && li.session) { location.href = "app.html?bemvindo=1"; return; }
+    location.href = "verificar-email.html?email=" + encodeURIComponent(email);
   } catch (err) {
     formMsg(msg, "err", /already/i.test(err.message || "") ?
       "Este e-mail já possui conta. Tente entrar ou recuperar a senha." :
