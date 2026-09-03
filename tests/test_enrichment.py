@@ -3,6 +3,7 @@ from __future__ import annotations
 import sqlite3
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 from bolsa_licitacoes.enrichment import DouSearch, HealthPriceIndex
@@ -78,6 +79,12 @@ class EnrichmentTests(unittest.TestCase):
         weak = DouSearch._score({"title": "Aviso", "content": "Processo de outra entidade"}, procurement)
         self.assertGreaterEqual(strong["match_score"], 90)
         self.assertLess(weak["match_score"], 45)
+
+    @patch("bolsa_licitacoes.enrichment.urlopen", side_effect=ConnectionResetError("fonte encerrou a conexão"))
+    def test_dou_network_disconnect_does_not_break_procurement_detail(self, _urlopen) -> None:
+        result = DouSearch(timeout=0.1).search({"process_number": "401/2026"})
+        self.assertFalse(result["available"])
+        self.assertIn("temporariamente indisponível", result["reason"])
 
 
 if __name__ == "__main__":

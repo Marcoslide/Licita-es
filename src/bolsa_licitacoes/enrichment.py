@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import html
+from http.client import RemoteDisconnected
 import json
 import re
 import sqlite3
@@ -262,7 +263,7 @@ class DouSearch:
         try:
             with urlopen(request, timeout=self.timeout) as response:
                 page = response.read().decode("utf-8", errors="replace")
-        except (HTTPError, URLError, TimeoutError) as exc:
+        except (HTTPError, URLError, TimeoutError, RemoteDisconnected, OSError) as exc:
             return {**self._empty("A pesquisa oficial do DOU está temporariamente indisponível."), "search_url": search_url, "error": type(exc).__name__}
         match = re.search(
             r'<script id="_br_com_seatecnologia_in_buscadou_BuscaDouPortlet_params" type="application/json">\s*(.*?)\s*</script>',
