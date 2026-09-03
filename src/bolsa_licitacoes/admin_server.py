@@ -6,6 +6,7 @@ from typing import Any
 from urllib.parse import parse_qs, urlparse
 
 from .db import Database
+from .market_search import SEARCH_ENGINE_VERSION, normalize_text
 from .public_api import list_procurements, market_summary, procurement_detail, source_status, state_summary
 from .supabase_public_api import SupabasePublicApi, SupabasePublicError, SupabaseRestClient
 
@@ -41,8 +42,29 @@ def serve(
                 self._json(200, public_call("market_summary", market_summary), cache="public, max-age=20")
             elif parsed.path == "/api/public/states":
                 self._json(200, public_call("state_summary", state_summary), cache="public, max-age=45")
+            elif parsed.path == "/api/public/search/suggest":
+                query = parse_qs(parsed.query)
+                try:
+                    payload = remote.search_suggestions(query) if remote else {"query": query.get("q", [""])[0], "items": [], "data_source": "sqlite"}
+                except SupabasePublicError:
+                    payload = {"query": query.get("q", [""])[0], "items": [], "data_source": "temporarily-unavailable"}
+                self._json(200, payload, cache="public, max-age=30")
             elif parsed.path == "/api/public/procurements":
-                self._json(200, public_call("list_procurements", list_procurements, parse_qs(parsed.query)), cache="public, max-age=15")
+                query = parse_qs(parsed.query)
+                payload = public_call("list_procurements", list_procurements, query)
+                if query.get("facets", [""])[0].lower() in {"1", "true", "yes"} and query.get("q", [""])[0].strip():
+                    try:
+                        search = payload.get("search") or {}
+                        ignored = {"q", "mode", "limit", "offset", "sort", "facets"}
+                        db.record_search_event(
+                            query=normalize_text(query["q"][0]), mode=search.get("mode", "balanced"),
+                            filter_names=sorted(key for key in query if key not in ignored),
+                            result_count=int(payload.get("total", 0)), latency_ms=search.get("latency_ms"),
+                            engine_version=(search.get("versions") or {}).get("search_engine", SEARCH_ENGINE_VERSION),
+                        )
+                    except Exception as exc:
+                        print(f"Search metrics unavailable: {exc}")
+                self._json(200, payload, cache="public, max-age=15")
             elif parsed.path == "/api/public/sources":
                 self._json(200, public_call("source_status", source_status), cache="public, max-age=20")
             elif parsed.path == "/api/public/procurement" or parsed.path.startswith("/api/public/procurements/"):
@@ -83,6 +105,13 @@ def serve(
                         "JOIN sources s ON s.id=r.source_id ORDER BY r.id DESC LIMIT ?", (limit,)
                     )]
                 self._json(200, rows)
+            elif parsed.path == "/api/admin/search/quality":
+                days = min(int(parse_qs(parsed.query).get("days", [30])[0]), 365)
+                self._json(200, db.search_quality(days))
+            elif parsed.path == "/api/admin/search/debug":
+                if not remote:
+                    self._json(503, {"error": "motor remoto indisponível"}); return
+                self._json(200, remote.search_debug(parse_qs(parsed.query)))
             elif parsed.path.startswith("/api/admin/runs/"):
                 try:
                     run_id = int(parsed.path.rsplit("/", 1)[-1])

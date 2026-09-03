@@ -12,6 +12,9 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
+from .market_search import MarketSearchEngine, QueryPlan, SearchDocument, SearchHit
+from .market_search import normalize_text
+
 
 UF_NAMES = {
     "AC": "Acre", "AL": "Alagoas", "AP": "Amapá", "AM": "Amazonas", "BA": "Bahia",
@@ -105,6 +108,7 @@ class SupabaseRestClient:
 class SupabasePublicApi:
     def __init__(self, client: SupabaseRestClient) -> None:
         self.client = client
+        self.search_engine = MarketSearchEngine()
         self._cache: dict[str, tuple[float, Any]] = {}
         self._cache_lock = threading.Lock()
 
@@ -196,7 +200,61 @@ class SupabasePublicApi:
 
         return self._cached("states", 45, load)
 
+    def search_suggestions(self, query: Mapping[str, list[str]]) -> dict[str, Any]:
+        text = (_first(query, "q") or "").strip()[:80]
+        normalized = normalize_text(text)
+        if len(normalized) < 2:
+            return {"query": text, "items": [], "data_source": "supabase-live"}
+
+        def load_index() -> list[dict[str, Any]]:
+            item_rows = self._all_rows(
+                "itens", [("select", "descricao,catalogo_codigo,material_ou_servico")], maximum=5000,
+            )
+            procurement_rows = self._all_rows(
+                "licitacoes", [("select", "objeto")], maximum=5000,
+            )
+            counts: Counter[tuple[str, str, str]] = Counter()
+            for row in item_rows:
+                label = " ".join(str(row.get("descricao") or "").split())[:160]
+                if label:
+                    counts[(label, "item", str(row.get("catalogo_codigo") or ""))] += 1
+            for row in procurement_rows:
+                label = " ".join(str(row.get("objeto") or "").split())[:160]
+                if label:
+                    counts[(label, "objeto", "")] += 1
+            return [
+                {"label": label, "type": kind, "catalog_code": code or None, "volume": volume}
+                for (label, kind, code), volume in counts.most_common(2500)
+            ]
+
+        index = self._cached("search-suggestion-index", 60, load_index)
+        terms = normalized.split()
+        ranked = []
+        for item in index:
+            label = normalize_text(item["label"])
+            coverage = sum(term in label for term in terms) / max(1, len(terms))
+            if not coverage:
+                continue
+            starts = int(label.startswith(normalized))
+            phrase = int(normalized in label)
+            score = starts * 100 + phrase * 50 + coverage * 30 + min(20, item["volume"])
+            ranked.append((score, len(label), item))
+        ranked.sort(key=lambda value: (-value[0], value[1], -value[2]["volume"]))
+        return {"query": text, "items": [item for _, _, item in ranked[:8]], "data_source": "supabase-live"}
+
+    def search_debug(self, query: Mapping[str, list[str]]) -> dict[str, Any]:
+        payload = self.list_procurements({**query, "limit": ["10"], "offset": ["0"], "facets": ["0"]})
+        return {
+            "search": payload.get("search"), "candidate_count": payload.get("total", 0),
+            "top_results": [{
+                "id": item.get("id"), "object": item.get("object"), "match_score": item.get("match_score"),
+                "matched_fields": item.get("matched_fields"), "match_reasons": item.get("match_reasons"),
+                "matched_items": item.get("matched_items"), "specification_warning": item.get("specification_warning"),
+            } for item in payload.get("items", [])],
+        }
+
     def list_procurements(self, query: Mapping[str, list[str]]) -> dict[str, Any]:
+        started_at = time.monotonic()
         limit = _bounded_int(_first(query, "limit"), default=25, minimum=1, maximum=100)
         offset = _bounded_int(_first(query, "offset"), default=0, minimum=0, maximum=100_000)
         requested_ufs = [
@@ -205,19 +263,24 @@ class SupabasePublicApi:
             if item.strip().upper() in UF_NAMES
         ]
         text = (_first(query, "q") or "").strip()[:120]
-        search_mode = (_first(query, "mode") or "smart").strip().lower()
+        search_mode = (_first(query, "mode") or "balanced").strip().lower()
         city = (_first(query, "city") or "").strip()[:100]
         organization = (_first(query, "organization") or "").strip()[:120]
         supplier = (_first(query, "supplier") or "").strip()[:120]
         modality = (_first(query, "modality") or "").strip()[:120]
         catalog_code = (_first(query, "catalog") or "").strip()[:80]
-        sort = (_first(query, "sort") or "recent").strip().lower()
+        sort = (_first(query, "sort") or ("relevance" if text else "recent")).strip().lower()
         period = (_first(query, "period") or "").strip().lower()
+        closing_within = _bounded_int(_first(query, "closing_within"), default=0, minimum=0, maximum=365)
         status = (_first(query, "status") or "").strip().lower()
         want_facets = (_first(query, "facets") or "").lower() in {"1", "true", "yes"}
-        terms, intent = expand_search_terms(text)
-        if search_mode == "exact" and text:
-            terms, intent = [text], None
+        include_terms = _query_list(query, "include")
+        should_terms = _query_list(query, "should")
+        exclude_terms = _query_list(query, "exclude")
+        exact_phrase = (_first(query, "exact_phrase") or "").strip()[:120]
+        if exact_phrase:
+            text = f'{text} "{exact_phrase}"'.strip()
+        include_documents = (_first(query, "include_documents") or "").lower() in {"1", "true", "yes"}
 
         filters: list[tuple[str, str]] = []
         logical: list[str] = []
@@ -230,17 +293,17 @@ class SupabasePublicApi:
         if organization:
             org_ids = self._organization_ids(organization)
             if not org_ids:
-                return self._empty_result(limit, offset, text, terms, intent, search_mode)
+                return self._empty_result(limit, offset, text, [], None, search_mode)
             filters.append(("orgao_cnpj", f"in.({','.join(org_ids)})"))
         if supplier:
             supplier_keys = self._supplier_procurement_keys(supplier)
             if not supplier_keys:
-                return self._empty_result(limit, offset, text, terms, intent, search_mode)
+                return self._empty_result(limit, offset, text, [], None, search_mode)
             filters.append(("numero_controle_pncp", f"in.({','.join(supplier_keys)})"))
         if catalog_code:
             catalog_keys = self._catalog_procurement_keys(catalog_code)
             if not catalog_keys:
-                return self._empty_result(limit, offset, text, terms, intent, search_mode)
+                return self._empty_result(limit, offset, text, [], None, search_mode)
             filters.append(("numero_controle_pncp", f"in.({','.join(catalog_keys)})"))
         if modality:
             modalities = [_pg_token(item) for item in modality.split(",") if _pg_token(item)]
@@ -266,6 +329,10 @@ class SupabasePublicApi:
             filters.append(("data_publicacao_pncp", f"gte.{_first(query, 'from')}"))
         if _first(query, "to"):
             filters.append(("data_publicacao_pncp", f"lte.{_first(query, 'to')}"))
+        if closing_within:
+            now = datetime.now(timezone.utc)
+            filters.append(("data_encerramento_proposta", f"gte.{now.isoformat()}"))
+            filters.append(("data_encerramento_proposta", f"lte.{(now + timedelta(days=closing_within)).isoformat()}"))
 
         if status == "open":
             logical.append("or(data_encerramento_proposta.is.null,data_encerramento_proposta.gte.now)")
@@ -279,20 +346,8 @@ class SupabasePublicApi:
             related, _ = self.client.get(table, [("select", column), (column, "not.is.null"), ("limit", "1000")], profile="bolsa")
             keys = sorted({str(row.get(column)) for row in related if row.get(column)})
             if not keys:
-                return self._empty_result(limit, offset, text, terms, intent, search_mode)
+                return self._empty_result(limit, offset, text, [], None, search_mode)
             filters.append(("numero_controle_pncp", f"in.({','.join(keys)})"))
-
-        if text:
-            conditions = []
-            for term in terms:
-                token = _pg_token(term)
-                conditions.append(f"objeto.ilike.*{token}*")
-            original = _pg_token(text)
-            conditions.extend((f"processo.ilike.*{original}*", f"numero_controle_pncp.ilike.*{original}*"))
-            related_keys = self._search_related_keys(terms)
-            if related_keys:
-                conditions.append(f"numero_controle_pncp.in.({','.join(related_keys)})")
-            logical.append(f"or({','.join(conditions)})")
 
         if len(logical) == 1:
             filters.append(("or", f"({logical[0][3:-1]})"))
@@ -303,6 +358,7 @@ class SupabasePublicApi:
             "value": "valor_total_estimado.desc.nullslast,data_publicacao_pncp.desc",
             "deadline": "data_encerramento_proposta.asc.nullslast,data_publicacao_pncp.desc",
             "recent": "data_publicacao_pncp.desc.nullslast,last_seen_at.desc",
+            "relevance": "data_publicacao_pncp.desc.nullslast,last_seen_at.desc",
         }.get(sort, "data_publicacao_pncp.desc.nullslast,last_seen_at.desc")
         select = (
             "numero_controle_pncp,orgao_cnpj,unidade_codigo,numero_compra,processo,objeto,modalidade_nome,"
@@ -310,13 +366,54 @@ class SupabasePublicApi:
             "valor_total_homologado,data_publicacao_pncp,source_updated_at,last_seen_at,uf,municipio_nome,"
             "link_sistema_origem"
         )
-        params = [("select", select), *filters, ("order", order), ("limit", str(limit)), ("offset", str(offset))]
-        rows, total = self.client.get("licitacoes", params, profile="bolsa", count=True)
-        items = self._enrich_procurements(rows, query=text, terms=terms, search_mode=search_mode)
-        facets = self._facets(filters, terms=terms, text=text, catalog_code=catalog_code, scope=query) if want_facets else None
+        candidate_rows = self._all_rows("licitacoes", [("select", select), *filters, ("order", order)])
+        candidate_ncps = [str(row.get("numero_controle_pncp") or "") for row in candidate_rows if row.get("numero_controle_pncp")]
+        item_rows = self._related_rows(
+            "itens", "numero_controle_pncp,numero_item,descricao,catalogo_codigo,material_ou_servico,"
+            "quantidade,unidade,valor_unitario_estimado,valor_total_estimado", candidate_ncps,
+        )
+        items_by_ncp: dict[str, list[dict[str, Any]]] = defaultdict(list)
+        for item in item_rows:
+            items_by_ncp[str(item.get("numero_controle_pncp") or "")].append(item)
+        org_ids = sorted({str(row.get("orgao_cnpj")) for row in candidate_rows if row.get("orgao_cnpj")})
+        org_names = self._organization_names(org_ids)
+        vocabulary = [
+            *(str(row.get("objeto") or "") for row in candidate_rows),
+            *(str(item.get("descricao") or "") for item in item_rows),
+        ]
+        plan = self.search_engine.compile(
+            text, mode=search_mode, include=include_terms, should=should_terms, exclude=exclude_terms,
+            catalog_codes=[item for item in catalog_code.split(",") if item],
+            include_documents=include_documents, vocabulary=vocabulary,
+        )
+        documents = [SearchDocument(
+            procurement_id=str(row.get("numero_controle_pncp") or ""),
+            object_text=str(row.get("objeto") or ""),
+            process_text=f"{row.get('processo') or ''} {row.get('numero_controle_pncp') or ''}",
+            organization_text=org_names.get(str(row.get("orgao_cnpj") or ""), ""),
+            item_rows=items_by_ncp.get(str(row.get("numero_controle_pncp") or ""), []),
+        ) for row in candidate_rows]
+        search_active = bool(text or catalog_code or include_terms or should_terms or exclude_terms)
+        ranked_hits = self.search_engine.search(plan, documents) if search_active else []
+        hit_by_ncp = {hit.procurement_id: hit for hit in ranked_hits}
+        row_by_ncp = {str(row.get("numero_controle_pncp") or ""): row for row in candidate_rows}
+        matched_rows = ([row_by_ncp[hit.procurement_id] for hit in ranked_hits if hit.procurement_id in row_by_ncp]
+                        if search_active else candidate_rows)
+        if search_active and sort != "relevance":
+            matched_keys = set(hit_by_ncp)
+            matched_rows = [row for row in candidate_rows if str(row.get("numero_controle_pncp") or "") in matched_keys]
+        total = len(matched_rows)
+        page_rows = matched_rows[offset:offset + limit]
+        terms = plan.retrieval_terms
+        intent = plan.synonyms[0] if plan.synonyms else None
+        items = self._enrich_procurements(page_rows, query=text, terms=terms, search_mode=plan.mode, hits=hit_by_ncp)
+        facets = self._facets(
+            filters, terms=terms, text=text, catalog_code=catalog_code, scope=query,
+            rows_override=matched_rows, plan=plan if search_active else None,
+        ) if want_facets else None
         return {
-            "total": total if total is not None else len(items), "limit": limit, "offset": offset, "items": items,
-            "search": ({"query": text, "mode": search_mode, "intent": intent, "terms": terms} if text else None),
+            "total": total, "limit": limit, "offset": offset, "items": items,
+            "search": ({**plan.public_dict(), "intent": intent, "latency_ms": round((time.monotonic() - started_at) * 1000, 1)} if search_active else None),
             "facets": facets,
             "data_source": "supabase-live",
         }
@@ -413,7 +510,8 @@ class SupabasePublicApi:
         return self._cached("sources", 25, load)
 
     def _enrich_procurements(
-        self, rows: list[dict[str, Any]], *, query: str = "", terms: Optional[list[str]] = None, search_mode: str = "smart",
+        self, rows: list[dict[str, Any]], *, query: str = "", terms: Optional[list[str]] = None,
+        search_mode: str = "balanced", hits: Optional[Mapping[str, SearchHit]] = None,
     ) -> list[dict[str, Any]]:
         ncps = [str(row.get("numero_controle_pncp")) for row in rows if row.get("numero_controle_pncp")]
         org_ids = sorted({str(row.get("orgao_cnpj")) for row in rows if row.get("orgao_cnpj")})
@@ -424,8 +522,9 @@ class SupabasePublicApi:
         for row in rows:
             ncp = str(row.get("numero_controle_pncp") or "")
             object_text = str(row.get("objeto") or "")
-            match_reason = None
-            if query:
+            hit = hits.get(ncp) if hits else None
+            match_reason = hit.match_reasons[0] if hit and hit.match_reasons else None
+            if query and not hit:
                 if _fold(query) in _fold(object_text):
                     match_reason = f'O objeto contém a busca "{query}".'
                 elif any(_fold(term) in _fold(object_text) for term in (terms or [])):
@@ -447,6 +546,13 @@ class SupabasePublicApi:
                 "purchasing_unit_name": None, "state_code": row.get("uf"), "city_name": row.get("municipio_nome"),
                 "items_count": item_counts.get(ncp, 0), "documents_count": document_counts.get(ncp, 0),
                 "match_reason": match_reason,
+                "match_score": hit.match_score if hit else None,
+                "matched_items_count": hit.matched_items_count if hit else 0,
+                "matched_items": hit.matched_items if hit else [],
+                "matched_fields": hit.matched_fields if hit else [],
+                "match_reasons": hit.match_reasons if hit else [],
+                "highlights": hit.highlights if hit else [],
+                "specification_warning": hit.specification_warning if hit else None,
             })
         return result
 
@@ -523,13 +629,15 @@ class SupabasePublicApi:
 
     def _facets(
         self, filters: list[tuple[str, str]], *, terms: list[str], text: str, catalog_code: str,
-        scope: Mapping[str, list[str]],
+        scope: Mapping[str, list[str]], rows_override: Optional[list[dict[str, Any]]] = None,
+        plan: Optional[QueryPlan] = None,
     ) -> dict[str, Any]:
-        rows = self._all_rows(
+        rows = rows_override if rows_override is not None else self._all_rows(
             "licitacoes",
             [("select", "numero_controle_pncp,uf,municipio_nome,orgao_cnpj,modalidade_nome,situacao_nome,"
                         "valor_total_estimado,data_publicacao_pncp,data_encerramento_proposta") , *filters],
         )
+        matches_scope_text = lambda value: self.search_engine.matches_text(plan, value) if plan else _matches_terms(value, terms)
         states: dict[str, dict[str, Any]] = {}
         cities: dict[tuple[str, str], dict[str, Any]] = {}
         org_stats: dict[str, dict[str, Any]] = {}
@@ -596,7 +704,7 @@ class SupabasePublicApi:
         )
         matching_items = [
             row for row in item_rows
-            if (text and _matches_terms(str(row.get("descricao") or ""), terms))
+            if (text and (self.search_engine.matches_text(plan, str(row.get("descricao") or "")) if plan else _matches_terms(str(row.get("descricao") or ""), terms)))
             or (catalog_code and str(row.get("catalogo_codigo") or "") in catalog_code.split(","))
         ]
         price_groups: dict[tuple[str, str], list[float]] = defaultdict(list)
@@ -670,7 +778,7 @@ class SupabasePublicApi:
         contract_rows = []
         for contract in all_contract_rows:
             object_searchable = str(contract.get("objeto") or "")
-            if text and str(contract.get("numero_controle_pncp_compra") or "") not in selected_ncps and not _matches_terms(object_searchable, terms):
+            if text and str(contract.get("numero_controle_pncp_compra") or "") not in selected_ncps and not matches_scope_text(object_searchable):
                 continue
             if requested_states and str(contract.get("uf") or "").upper() not in requested_states:
                 continue
@@ -699,7 +807,7 @@ class SupabasePublicApi:
             for contract in all_government_contracts:
                 object_searchable = " ".join(str(contract.get(key) or "") for key in ("objeto", "categoria"))
                 organization_searchable = " ".join(str(contract.get(key) or "") for key in ("orgao_nome", "uasg_nome"))
-                if text and not _matches_terms(object_searchable, terms):
+                if text and not matches_scope_text(object_searchable):
                     continue
                 if requested_org and requested_org not in _fold(organization_searchable):
                     continue
@@ -739,7 +847,7 @@ class SupabasePublicApi:
         )
         ata_rows = []
         for ata in all_ata_rows:
-            if text and str(ata.get("numero_controle_pncp_compra") or "") not in selected_ncps and not _matches_terms(str(ata.get("objeto") or ""), terms):
+            if text and str(ata.get("numero_controle_pncp_compra") or "") not in selected_ncps and not matches_scope_text(str(ata.get("objeto") or "")):
                 continue
             if requested_states and str(ata.get("uf") or "").upper() not in requested_states:
                 continue
@@ -771,7 +879,7 @@ class SupabasePublicApi:
         for item in pca_rows:
             if scoped_orgs and str(item.get("orgao_cnpj") or "") not in scoped_orgs:
                 continue
-            if text and not _matches_terms(f"{item.get('descricao') or ''} {item.get('categoria_nome') or ''}", terms):
+            if text and not matches_scope_text(f"{item.get('descricao') or ''} {item.get('categoria_nome') or ''}"):
                 continue
             future_items.append({
                 "id": item.get("id"), "description": item.get("descricao"), "category": item.get("categoria_nome"),
@@ -924,6 +1032,13 @@ def _fold(value: str) -> str:
 
 def _pg_token(value: str) -> str:
     return re.sub(r"[(),.*]", " ", value).strip()[:60]
+
+
+def _query_list(query: Mapping[str, list[str]], key: str) -> list[str]:
+    values: list[str] = []
+    for raw in query.get(key, []):
+        values.extend(item.strip() for item in str(raw).split(",") if item.strip())
+    return values[:30]
 
 
 def _matches_terms(value: str, terms: list[str]) -> bool:

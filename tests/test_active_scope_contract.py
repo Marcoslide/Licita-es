@@ -26,6 +26,14 @@ class ActiveScopeContractTests(unittest.TestCase):
     def test_simulated_secondary_panels_cannot_reappear_in_real_mode(self) -> None:
         self.assertIn('body[data-data-mode="real"] .depth-secondary{display:none!important}', self.html)
 
+    def test_market_search_controls_expose_one_shared_hybrid_scope(self) -> None:
+        for mode in ("precise", "balanced", "broad", "exact"):
+            self.assertIn(f'data-search-mode="{mode}"', self.html)
+        for field in ("includeTerms", "shouldTerms", "excludeTerms", "exactPhrase", "includeDocuments"):
+            self.assertIn(field, self.html)
+        self.assertIn("/api/public/search/suggest", self.html)
+        self.assertIn("match_score", self.html)
+
 
 if __name__ == "__main__":
     unittest.main()

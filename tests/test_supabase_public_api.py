@@ -95,7 +95,7 @@ class SupabasePublicApiTests(unittest.TestCase):
             "city": ["Belo Horizonte"], "modality": ["Pregão"],
             "min_value": ["500000"], "max_value": ["2000000"], "period": ["180"],
         })
-        procurement_call = next(call for call in client.calls if call[0] == "licitacoes" and call[3])
+        procurement_call = next(call for call in client.calls if call[0] == "licitacoes")
         params = procurement_call[1]
         self.assertIn(("uf", "eq.MG"), params)
         self.assertIn(("municipio_nome", "ilike.*Belo Horizonte*"), params)

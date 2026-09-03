@@ -236,6 +236,50 @@ class Database:
         with self.connect() as conn:
             return {table: int(conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]) for table in tables}
 
+    def record_search_event(
+        self, *, query: str, mode: str, filter_names: list[str], result_count: int,
+        latency_ms: Optional[float], engine_version: str,
+    ) -> None:
+        with self.connect() as conn:
+            conn.execute(
+                "INSERT INTO search_events(query_normalized,search_mode,filter_names,result_count,zero_result,"
+                "latency_ms,search_engine_version) VALUES (?,?,?,?,?,?,?)",
+                (query[:240] or None, mode[:30], canonical_json(filter_names), int(result_count),
+                 int(result_count == 0), latency_ms, engine_version[:80]),
+            )
+
+    def search_quality(self, days: int = 30) -> dict[str, Any]:
+        with self.connect() as conn:
+            summary = conn.execute(
+                "SELECT COUNT(*) searches,SUM(zero_result) zero_results,AVG(latency_ms) avg_latency_ms "
+                "FROM search_events WHERE created_at>=datetime('now', ?)", (f"-{max(1, min(days, 365))} days",),
+            ).fetchone()
+            modes = [dict(row) for row in conn.execute(
+                "SELECT search_mode mode,COUNT(*) searches FROM search_events "
+                "WHERE created_at>=datetime('now', ?) GROUP BY search_mode ORDER BY searches DESC",
+                (f"-{max(1, min(days, 365))} days",),
+            )]
+            queries = [dict(row) for row in conn.execute(
+                "SELECT query_normalized query,COUNT(*) searches,AVG(result_count) avg_results "
+                "FROM search_events WHERE query_normalized IS NOT NULL AND created_at>=datetime('now', ?) "
+                "GROUP BY query_normalized ORDER BY searches DESC LIMIT 25",
+                (f"-{max(1, min(days, 365))} days",),
+            )]
+            zero_queries = [dict(row) for row in conn.execute(
+                "SELECT query_normalized query,COUNT(*) searches FROM search_events "
+                "WHERE zero_result=1 AND query_normalized IS NOT NULL AND created_at>=datetime('now', ?) "
+                "GROUP BY query_normalized ORDER BY searches DESC LIMIT 25",
+                (f"-{max(1, min(days, 365))} days",),
+            )]
+        searches = int(summary["searches"] or 0)
+        zero_results = int(summary["zero_results"] or 0)
+        return {
+            "period_days": max(1, min(days, 365)), "searches": searches, "zero_results": zero_results,
+            "zero_result_rate": zero_results / searches if searches else 0,
+            "average_latency_ms": round(float(summary["avg_latency_ms"] or 0), 1),
+            "modes": modes, "top_queries": queries, "zero_result_queries": zero_queries,
+        }
+
 
 def canonical_json(value: Any) -> str:
     return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"), default=str)

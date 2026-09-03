@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any, Mapping, Optional
 
 from .db import Database
+from .market_search import MarketSearchEngine, SearchDocument
 
 
 def market_summary(db: Database) -> dict[str, Any]:
@@ -82,7 +83,7 @@ def list_procurements(db: Database, query: Mapping[str, list[str]]) -> dict[str,
     uf = (_first(query, "uf") or "").strip().upper()
     text = (_first(query, "q") or "").strip()
     source = (_first(query, "source") or "").strip().lower()
-    sort = (_first(query, "sort") or "recent").strip().lower()
+    sort = (_first(query, "sort") or ("relevance" if text else "recent")).strip().lower()
     period = (_first(query, "period") or "").strip().lower()
     status = (_first(query, "status") or "").strip().lower()
 
@@ -94,10 +95,6 @@ def list_procurements(db: Database, query: Mapping[str, list[str]]) -> dict[str,
     if source:
         where.append("LOWER(p.source_system)=?")
         params.append(source)
-    if text:
-        pattern = f"%{text}%"
-        where.append("(p.object LIKE ? OR p.pncp_control_number LIKE ? OR p.process_number LIKE ? OR o.legal_name LIKE ?)")
-        params.extend((pattern, pattern, pattern, pattern))
     if period == "today":
         where.append("DATE(COALESCE(p.source_created_at,p.collected_at))=DATE('now')")
     elif period in {"7", "30", "365"}:
@@ -133,11 +130,47 @@ def list_procurements(db: Database, query: Mapping[str, list[str]]) -> dict[str,
         "(SELECT COUNT(*) FROM documents d WHERE d.procurement_id=p.id) AS documents_count "
     )
     with db.connect() as conn:
-        total = int(conn.execute(f"SELECT COUNT(*) {joins}{predicate}", params).fetchone()[0])
-        rows = [dict(row) for row in conn.execute(
-            f"{select}{joins}{predicate} ORDER BY {order} LIMIT ? OFFSET ?", (*params, limit, offset)
-        )]
-    return {"total": total, "limit": limit, "offset": offset, "items": rows}
+        rows = [dict(row) for row in conn.execute(f"{select}{joins}{predicate} ORDER BY {order}", params)]
+        procurement_ids = [int(row["id"]) for row in rows]
+        item_rows = [dict(row) for row in conn.execute(
+            "SELECT procurement_id,item_number AS numero_item,description AS descricao,"
+            "catalog_item_code AS catalogo_codigo,material_or_service AS material_ou_servico "
+            f"FROM procurement_items WHERE procurement_id IN ({','.join('?' for _ in procurement_ids)})",
+            procurement_ids,
+        )] if procurement_ids else []
+    if text or _first(query, "catalog"):
+        structured_order_rows = list(rows)
+        grouped: dict[int, list[dict[str, Any]]] = {}
+        for item in item_rows:
+            grouped.setdefault(int(item["procurement_id"]), []).append(item)
+        vocabulary = [*(row.get("object") or "" for row in rows), *(item.get("descricao") or "" for item in item_rows)]
+        engine = MarketSearchEngine()
+        plan = engine.compile(
+            text, mode=(_first(query, "mode") or "balanced"),
+            include=_csv_values(query, "include"), should=_csv_values(query, "should"),
+            exclude=_csv_values(query, "exclude"), catalog_codes=_csv_values(query, "catalog"),
+            vocabulary=vocabulary,
+        )
+        hits = engine.search(plan, [SearchDocument(
+            procurement_id=str(row["id"]), object_text=row.get("object") or "",
+            process_text=f"{row.get('process_number') or ''} {row.get('pncp_control_number') or ''}",
+            organization_text=row.get("organization_name") or "", item_rows=grouped.get(int(row["id"]), []),
+        ) for row in rows])
+        hit_map = {hit.procurement_id: hit for hit in hits}
+        row_map = {str(row["id"]): row for row in rows}
+        rows = ([row_map[hit.procurement_id] for hit in hits] if sort == "relevance" else
+                [row for row in structured_order_rows if str(row["id"]) in hit_map])
+        for row in rows:
+            hit = hit_map[str(row["id"])]
+            row.update(match_score=hit.match_score, match_reason=hit.match_reasons[0] if hit.match_reasons else None,
+                       matched_items_count=hit.matched_items_count, matched_items=hit.matched_items,
+                       matched_fields=hit.matched_fields, match_reasons=hit.match_reasons,
+                       highlights=hit.highlights, specification_warning=hit.specification_warning)
+        search = plan.public_dict()
+    else:
+        search = None
+    total = len(rows)
+    return {"total": total, "limit": limit, "offset": offset, "items": rows[offset:offset + limit], "search": search}
 
 
 def procurement_detail(db: Database, procurement_id: int) -> Optional[dict[str, Any]]:
@@ -187,6 +220,10 @@ def source_status(db: Database) -> list[dict[str, Any]]:
 def _first(query: Mapping[str, list[str]], key: str) -> Optional[str]:
     values = query.get(key)
     return values[0] if values else None
+
+
+def _csv_values(query: Mapping[str, list[str]], key: str) -> list[str]:
+    return [item.strip() for raw in query.get(key, []) for item in raw.split(",") if item.strip()]
 
 
 def _bounded_int(value: Optional[str], *, default: int, minimum: int, maximum: int) -> int:
