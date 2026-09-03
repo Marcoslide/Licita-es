@@ -131,6 +131,13 @@
     <section data-sec="memoria" hidden>
       <h2 style="margin:0 0 8px">Memória da Bolsa</h2>
       <p class="mut" style="margin:0 0 16px;font-size:13px" id="memMetodologia">Carregando…</p>
+      <div class="panelbox"><div class="ph">MATRIZ DE COBERTURA — fonte × ano × mês
+          <span class="mut" style="font-weight:400;font-size:11px">✅ completo · 🟡 parcial · 🔄 importando · ❌ falha · ⚪ fonte não publicou</span></div>
+        <div class="pb" id="memMatriz"><span class="mut">Carregando…</span></div></div>
+      <div class="panelbox"><div class="ph">TOTAIS POR ANO (linhas reais gravadas)</div>
+        <div class="pb flush tblwrap"><table class="tbl" id="tblTotAno">
+          <thead><tr><th>Ano</th><th class="num">Licitações</th><th class="num">Itens</th><th class="num">Participações</th><th class="num">Vencedores</th><th class="num">Fornecedores</th><th class="num">Empenhos</th><th class="num">Valor estimado</th></tr></thead>
+          <tbody><tr><td colspan="8" class="mut">Carregando…</td></tr></tbody></table></div></div>
       <div class="panelbox"><div class="ph">COBERTURA POR ANO (dados reais gravados)</div>
         <div class="pb" id="memCobertura"><span class="mut">Carregando…</span></div></div>
       <div class="panelbox"><div class="ph">FILA DE BACKFILL <span class="mut" style="font-weight:400" id="memResumoFila"></span></div>
@@ -376,7 +383,53 @@ async function carregarMonitoramento() {
   } catch { toast('Falha ao carregar métricas de monitoramento.'); }
 }
 
+function renderMatriz(mx) {
+  const emoji = s => ({ COMPLETE: '✅', PARTIAL: '🟡', IMPORTING: '🔄', DOWNLOADING: '🔄', VALIDATING: '🔄',
+    FAILED: '❌', SOURCE_NOT_AVAILABLE: '⚪', PENDING: '▫️' }[s] || '▫️');
+  const db = mx.db || {};
+  const cap = db.limite_bytes ? `<div class="mut" style="font-size:12px;margin:0 0 10px">Banco: <b>${(db.bytes / 1048576).toFixed(0)} MB</b> de ${(db.limite_bytes / 1048576).toFixed(0)} MB configurados (${db.pct}%) — alertas em 70/80/90%, ingestão nunca pausa. ${(mx.alertas_capacidade || []).length ? '⚠️ último alerta: ' + mx.alertas_capacidade[0].nivel + '%' : ''}</div>` : '';
+  const linhaAno = a => {
+    const ms = a.meses || {};
+    const celulas = Array.from({ length: 12 }, (_, i) => {
+      const k = String(i + 1).padStart(2, '0');
+      const c = ms[k];
+      const tip = c ? `${k}: ${c.s}${c.linhas ? ' · ' + fmtN(c.linhas) + ' linhas' : ''}${c.mismatch ? ' · COVERAGE_MISMATCH' : ''}` : k + ': fora da fila';
+      return `<span title="${tip}" style="cursor:default">${c ? (c.mismatch ? '⚠️' : emoji(c.s)) : '·'}</span>`;
+    }).join(' ');
+    return `<div style="display:flex;gap:10px;align-items:center;margin:4px 0;font-size:13px">
+      <b class="mono" style="width:44px">${a.ano}</b><span style="letter-spacing:2px">${celulas}</span>
+      <span class="mono mut" style="font-size:11.5px">${a.completos}✓ ${a.parciais}~ ${a.pendentes}… ${a.fonte_indisponivel}⚪${a.ano_fechado ? ' · ANO FECHADO' : ''}</span></div>`;
+  };
+  const transp = (mx.transparencia || []).map(linhaAno).join('') || '<span class="mut">sem fila</span>';
+  const cg = (mx.compras_gov || []).map(f => `
+    <div style="display:flex;gap:10px;align-items:center;margin:4px 0;font-size:12.5px">
+      <span class="mono" style="width:44px">${f.ano ?? '—'}</span>
+      <span class="mono" style="width:210px">${f.dataset.replace('comprasgov_anual_', '')}</span>
+      <span>${emoji(f.s)}</span>
+      <div style="flex:1;height:8px;background:var(--panel3);border-radius:4px;overflow:hidden">
+        <i style="display:block;height:100%;background:var(--amber);width:${f.pct ?? (f.s === 'COMPLETE' ? 100 : 0)}%"></i></div>
+      <span class="mono mut" style="min-width:150px;text-align:right">${f.pct != null ? f.pct + '%' : '—'} · ${fmtN(f.inseridos)} ins.</span></div>`).join('');
+  const ctg = (mx.contratos_gov || []).length
+    ? `<div class="mut" style="font-size:12px;margin-top:6px">Contratos.gov: ${(mx.contratos_gov || []).length} arquivos anuais registrados — ${(mx.contratos_gov || []).filter(x => x.hold).length} aguardando parser dedicado (lacuna declarada).</div>` : '';
+  const pncp = (mx.pncp && mx.pncp.por_mes || []).map(p => `<span class="mono" style="margin-right:10px">${p.ym}: ${fmtN(p.n)}</span>`).join('');
+  const gaps = (mx.gaps || []).map(g => `${g.ano}: ${g.meses_abertos} meses abertos`).join(' · ');
+  $('#memMatriz').innerHTML = cap
+    + '<div style="font-weight:600;font-size:12px;margin:4px 0">PORTAL DA TRANSPARÊNCIA (SIASG · mensal)</div>' + transp
+    + '<div style="font-weight:600;font-size:12px;margin:12px 0 4px">COMPRAS.GOV (arquivos anuais oficiais)</div>' + (cg || '<span class="mut">nenhum arquivo na fila</span>') + ctg
+    + '<div style="font-weight:600;font-size:12px;margin:12px 0 4px">PNCP (registros por mês de publicação)</div><div>' + (pncp || '<span class="mut">—</span>') + '</div>'
+    + (gaps ? `<div class="mut" style="font-size:12px;margin-top:10px">Lacunas abertas — ${gaps}</div>` : '');
+  $('#tblTotAno tbody').innerHTML = (mx.totais_ano || []).map(t => `
+    <tr><td class="mono"><b>${t.ano}</b></td><td class="num">${fmtN(t.licitacoes)}</td><td class="num">${fmtN(t.itens)}</td>
+      <td class="num">${fmtN(t.participantes)}</td><td class="num">${fmtN(t.vencedores)}</td><td class="num">${fmtN(t.fornecedores)}</td>
+      <td class="num">${fmtN(t.empenhos)}</td><td class="num">${t.valor_estimado ? fmtBRL(t.valor_estimado) : '—'}</td></tr>`).join('')
+    || '<tr><td colspan="8" class="mut">Sem dados ainda.</td></tr>';
+}
+
 async function carregarMemoria() {
+  try {
+    const { data: mx, error: e2 } = await sb.rpc('bolsa_admin_matriz');
+    if (!e2 && mx) renderMatriz(mx);
+  } catch { /* matriz é complementar; a seção segue com o painel clássico */ }
   try {
     const { data: m, error } = await sb.rpc('saas_admin_memoria');
     if (error) throw error;

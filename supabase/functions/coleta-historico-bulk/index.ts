@@ -1,7 +1,9 @@
 // ============================================================
-// BOLSA DE LICITAÇÕES — Memória Histórica: importador BULK v4
-// (retomada intra-mês por fase/linha, CSV anual por Range de bytes,
-//  UMA fonte por invocação para caber nos recursos do worker)
+// BOLSA DE LICITAÇÕES — Memória Histórica: importador BULK v6
+// (estados PENDING/DOWNLOADING/IMPORTING/VALIDATING/COMPLETE/PARTIAL/
+//  SOURCE_NOT_AVAILABLE/FAILED; retomada intra-mês por fase/linha;
+//  CSV anual por Range de bytes com registros multiline; validação de
+//  cobertura no fechamento; UMA fonte por invocação)
 // 1) job "descobrir": sonda programaticamente a cobertura real
 //    (earliest/latest) das fontes de arquivos oficiais (§3, §70)
 //    — Portal da Transparência (ZIPs mensais) e repositórios de
@@ -61,6 +63,30 @@ function parseCsvLinha(l: string, sep = ";"): string[] {
   return out;
 }
 
+// CSVs oficiais têm campos com quebra de linha dentro de aspas: junta as
+// linhas físicas em registros lógicos (aspas balanceadas). `pendente` é um
+// registro ainda aberto no fim do bloco (vai para resto_linha no modo Range).
+function normalizarRegistros(linhas: string[]): { completos: string[]; pendente: string | null } {
+  const out: string[] = [];
+  let buf: string | null = null;
+  let impar = false;
+  for (const l of linhas) {
+    // fast-path (CPU do worker): linha sem aspas nem registro aberto passa direto
+    if (buf === null && l.indexOf('"') === -1) { out.push(l); continue; }
+    let q = 0;
+    for (let i = l.indexOf('"'); i >= 0; i = l.indexOf('"', i + 1)) q++;
+    if (buf === null) {
+      if (q % 2 === 0) out.push(l);
+      else { buf = l; impar = true; }
+    } else {
+      buf += "\n" + l;
+      if (q % 2 === 1) impar = !impar;
+      if (!impar) { out.push(buf); buf = null; }
+    }
+  }
+  return { completos: out, pendente: buf };
+}
+
 function acharCol(headers: string[], ...pedacos: string[][]): number {
   for (const alt of pedacos) {
     const idx = headers.findIndex((h) => alt.every((p) => h.includes(p)));
@@ -107,7 +133,7 @@ async function jobDescobrir(deadline: number): Promise<Record<string, unknown>> 
   await sql`insert into bolsa.fontes_cobertura (fonte, dataset, earliest_available, latest_available, metodo, detalhe)
             values ('transparencia', 'licitacoes_zip', ${earliestT}, ${latestT},
                     'sondagem GET Range bytes=0-0 em janeiro de cada ano + último mês fechado',
-                    ${JSON.stringify({ meses_ok: okMeses, meses_falha: falhaMeses })}::jsonb)
+                    ${{ meses_ok: okMeses, meses_falha: falhaMeses }}::jsonb)
             on conflict (fonte, dataset) do update set earliest_available = excluded.earliest_available,
               latest_available = excluded.latest_available, metodo = excluded.metodo,
               detalhe = excluded.detalhe, verificado_em = now()`;
@@ -134,7 +160,7 @@ async function jobDescobrir(deadline: number): Promise<Record<string, unknown>> 
       await sql`insert into bolsa.fontes_cobertura (fonte, dataset, earliest_available, latest_available, metodo, detalhe)
                 values (${L.fonte}, ${L.dataset}, ${anos[0] ?? null}, ${anos.at(-1) ?? null},
                         ${"listagem HTML de " + L.url + " (HTTP " + r.status + ")"},
-                        ${JSON.stringify({ http: r.status, diretorios: dirs, arquivos: arquivos.slice(0, 30) })}::jsonb)
+                        ${{ http: r.status, diretorios: dirs, arquivos: arquivos.slice(0, 30) }}::jsonb)
                 on conflict (fonte, dataset) do update set earliest_available = excluded.earliest_available,
                   latest_available = excluded.latest_available, metodo = excluded.metodo,
                   detalhe = excluded.detalhe, verificado_em = now()`;
@@ -150,7 +176,7 @@ async function jobDescobrir(deadline: number): Promise<Record<string, unknown>> 
       (out as any)[L.dataset] = { erro: String((e as Error).message) };
       await sql`insert into bolsa.fontes_cobertura (fonte, dataset, metodo, detalhe)
                 values (${L.fonte}, ${L.dataset}, ${"listagem falhou: " + L.url},
-                        ${JSON.stringify({ erro: String((e as Error).message) })}::jsonb)
+                        ${{ erro: String((e as Error).message) }}::jsonb)
                 on conflict (fonte, dataset) do update set metodo = excluded.metodo,
                   detalhe = excluded.detalhe, verificado_em = now()`;
     }
@@ -165,8 +191,8 @@ async function importarTransparenciaMes(ano: number, mes: number, deadline: numb
   const ym = `${ano}${String(mes).padStart(2, "0")}`;
   const url = `${TRANSP}/${ym}`;
   const arqRows = await sql`insert into bolsa.arquivos_historicos (fonte, dataset, ano, mes, url, import_status)
-    values ('transparencia', 'licitacoes_zip', ${ano}, ${mes}, ${url}, 'IMPORTANDO')
-    on conflict (url) do update set import_status = 'IMPORTANDO', parser_version = ${PARSER_VERSION}
+    values ('transparencia', 'licitacoes_zip', ${ano}, ${mes}, ${url}, 'DOWNLOADING')
+    on conflict (url) do update set import_status = 'DOWNLOADING', parser_version = ${PARSER_VERSION}
     returning id, detalhe`;
   const arqId = arqRows[0].id;
   // retomada intra-mês (§59): {fase: lic|item|part|emp, linha: N}
@@ -179,31 +205,35 @@ async function importarTransparenciaMes(ano: number, mes: number, deadline: numb
   const inicioDa = (f: string) => (f === faseIni ? linhaIni : 1);
   const salvaCursor = async (f: string, linha: number) => {
     cortouEm = { fase: f, linha };
-    await sql`update bolsa.arquivos_historicos set detalhe = detalhe || ${JSON.stringify({ cursor: cortouEm })}::jsonb where id = ${arqId}`;
+    await sql`update bolsa.arquivos_historicos set detalhe = coalesce(detalhe,'{}'::jsonb) || ${{ cursor: cortouEm }}::jsonb where id = ${arqId}`;
   };
   // checkpoint leve: se o worker morrer (limite de CPU/memória), a retomada
   // parte daqui em vez de refazer a fase inteira
   let lotesCk = 0;
   const anotaCursor = async (f: string, linha: number) => {
-    await sql`update bolsa.arquivos_historicos set detalhe = detalhe || ${JSON.stringify({ cursor: { fase: f, linha } })}::jsonb where id = ${arqId}`;
+    await sql`update bolsa.arquivos_historicos set detalhe = coalesce(detalhe,'{}'::jsonb) || ${{ cursor: { fase: f, linha } }}::jsonb where id = ${arqId}`;
   };
 
   const resp = await fetch(url, { headers: { "user-agent": UA }, signal: AbortSignal.timeout(60000) });
   if (!resp.ok) {
     await resp.body?.cancel();
-    await sql`update bolsa.arquivos_historicos set import_status = 'ERRO',
-              detalhe = detalhe || ${JSON.stringify({ http: resp.status })}::jsonb where id = ${arqId}`;
-    return { ym, erro: `HTTP ${resp.status}` };
+    // mês nunca publicado (403/404) não é falha da Bolsa
+    const st = (resp.status === 403 || resp.status === 404) ? "SOURCE_NOT_AVAILABLE" : "FAILED";
+    await sql`update bolsa.arquivos_historicos set import_status = ${st},
+              detalhe = coalesce(detalhe,'{}'::jsonb) || ${{ http: resp.status }}::jsonb where id = ${arqId}`;
+    return { ym, status: st, http: resp.status };
   }
   let buf: Uint8Array | null = new Uint8Array(await resp.arrayBuffer());
   const zipBytes = buf.length;
   const hash = await sha256hex(buf);
-  await sql`update bolsa.arquivos_historicos set tamanho_bytes = ${zipBytes}, sha256 = ${hash}, baixado_em = now() where id = ${arqId}`;
+  await sql`update bolsa.arquivos_historicos set tamanho_bytes = ${zipBytes}, sha256 = ${hash}, baixado_em = now(), import_status = 'IMPORTING' where id = ${arqId}`;
 
-  const zip = unzipSync(buf);
-  buf = null; // solta o ZIP comprimido — só os arquivos internos ficam em memória
+  // NÃO inflar o ZIP inteiro (os 4 CSVs juntos estouram a memória do worker):
+  // primeiro só listamos os nomes, depois inflamos um arquivo por fase.
+  const nomes: string[] = [];
+  unzipSync(buf, { filter: (f) => { nomes.push(f.name); return false; } });
+  const abrir = (nome: string): Uint8Array => unzipSync(buf!, { filter: (f) => f.name === nome })[nome];
   const dec = new TextDecoder("iso-8859-1");
-  const nomes = Object.keys(zip);
   const cnt: Cnt = { lics: 0, itens: 0, parts: 0, emps: 0, erros: 0 };
   const detArquivos: Record<string, number> = {};
 
@@ -215,10 +245,17 @@ async function importarTransparenciaMes(ano: number, mes: number, deadline: numb
   // chave comum entre os 4 arquivos do mês
   const chaveDe = (cols: string[], iNum: number, iUg: number, iMod: number) =>
     `${(cols[iUg] ?? "").trim()}:${norm(cols[iMod] ?? "").slice(0, 12)}:${(cols[iNum] ?? "").trim()}`;
+  // registros lógicos (campos multiline) — arquivo inteiro está em memória,
+  // então um pendente no fim é registro malformado e entra como está
+  const registrosDe = (bytes: Uint8Array): string[] => {
+    const nr = normalizarRegistros(dec.decode(bytes).split(/\r?\n/));
+    const rs = nr.pendente ? [...nr.completos, nr.pendente] : nr.completos;
+    return rs.filter((l) => l.length > 0);
+  };
 
   // ---- Licitação ----
   if (fLic && !pulaFase("lic") && !cortouEm) {
-    const linhas = dec.decode(zip[fLic]).split(/\r?\n/).filter((l) => l.length > 0);
+    const linhas = registrosDe(abrir(fLic));
     const H = parseCsvLinha(linhas[0]).map(norm);
     const iNum = acharCol(H, ["numero", "licitac"]);
     const iUg = acharCol(H, ["codigo", "ug"]);
@@ -274,12 +311,11 @@ async function importarTransparenciaMes(ano: number, mes: number, deadline: numb
       }
       if (++lotesCk >= 10) { lotesCk = 0; await anotaCursor("lic", Math.min(ini + 400, linhas.length)); }
     }
-    delete zip[fLic];
   }
 
   // ---- ItemLicitação ----
   if (fItem && !pulaFase("item") && !cortouEm) {
-    const linhas = dec.decode(zip[fItem]).split(/\r?\n/).filter((l) => l.length > 0);
+    const linhas = registrosDe(abrir(fItem));
     const H = parseCsvLinha(linhas[0]).map(norm);
     const iNum = acharCol(H, ["numero", "licitac"]);
     const iUg = acharCol(H, ["codigo", "ug"]);
@@ -326,12 +362,11 @@ async function importarTransparenciaMes(ano: number, mes: number, deadline: numb
       }
       if (++lotesCk >= 10) { lotesCk = 0; await anotaCursor("item", Math.min(ini + 400, linhas.length)); }
     }
-    delete zip[fItem];
   }
 
   // ---- ParticipantesLicitação (§13-14: participar ≠ vencer) ----
   if (fPart && !pulaFase("part") && !cortouEm) {
-    const linhas = dec.decode(zip[fPart]).split(/\r?\n/).filter((l) => l.length > 0);
+    const linhas = registrosDe(abrir(fPart));
     const H = parseCsvLinha(linhas[0]).map(norm);
     const iNum = acharCol(H, ["numero", "licitac"]);
     const iUg = acharCol(H, ["codigo", "ug"]);
@@ -371,12 +406,11 @@ async function importarTransparenciaMes(ano: number, mes: number, deadline: numb
       }
       if (++lotesCk >= 10) { lotesCk = 0; await anotaCursor("part", Math.min(ini + 500, linhas.length)); }
     }
-    delete zip[fPart];
   }
 
   // ---- EmpenhosRelacionados ----
   if (fEmp && !pulaFase("emp") && !cortouEm) {
-    const linhas = dec.decode(zip[fEmp]).split(/\r?\n/).filter((l) => l.length > 0);
+    const linhas = registrosDe(abrir(fEmp));
     const H = parseCsvLinha(linhas[0]).map(norm);
     const iNum = acharCol(H, ["numero", "licitac"]);
     const iUg = acharCol(H, ["codigo", "ug"]);
@@ -422,24 +456,37 @@ async function importarTransparenciaMes(ano: number, mes: number, deadline: numb
       }
       if (++lotesCk >= 10) { lotesCk = 0; await anotaCursor("emp", Math.min(ini + 500, linhas.length)); }
     }
-    delete zip[fEmp];
   }
 
   const completo = !cortouEm;
   await sql`update bolsa.arquivos_historicos set
-      import_status = ${completo ? "IMPORTADO" : "AGENDADO"},
+      import_status = ${completo ? "VALIDATING" : "PARTIAL"},
       linhas_processadas = linhas_processadas + ${cnt.lics + cnt.itens + cnt.parts + cnt.emps},
       inseridos = inseridos + ${cnt.lics + cnt.itens + cnt.parts + cnt.emps},
       erros = erros + ${cnt.erros},
       finalizado_em = case when ${completo} then now() else null end,
-      detalhe = detalhe || ${JSON.stringify(Object.assign({ arquivos_no_zip: nomes, contagem_por_arquivo: detArquivos, parcial: !completo }, completo ? { cursor: null } : {}))}::jsonb
+      detalhe = coalesce(detalhe,'{}'::jsonb) || ${Object.assign({ arquivos_no_zip: nomes, contagem_por_arquivo: detArquivos, parcial: !completo }, completo ? { cursor: null } : {})}::jsonb
     where id = ${arqId}`;
 
+  // validação de cobertura (§8/§76): linhas processadas × linhas dos arquivos do ZIP.
+  // processadas pode EXCEDER o esperado (retomadas relêem trechos); mismatch é só quando falta.
+  if (completo) {
+    await sql`update bolsa.arquivos_historicos a set
+        import_status = 'COMPLETE',
+        detalhe = coalesce(a.detalhe,'{}'::jsonb) || jsonb_build_object(
+          'validacao', jsonb_build_object(
+             'esperado_linhas', (select coalesce(sum((v.value)::bigint),0) from jsonb_each_text(coalesce(a.detalhe->'contagem_por_arquivo','{}'::jsonb)) v),
+             'processado_linhas', a.linhas_processadas, 'erros', a.erros, 'em', now()),
+          'coverage_mismatch',
+             (a.linhas_processadas + a.erros) < 0.98 * (select coalesce(sum((v.value)::bigint),0) from jsonb_each_text(coalesce(a.detalhe->'contagem_por_arquivo','{}'::jsonb)) v))
+      where a.id = ${arqId}`;
+  }
+
   await sql`insert into bolsa.memoria_anos (ano, fonte, status, relatorio)
-            values (${ano}, 'transparencia', 'PARCIAL', ${JSON.stringify({ ultimo_mes_importado: ym })}::jsonb)
+            values (${ano}, 'transparencia', 'PARCIAL', ${{ ultimo_mes_importado: ym }}::jsonb)
             on conflict (ano, fonte) do update set relatorio = memoria_anos.relatorio || excluded.relatorio, atualizado_em = now()`;
 
-  return { ym, zip_bytes: zipBytes, sha256: hash.slice(0, 16), ...cnt, completo };
+  return { ym, zip_bytes: zipBytes, sha256: hash.slice(0, 16), ...cnt, completo, status: completo ? "COMPLETE" : "PARTIAL" };
 }
 
 // ---------- AUTO: próximo arquivo agendado ----------
@@ -453,19 +500,39 @@ async function importarCsvRange(arq: any, deadline: number): Promise<Record<stri
   let resto: string = arq.resto_linha ?? "";
   let mapa: any = arq.detalhe?.mapa ?? null;
   let sep: string = arq.detalhe?.sep ?? ";";
-  await sql`update bolsa.arquivos_historicos set import_status = 'IMPORTANDO' where id = ${arq.id}`;
+  await sql`update bolsa.arquivos_historicos set import_status = 'IMPORTING' where id = ${arq.id}`;
 
   const salvar = async (status: string | null, extra: Record<string, unknown> = {}) => {
     await sql`update bolsa.arquivos_historicos set
-        cursor_bytes = ${cursor}, resto_linha = ${resto.slice(0, 8000)},
+        cursor_bytes = ${cursor}, resto_linha = ${resto.slice(0, 24000)},
         linhas_processadas = linhas_processadas + ${st.lidas},
         inseridos = inseridos + ${st.inseridos}, erros = erros + ${st.erros},
         import_status = coalesce(${status}, import_status),
-        finalizado_em = case when ${status === "IMPORTADO"} then now() else finalizado_em end,
-        detalhe = detalhe || ${JSON.stringify(Object.assign({ mapa, sep }, extra))}::jsonb
+        finalizado_em = case when ${status === "COMPLETE"} then now() else finalizado_em end,
+        detalhe = coalesce(detalhe,'{}'::jsonb) || ${Object.assign({ mapa, sep }, extra)}::jsonb
       where id = ${arq.id}`;
     st.lidas = 0; st.inseridos = 0; st.erros = 0;
+    if (status === "COMPLETE") {
+      // validação: cursor final × tamanho sondado; e memória por ano da fonte
+      await sql`update bolsa.arquivos_historicos set
+          detalhe = coalesce(detalhe,'{}'::jsonb) || jsonb_build_object(
+            'validacao', jsonb_build_object('fim_bytes', cursor_bytes, 'tamanho_sondado', tamanho_bytes, 'em', now()),
+            'coverage_mismatch', (tamanho_bytes is not null and cursor_bytes < tamanho_bytes))
+        where id = ${arq.id}`;
+      if (arq.ano) {
+        await sql`insert into bolsa.memoria_anos (ano, fonte, status, relatorio)
+            values (${arq.ano}, ${arq.fonte}, 'PARCIAL', ${{ arquivo_concluido: arq.dataset, em: new Date().toISOString() }}::jsonb)
+            on conflict (ano, fonte) do update set relatorio = memoria_anos.relatorio || excluded.relatorio, atualizado_em = now()`;
+      }
+    }
   };
+
+  // guarda: cursor avançado sem mapa persistido (bug antigo do detalhe NULL) —
+  // reimportar do zero é idempotente e não perde nada
+  if (cursor > 0 && !mapa) {
+    cursor = 0; resto = "";
+    await salvar(null, { reinicio: "mapa ausente com cursor avançado; reimport preventivo" });
+  }
 
   const dec = new TextDecoder("utf-8");
   while (Date.now() < deadline - 8000) {
@@ -474,33 +541,40 @@ async function importarCsvRange(arq: any, deadline: number): Promise<Record<stri
     try {
       r = await fetch(arq.url, { headers: { "user-agent": UA, range: `bytes=${cursor}-${fim}` }, signal: AbortSignal.timeout(30000) });
     } catch (e) {
-      await salvar("AGENDADO", { ultima_falha: String((e as Error).message) });
+      await salvar(cursor > 0 ? "PARTIAL" : "PENDING", { ultima_falha: String((e as Error).message) });
       return { arquivo: arq.id, parcial: true, motivo: "rede" };
     }
     if (r.status === 416) { // pedimos além do fim: arquivo terminou exatamente no chunk anterior
       await r.body?.cancel();
-      await salvar("IMPORTADO", { fim_bytes: cursor, via: "416" });
+      await salvar("COMPLETE", { fim_bytes: cursor, via: "416" });
       return { arquivo: arq.id, dataset: arq.dataset, concluido: true, bytes: cursor };
     }
     if (!r.ok && r.status !== 206) {
       await r.body?.cancel();
-      await salvar("ERRO", { http: r.status });
+      await salvar("FAILED", { http: r.status });
       return { arquivo: arq.id, erro: `HTTP ${r.status}` };
     }
     if (r.status !== 206) { // servidor ignorou o Range: só aceitável para arquivo pequeno no início
       const cl = Number(r.headers.get("content-length") ?? 0);
       if (cursor > 0 || cl > 32 * 1024 * 1024) {
         await r.body?.cancel();
-        await salvar("ERRO", { motivo: "servidor ignorou Range (HTTP 200) em arquivo grande", content_length: cl || null });
+        await salvar("FAILED", { motivo: "servidor ignorou Range (HTTP 200) em arquivo grande", content_length: cl || null });
         return { arquivo: arq.id, erro: "range ignorado" };
       }
     }
     const bytes = new Uint8Array(await r.arrayBuffer());
     const texto = resto + dec.decode(bytes, { stream: false });
-    const linhas = texto.split(/\r?\n/);
-    resto = linhas.pop() ?? "";
+    const fisicas = texto.split(/\r?\n/);
+    resto = fisicas.pop() ?? "";
     const acabou = bytes.length < CHUNK; // resposta curta = fim do arquivo
-    if (acabou && resto.trim().length) { linhas.push(resto); resto = ""; }
+    if (acabou && resto.trim().length) { fisicas.push(resto); resto = ""; }
+    // registros lógicos: campo multiline aberto no fim do bloco volta pro resto
+    const nr = normalizarRegistros(fisicas);
+    if (nr.pendente !== null) {
+      if (acabou) nr.completos.push(nr.pendente); // fim do arquivo: registro malformado entra como está
+      else resto = nr.pendente + "\n" + resto;
+    }
+    const linhas = nr.completos;
 
     let idx = 0;
     if (cursor === 0 && !mapa) {
@@ -529,7 +603,7 @@ async function importarCsvRange(arq: any, deadline: number): Promise<Record<stri
         header: H.slice(0, 40),
       };
       if (mapa.chave < 0) {
-        await salvar("ERRO", { motivo: "cabecalho sem coluna-chave reconhecida", header: mapa.header });
+        await salvar("FAILED", { motivo: "cabecalho sem coluna-chave reconhecida", header: mapa.header });
         return { arquivo: arq.id, erro: "cabecalho sem chave", header: mapa.header };
       }
       idx = 1;
@@ -537,7 +611,7 @@ async function importarCsvRange(arq: any, deadline: number): Promise<Record<stri
 
     // chunk baixado é processado por inteiro (o cursor avança bytes completos;
     // cortar no meio perderia linhas em silêncio — nunca §64)
-    const ehResultado = arq.dataset === "comprasgov_anual_resultados";
+    const ehResultado = arq.dataset === "comprasgov_anual_resultados" || arq.dataset === "comprasgov_anual_itens";
     for (let b = idx; b < linhas.length; b += 500) {
       const lote = linhas.slice(b, b + 500).filter((l) => l.length > 0);
       if (!lote.length) continue;
@@ -618,9 +692,9 @@ async function importarCsvRange(arq: any, deadline: number): Promise<Record<stri
 
     cursor += bytes.length;
     await salvar(null);
-    if (acabou) { await salvar("IMPORTADO", { fim_bytes: cursor }); return { arquivo: arq.id, dataset: arq.dataset, concluido: true, bytes: cursor }; }
+    if (acabou) { await salvar("COMPLETE", { fim_bytes: cursor }); return { arquivo: arq.id, dataset: arq.dataset, concluido: true, bytes: cursor }; }
   }
-  await salvar("AGENDADO");
+  await salvar(cursor > 0 ? "PARTIAL" : "PENDING");
   return { arquivo: arq.id, dataset: arq.dataset, parcial: true, cursor_bytes: cursor };
 }
 
@@ -630,19 +704,24 @@ async function jobAuto(deadline: number): Promise<Record<string, unknown>> {
   // estoura os recursos do worker (WORKER_RESOURCE_LIMIT). Ticks */10 caem nos
   // minutos 0,10,20,... — %20 alterna as fontes de forma justa e sem estado.
   const vezCompras = new Date().getUTCMinutes() % 20 < 10;
+  // prioridade: compras (licitações) -> resultados (vencedores) -> itens; hold fica fora;
+  // IMPORTING/PARTIAL primeiro para resgatar órfãos e retomar cursores
   const claimCompras = () => sql`select id, fonte, dataset, ano, url, cursor_bytes, resto_linha, detalhe
                        from bolsa.arquivos_historicos
-                       where import_status in ('AGENDADO','IMPORTANDO')
-                         and dataset in ('comprasgov_anual_compras','comprasgov_anual_resultados')
-                       order by import_status = 'IMPORTANDO' desc, dataset, ano desc limit 1`;
+                       where import_status in ('PENDING','PARTIAL','IMPORTING')
+                         and dataset in ('comprasgov_anual_compras','comprasgov_anual_resultados','comprasgov_anual_itens')
+                         and (detalhe->>'hold') is null
+                       order by import_status in ('IMPORTING','PARTIAL') desc,
+                                case dataset when 'comprasgov_anual_compras' then 1
+                                             when 'comprasgov_anual_resultados' then 2 else 3 end,
+                                ano desc limit 1`;
   if (vezCompras) {
     const cg = await claimCompras();
     if (cg.length) { out.compras_gov = await importarCsvRange(cg[0], deadline); return out; }
   }
-  // IMPORTANDO incluído para resgatar mês órfão de worker morto no meio
   const r = await sql`select id, fonte, dataset, ano, mes from bolsa.arquivos_historicos
-                      where import_status in ('AGENDADO','IMPORTANDO') and fonte = 'transparencia'
-                      order by import_status = 'IMPORTANDO' desc, ano desc, mes desc limit 1`;
+                      where import_status in ('PENDING','PARTIAL','IMPORTING','DOWNLOADING') and fonte = 'transparencia'
+                      order by import_status in ('IMPORTING','PARTIAL','DOWNLOADING') desc, ano desc, mes desc limit 1`;
   if (r.length) { out.transparencia = await importarTransparenciaMes(r[0].ano, r[0].mes, deadline); return out; }
   const cg2 = await claimCompras();
   if (cg2.length) out.compras_gov = await importarCsvRange(cg2[0], deadline);
