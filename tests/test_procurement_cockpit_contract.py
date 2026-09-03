@@ -14,10 +14,10 @@ class ProcurementCockpitContractTests(unittest.TestCase):
             "overview",
             "requirements",
             "items",
-            "prices",
+            "pricing",
             "market",
+            "strategy",
             "documents",
-            "artifacts",
             "assistant",
         ):
             self.assertIn(f'data-proc-panel="{panel}"', self.html)
@@ -48,7 +48,24 @@ class ProcurementCockpitContractTests(unittest.TestCase):
 
     def test_pricing_is_private_and_explainable(self) -> None:
         self.assertIn("bolsa.procurement-pricing.v1", self.html)
-        self.assertIn("Estimativa matemática baseada somente nos valores informados", self.html)
+        self.assertIn("bolsa.procurement-pricing.v2", self.html)
+        self.assertIn("MESA PRIVADA DE PRECIFICAÇÃO", self.html)
+        self.assertIn("Price to Win ≠ break-even", self.html)
+        self.assertIn("COMPOSIÇÃO INVIÁVEL", self.html)
+
+    def test_main_navigation_keeps_the_seven_defined_sections(self) -> None:
+        for label in (
+            "Visão 360",
+            "Edital &amp; requisitos",
+            "Itens &amp; preços",
+            "Precificação",
+            "Mercado",
+            "Estratégia",
+            "Documentos &amp; timeline",
+        ):
+            self.assertIn(label, self.html)
+        self.assertNotIn('data-proc-tab="updates"', self.html)
+        self.assertNotIn('data-proc-tab="artifacts"', self.html)
 
 
 if __name__ == "__main__":

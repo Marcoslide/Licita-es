@@ -12,7 +12,7 @@ ARTIFACT_MIGRATION = (ROOT / "supabase/migrations/20260903183000_ai_artifacts.sq
 
 class IntelligenceModulesContractTests(unittest.TestCase):
     def test_procurement_has_price_memory_artifact_surfaces(self) -> None:
-        for token in ('data-proc-tab="updates"', 'data-proc-tab="prices"', 'data-proc-tab="artifacts"'):
+        for token in ('data-proc-panel="updates"', 'data-proc-tab="pricing"', 'data-proc-panel="strategy"'):
             self.assertIn(token, HTML)
         self.assertIn("renderPriceCenter", HTML)
         self.assertIn("loadProcurementMemory", HTML)
