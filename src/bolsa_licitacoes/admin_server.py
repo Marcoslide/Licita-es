@@ -102,6 +102,16 @@ def serve(
                     "data_source": "official-enrichment",
                 }
                 self._json(200, payload, cache="public, max-age=300")
+            elif parsed.path == "/api/public/procurement/changes":
+                query = parse_qs(parsed.query)
+                procurement_raw = query.get("id", [""])[0].strip()
+                if not procurement_raw:
+                    self._json(400, {"error": "procurement id inválido"}); return
+                if not remote:
+                    self._json(200, {"procurement_id": procurement_raw, "events": [], "count": 0,
+                                     "last_change_at": None, "data_source": "sqlite-without-change-feed"})
+                    return
+                self._json(200, remote.procurement_memory(procurement_raw), cache="public, max-age=20")
             elif parsed.path == "/api/public/procurement" or parsed.path.startswith("/api/public/procurements/"):
                 from urllib.parse import unquote
                 query = parse_qs(parsed.query)

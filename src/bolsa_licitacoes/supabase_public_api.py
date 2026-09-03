@@ -14,6 +14,7 @@ from urllib.request import Request, urlopen
 
 from .market_search import MarketSearchEngine, QueryPlan, SearchDocument, SearchHit
 from .market_search import normalize_text
+from .price_intelligence import build_price_basket
 
 
 UF_NAMES = {
@@ -511,7 +512,7 @@ class SupabasePublicApi:
             for item in items if str(item.get("catalog_item_code") or "").strip()
         ]
         descriptions = [str(item.get("description") or "").strip() for item in items if item.get("description")]
-        query: dict[str, list[str]] = {"limit": ["1"], "offset": ["0"], "facets": ["true"], "mode": ["exact"]}
+        query: dict[str, list[str]] = {"limit": ["120"], "offset": ["0"], "facets": ["true"], "mode": ["exact"]}
         if catalog_codes:
             query["catalog"] = [",".join(dict.fromkeys(catalog_codes[:8]))]
         elif descriptions:
@@ -522,6 +523,92 @@ class SupabasePublicApi:
             return {"available": False, "reason": "A licitação ainda não possui itens suficientes para comparação."}
         payload = self.list_procurements(query)
         facets = payload.get("facets") or {}
+        comparable_rows = list(payload.get("items") or [])
+        comparable_ids = [str(row.get("id") or row.get("pncp_control_number") or "") for row in comparable_rows]
+        comparable_ids = [value for value in comparable_ids if value]
+        process_by_id = {str(row.get("id") or row.get("pncp_control_number") or ""): row for row in comparable_rows}
+        market_items = self._related_rows(
+            "itens",
+            "numero_controle_pncp,numero_item,descricao,quantidade,unidade,valor_unitario_estimado,"
+            "valor_total_estimado,catalogo_codigo,first_seen_at,last_seen_at",
+            comparable_ids,
+        )
+        item_by_key = {
+            (str(row.get("numero_controle_pncp") or ""), str(row.get("numero_item") or "")): row
+            for row in market_items
+        }
+        result_rows = self._related_rows(
+            "resultados_itens",
+            "numero_controle_pncp,numero_item,fornecedor_ni,fornecedor_nome,quantidade_homologada,"
+            "valor_unitario_homologado,valor_total_homologado,percentual_desconto,data_resultado,last_seen_at",
+            comparable_ids,
+        )
+        target_item = next((item for item in items if item.get("catalog_item_code")), items[0] if items else {})
+        target = {
+            "description": target_item.get("description"), "catalog_code": target_item.get("catalog_item_code"),
+            "unit": target_item.get("unit"), "quantity": target_item.get("quantity"),
+            "unit_price": target_item.get("estimated_unit_value"), "price_type": "ESTIMATED",
+        }
+        estimated_observations = []
+        for item in market_items:
+            process_id = str(item.get("numero_controle_pncp") or "")
+            process = process_by_id.get(process_id, {})
+            if _float(item.get("valor_unitario_estimado")) <= 0:
+                continue
+            estimated_observations.append({
+                "source_id": "pncp", "source_record_id": f"{process_id}:{item.get('numero_item')}:estimated",
+                "procurement_id": process_id, "item_number": item.get("numero_item"), "price_type": "ESTIMATED",
+                "description": item.get("descricao"), "catalog_code": item.get("catalogo_codigo"),
+                "quantity": item.get("quantidade"), "unit": item.get("unidade"),
+                "unit_price": item.get("valor_unitario_estimado"), "total_price": item.get("valor_total_estimado"),
+                "agency_id": process.get("organization_name"), "state_code": process.get("state_code"),
+                "reference_date": process.get("source_created_at") or item.get("last_seen_at"),
+                "source_url": process.get("source_url"), "quality_score": 82,
+            })
+        homologated_observations = []
+        for result in result_rows:
+            process_id = str(result.get("numero_controle_pncp") or "")
+            item = item_by_key.get((process_id, str(result.get("numero_item") or "")), {})
+            process = process_by_id.get(process_id, {})
+            if _float(result.get("valor_unitario_homologado")) <= 0:
+                continue
+            homologated_observations.append({
+                "source_id": "pncp", "source_record_id": (
+                    f"{process_id}:{result.get('numero_item')}:{result.get('fornecedor_ni') or result.get('fornecedor_nome')}:homologated"
+                ),
+                "procurement_id": process_id, "item_number": result.get("numero_item"), "price_type": "HOMOLOGATED",
+                "description": item.get("descricao") or target.get("description"), "catalog_code": item.get("catalogo_codigo"),
+                "quantity": result.get("quantidade_homologada"), "unit": item.get("unidade"),
+                "unit_price": result.get("valor_unitario_homologado"), "total_price": result.get("valor_total_homologado"),
+                "supplier_id": result.get("fornecedor_ni"), "supplier_name": result.get("fornecedor_nome"),
+                "agency_id": process.get("organization_name"), "state_code": process.get("state_code"),
+                "reference_date": result.get("data_resultado") or result.get("last_seen_at"),
+                "source_url": process.get("source_url"), "quality_score": 94,
+            })
+        baskets = {
+            "HOMOLOGATED": build_price_basket(target, homologated_observations),
+            "ESTIMATED": build_price_basket(target, estimated_observations),
+        }
+        selected_price_type = "HOMOLOGATED" if baskets["HOMOLOGATED"]["statistics"]["samples"] >= 2 else "ESTIMATED"
+        selected_basket = baskets[selected_price_type]
+        basket_stats = selected_basket["statistics"]
+        price_summary = {
+            "available": basket_stats["samples"] >= 2,
+            "price_type": selected_price_type,
+            "unit": selected_basket["target"].get("normalized_unit"),
+            "basis": target.get("description"),
+            "samples": basket_stats["samples"], "average": basket_stats["mean"], "median": basket_stats["median"],
+            "minimum": basket_stats["minimum"], "maximum": basket_stats["maximum"],
+            "p10": basket_stats["p10"], "p25": basket_stats["p25"], "p50": basket_stats["p50"],
+            "p75": basket_stats["p75"], "p90": basket_stats["p90"], "iqr": basket_stats["iqr"],
+            "standard_deviation": basket_stats["standard_deviation"],
+            "coefficient_of_variation": basket_stats["coefficient_of_variation"],
+            "quantity": basket_stats["total_quantity"],
+            "note": (
+                f"Estatística calculada somente com preços {selected_price_type.lower()}s, unidade e especificação comparáveis."
+                if basket_stats["samples"] >= 2 else "Amostra comparável insuficiente; tipos de preço não foram misturados."
+            ),
+        }
         suppliers = []
         for supplier in facets.get("top_suppliers") or []:
             discounts = supplier.get("average_discount")
@@ -549,7 +636,12 @@ class SupabasePublicApi:
             "estimated_value": facets.get("estimated_value") or 0,
             "results_count": facets.get("results_count") or 0,
             "timeline": facets.get("timeline") or [],
-            "prices": facets.get("prices") or {},
+            "prices": price_summary,
+            "price_basket": {
+                **selected_basket,
+                "price_type": selected_price_type,
+                "by_type": {kind: value["methodology"] for kind, value in baskets.items()},
+            },
             "competitors": suppliers,
             "top_buyers": facets.get("top_organizations") or [],
             "future": facets.get("pca") or {"count": 0, "items": []},
@@ -559,6 +651,26 @@ class SupabasePublicApi:
                 "Valores são resultados homologados observados nas fontes públicas; não representam "
                 "faturamento contábil. Padrões descrevem o histórico coletado e não uma estratégia declarada."
             ),
+        }
+
+    def procurement_memory(self, procurement_id: str) -> dict[str, Any]:
+        """Return only confirmed public change events for the procurement."""
+        ncp = procurement_id.strip()[:160]
+        try:
+            rows, _ = self.client.get(
+                "change_events",
+                [("select", "id,entity_type,entity_id,event_type,source_type,source_id,diff,importance,materiality,occurred_at,detected_at"),
+                 ("procurement_id", f"eq.{ncp}"), ("order", "detected_at.desc"), ("limit", "100")],
+                profile="bolsa",
+            )
+        except SupabasePublicError:
+            rows = []
+        return {
+            "procurement_id": ncp,
+            "events": rows,
+            "count": len(rows),
+            "last_change_at": rows[0].get("detected_at") if rows else None,
+            "data_source": "supabase-live" if rows else "no-confirmed-changes",
         }
 
     def source_status(self) -> list[dict[str, Any]]:
