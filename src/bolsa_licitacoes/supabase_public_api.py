@@ -387,24 +387,28 @@ class SupabasePublicApi:
         items_by_ncp: dict[str, list[dict[str, Any]]] = defaultdict(list)
         for item in item_rows:
             items_by_ncp[str(item.get("numero_controle_pncp") or "")].append(item)
-        plan = self.search_engine.compile(
-            text, mode=search_mode, include=include_terms, should=should_terms, exclude=exclude_terms,
-            catalog_codes=[item for item in catalog_code.split(",") if item],
-            include_documents=include_documents, vocabulary=vocabulary,
-        )
-        documents = [SearchDocument(
-            procurement_id=str(row.get("numero_controle_pncp") or ""),
-            object_text=str(row.get("objeto") or ""),
-            process_text=f"{row.get('processo') or ''} {row.get('numero_controle_pncp') or ''}",
-            organization_text=org_names.get(str(row.get("orgao_cnpj") or ""), ""),
-            item_rows=items_by_ncp.get(str(row.get("numero_controle_pncp") or ""), []),
-        ) for row in candidate_rows]
         search_active = bool(text or catalog_code or include_terms or should_terms or exclude_terms)
-        ranked_hits = self.search_engine.search(plan, documents) if search_active else []
-        hit_by_ncp = {hit.procurement_id: hit for hit in ranked_hits}
-        row_by_ncp = {str(row.get("numero_controle_pncp") or ""): row for row in candidate_rows}
-        matched_rows = ([row_by_ncp[hit.procurement_id] for hit in ranked_hits if hit.procurement_id in row_by_ncp]
-                        if search_active else candidate_rows)
+        def load_ranked():
+            compiled = self.search_engine.compile(
+                text, mode=search_mode, include=include_terms, should=should_terms, exclude=exclude_terms,
+                catalog_codes=[item for item in catalog_code.split(",") if item],
+                include_documents=include_documents, vocabulary=vocabulary,
+            )
+            documents = [SearchDocument(
+                procurement_id=str(row.get("numero_controle_pncp") or ""),
+                object_text=str(row.get("objeto") or ""),
+                process_text=f"{row.get('processo') or ''} {row.get('numero_controle_pncp') or ''}",
+                organization_text=org_names.get(str(row.get("orgao_cnpj") or ""), ""),
+                item_rows=items_by_ncp.get(str(row.get("numero_controle_pncp") or ""), []),
+            ) for row in candidate_rows]
+            ranked = self.search_engine.search(compiled, documents) if search_active else []
+            ranked_map = {hit.procurement_id: hit for hit in ranked}
+            row_map = {str(row.get("numero_controle_pncp") or ""): row for row in candidate_rows}
+            relevance_rows = ([row_map[hit.procurement_id] for hit in ranked if hit.procurement_id in row_map]
+                              if search_active else candidate_rows)
+            return compiled, ranked_map, relevance_rows
+
+        plan, hit_by_ncp, matched_rows = self._cached("search-result:" + dataset_key, 20, load_ranked)
         if search_active and sort != "relevance":
             matched_keys = set(hit_by_ncp)
             matched_rows = _sort_procurement_rows(
