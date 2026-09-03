@@ -88,6 +88,8 @@ def main() -> None:
         serve(
             db, args.host, args.port, settings.admin_api_token,
             supabase_url=settings.supabase_url, supabase_anon_key=settings.supabase_anon_key,
+            health_data_path=settings.health_data_path, timeout=settings.timeout,
+            user_agent=settings.user_agent,
         )
     elif args.command == "run-scheduler":
         run_scheduler(db, settings)

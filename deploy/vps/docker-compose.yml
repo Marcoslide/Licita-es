@@ -9,6 +9,7 @@ x-backend: &backend
   environment:
     BOLSA_DATABASE_PATH: /runtime/data/bolsa_licitacoes.db
     BOLSA_DOCUMENTS_PATH: /runtime/documents
+    BOLSA_HEALTH_DATA_PATH: /runtime/data/health_enrichment.db
   volumes:
     - /opt/licita-es/runtime/data:/runtime/data
     - /opt/licita-es/runtime/documents:/runtime/documents

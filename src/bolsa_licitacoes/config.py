@@ -9,6 +9,7 @@ from pathlib import Path
 class Settings:
     database_path: Path
     documents_path: Path
+    health_data_path: Path
     timeout: float
     retries: int
     user_agent: str
@@ -21,6 +22,7 @@ class Settings:
         return cls(
             database_path=Path(os.getenv("BOLSA_DATABASE_PATH", "data/bolsa_licitacoes.db")),
             documents_path=Path(os.getenv("BOLSA_DOCUMENTS_PATH", "data/documents")),
+            health_data_path=Path(os.getenv("BOLSA_HEALTH_DATA_PATH", "data/health_enrichment.db")),
             timeout=float(os.getenv("BOLSA_HTTP_TIMEOUT", "30")),
             retries=int(os.getenv("BOLSA_HTTP_RETRIES", "3")),
             user_agent=os.getenv(

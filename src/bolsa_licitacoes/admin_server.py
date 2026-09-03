@@ -6,6 +6,7 @@ from typing import Any
 from urllib.parse import parse_qs, urlparse
 
 from .db import Database
+from .enrichment import DouSearch, HealthPriceIndex
 from .market_search import SEARCH_ENGINE_VERSION, normalize_text
 from .public_api import list_procurements, market_summary, procurement_detail, source_status, state_summary
 from .supabase_public_api import SupabasePublicApi, SupabasePublicError, SupabaseRestClient
@@ -19,8 +20,13 @@ def serve(
     *,
     supabase_url: str = "",
     supabase_anon_key: str = "",
+    health_data_path: str = "",
+    timeout: float = 15.0,
+    user_agent: str = "BolsaDeLicitacoes/0.1",
 ) -> None:
     remote = SupabasePublicApi(SupabaseRestClient(supabase_url, supabase_anon_key)) if supabase_url and supabase_anon_key else None
+    health = HealthPriceIndex(health_data_path)
+    dou = DouSearch(timeout=timeout, user_agent=user_agent)
 
     def public_call(remote_method: str, local_method, *args):
         if remote:
@@ -67,6 +73,35 @@ def serve(
                 self._json(200, payload, cache="public, max-age=15")
             elif parsed.path == "/api/public/sources":
                 self._json(200, public_call("source_status", source_status), cache="public, max-age=20")
+            elif parsed.path == "/api/public/procurement/enrichment":
+                query = parse_qs(parsed.query)
+                procurement_raw = query.get("id", [""])[0].strip()
+                if not procurement_raw:
+                    self._json(400, {"error": "procurement id inválido"}); return
+                try:
+                    detail = remote.procurement_detail(procurement_raw) if remote else procurement_detail(db, int(procurement_raw))
+                except (SupabasePublicError, ValueError) as exc:
+                    print(f"Enrichment detail unavailable: {exc}")
+                    detail = None
+                if not detail:
+                    self._json(404, {"error": "not found"}); return
+                procurement = detail["procurement"]
+                try:
+                    intelligence = remote.procurement_intelligence(detail) if remote else {
+                        "available": False,
+                        "reason": "O histórico competitivo consolidado está disponível na base nacional.",
+                    }
+                except SupabasePublicError as exc:
+                    print(f"Market intelligence unavailable: {exc}")
+                    intelligence = {"available": False, "reason": "A análise histórica está temporariamente indisponível."}
+                payload = {
+                    "procurement_id": procurement_raw,
+                    "health": health.enrich(detail.get("items", []), procurement.get("state_code")),
+                    "official_gazette": dou.search(procurement),
+                    "market_intelligence": intelligence,
+                    "data_source": "official-enrichment",
+                }
+                self._json(200, payload, cache="public, max-age=300")
             elif parsed.path == "/api/public/procurement" or parsed.path.startswith("/api/public/procurements/"):
                 from urllib.parse import unquote
                 query = parse_qs(parsed.query)

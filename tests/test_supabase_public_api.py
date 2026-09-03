@@ -118,6 +118,17 @@ class SupabasePublicApiTests(unittest.TestCase):
         self.assertEqual(1, facets["pca"]["count"])
         self.assertFalse(facets["prices"]["available"], "uma amostra isolada não pode virar média")
 
+    def test_detail_intelligence_labels_observed_results_without_claiming_revenue(self) -> None:
+        detail = {
+            "items": [{"description": "Material hospitalar descartável", "catalog_item_code": "12345"}],
+            "procurement": {"id": "07615750000117-1-000063/2026"},
+        }
+        result = SupabasePublicApi(FakeClient()).procurement_intelligence(detail)
+        self.assertTrue(result["available"])
+        self.assertEqual("FORNECEDOR TESTE", result["competitors"][0]["name"])
+        self.assertEqual(1, result["competitors"][0]["wins"])
+        self.assertIn("não representam faturamento contábil", result["method_note"])
+
 
 if __name__ == "__main__":
     unittest.main()

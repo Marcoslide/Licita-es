@@ -501,6 +501,64 @@ class SupabasePublicApi:
             "contracts": contracts, "data_source": "supabase-live",
         }
 
+    def procurement_intelligence(self, detail: Mapping[str, Any]) -> dict[str, Any]:
+        """Build a comparable market cut without inventing company revenue or bidding strategy."""
+        items = list(detail.get("items") or [])
+        catalog_codes = [
+            str(item.get("catalog_item_code") or "").strip()
+            for item in items if str(item.get("catalog_item_code") or "").strip()
+        ]
+        descriptions = [str(item.get("description") or "").strip() for item in items if item.get("description")]
+        query: dict[str, list[str]] = {"limit": ["1"], "offset": ["0"], "facets": ["true"], "mode": ["exact"]}
+        if catalog_codes:
+            query["catalog"] = [",".join(dict.fromkeys(catalog_codes[:8]))]
+        elif descriptions:
+            # A compact technical signature is safer than treating a complete specification as one phrase.
+            signature = _description_signature(descriptions[0])
+            query["q"] = [" ".join(signature.split()[:6])]
+        else:
+            return {"available": False, "reason": "A licitação ainda não possui itens suficientes para comparação."}
+        payload = self.list_procurements(query)
+        facets = payload.get("facets") or {}
+        suppliers = []
+        for supplier in facets.get("top_suppliers") or []:
+            discounts = supplier.get("average_discount")
+            unit_price = supplier.get("average_unit_price")
+            observed = []
+            if discounts is not None:
+                observed.append(f"desconto homologado médio de {discounts:.1f}%")
+            if unit_price is not None:
+                observed.append(f"preço unitário médio observado de R$ {unit_price:,.2f}")
+            suppliers.append({
+                **supplier,
+                "observed_pattern": (
+                    "Nos dados comparáveis coletados, " + " e ".join(observed) + "."
+                    if observed else "Há resultado homologado, mas não há lances suficientes para inferir comportamento de preço."
+                ),
+            })
+        scope_label = (
+            f"CATMAT {', '.join(dict.fromkeys(catalog_codes[:8]))}" if catalog_codes
+            else " ".join(_description_signature(descriptions[0]).split()[:6])
+        )
+        return {
+            "available": bool(payload.get("total")),
+            "scope_label": scope_label,
+            "comparable_procurements": int(payload.get("total") or 0),
+            "estimated_value": facets.get("estimated_value") or 0,
+            "results_count": facets.get("results_count") or 0,
+            "timeline": facets.get("timeline") or [],
+            "prices": facets.get("prices") or {},
+            "competitors": suppliers,
+            "top_buyers": facets.get("top_organizations") or [],
+            "future": facets.get("pca") or {"count": 0, "items": []},
+            "contracts": facets.get("contracts") or {"count": 0, "value": 0, "expiring": []},
+            "competition_availability": (facets.get("availability") or {}).get("competition") or {},
+            "method_note": (
+                "Valores são resultados homologados observados nas fontes públicas; não representam "
+                "faturamento contábil. Padrões descrevem o histórico coletado e não uma estratégia declarada."
+            ),
+        }
+
     def source_status(self) -> list[dict[str, Any]]:
         def load() -> list[dict[str, Any]]:
             sources, _ = self.client.get("fontes", [("select", "id,nome,status,ultimo_sucesso_em,capabilities"), ("order", "nome")], profile="bolsa")
@@ -763,23 +821,34 @@ class SupabasePublicApi:
 
         result_rows = self._related_rows(
             "resultados_itens", "numero_controle_pncp,fornecedor_ni,fornecedor_nome,valor_total_homologado,"
-            "valor_unitario_homologado,quantidade_homologada,percentual_desconto", ncps,
+            "valor_unitario_homologado,quantidade_homologada,percentual_desconto,data_resultado", ncps,
         )
         supplier_stats: dict[str, dict[str, Any]] = {}
         for result in result_rows:
             supplier_id = str(result.get("fornecedor_ni") or result.get("fornecedor_nome") or "Não informado")
             supplier_stat = supplier_stats.setdefault(supplier_id, {
                 "id": supplier_id, "name": result.get("fornecedor_nome") or supplier_id,
-                "wins": 0, "homologated_value": 0.0, "discounts": [],
+                "wins": 0, "homologated_items": 0, "homologated_value": 0.0,
+                "discounts": [], "unit_prices": [], "procurements": set(), "last_result_date": None,
             })
-            supplier_stat["wins"] += 1
+            supplier_stat["homologated_items"] += 1
+            supplier_stat["procurements"].add(str(result.get("numero_controle_pncp") or ""))
             supplier_stat["homologated_value"] += _float(result.get("valor_total_homologado"))
             if result.get("percentual_desconto") is not None:
                 supplier_stat["discounts"].append(_float(result.get("percentual_desconto")))
+            if _float(result.get("valor_unitario_homologado")) > 0:
+                supplier_stat["unit_prices"].append(_float(result.get("valor_unitario_homologado")))
+            result_date = str(result.get("data_resultado") or "")
+            if result_date and result_date > str(supplier_stat["last_result_date"] or ""):
+                supplier_stat["last_result_date"] = result_date
         top_suppliers = []
         for supplier_stat in sorted(supplier_stats.values(), key=lambda item: (item["homologated_value"], item["wins"]), reverse=True)[:10]:
             discounts = supplier_stat.pop("discounts")
+            unit_prices = supplier_stat.pop("unit_prices")
+            procurements = supplier_stat.pop("procurements")
+            supplier_stat["wins"] = len(procurements)
             supplier_stat["average_discount"] = statistics.fmean(discounts) if discounts else None
+            supplier_stat["average_unit_price"] = statistics.fmean(unit_prices) if unit_prices else None
             top_suppliers.append(supplier_stat)
 
         requested_states = {item.strip().upper() for item in (_first(scope, "uf") or "").split(",") if item.strip()}
