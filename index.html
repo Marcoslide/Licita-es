@@ -1,7 +1,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Bolsa de Licitações</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
 /* ============ BOLSA DE LICITAÇÕES — protótipo de terminal ============ */
 :root{
@@ -430,6 +430,128 @@ main.view.on{display:block}
   .pulse{animation:none}
   .toast{animation:none}
 }
+
+/* ============ DIREÇÃO VISUAL 2026 — centro de inteligência ============ */
+:root{
+  --bg:#07101d;--panel:rgba(13,27,45,.88);--panel2:#12243a;--panel3:#1a304b;
+  --line:rgba(148,163,184,.14);--line2:rgba(148,163,184,.24);
+  --ink:#f4f7fb;--mut:#9eacc0;--dim:#718198;
+  --amber:#8ea2ff;--amber-dim:rgba(142,162,255,.52);
+  --up:#42d6a4;--down:#ff7785;--warn:#f7c761;--info:#68b9ff;--teal:#43d4c2;
+  --up-bg:rgba(66,214,164,.12);--down-bg:rgba(255,119,133,.12);
+  --warn-bg:rgba(247,199,97,.12);--info-bg:rgba(104,185,255,.12);
+  --amber-bg:rgba(142,162,255,.12);
+  --sans:"Manrope",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --disp:"Manrope",var(--sans);
+}
+body{
+  min-width:320px;
+  background:
+    radial-gradient(circle at 72% -15%,rgba(91,108,255,.18),transparent 34rem),
+    radial-gradient(circle at -8% 35%,rgba(40,181,164,.08),transparent 28rem),
+    var(--bg);
+  font-size:13px;
+}
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:-1;opacity:.28;
+  background-image:linear-gradient(rgba(255,255,255,.018) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.018) 1px,transparent 1px);
+  background-size:56px 56px;
+  mask-image:linear-gradient(to bottom,black,transparent 72%);
+}
+button,input,select{transition:border-color .2s ease,background-color .2s ease,color .2s ease,transform .2s ease,box-shadow .2s ease}
+
+.topbar{
+  min-height:72px;padding:13px 24px;gap:18px;
+  background:rgba(7,16,29,.84);border-color:var(--line);backdrop-filter:blur(22px) saturate(1.3);
+  box-shadow:0 12px 40px rgba(0,0,0,.14);
+}
+.brand{gap:12px}.brand-mark{
+  width:42px;height:42px;border-radius:13px;color:#fff;font-size:14px;letter-spacing:-.7px;
+  background:linear-gradient(145deg,#6f8cff,#9b7bff);box-shadow:0 10px 26px rgba(111,140,255,.28),inset 0 1px rgba(255,255,255,.25)
+}
+.brand-name{font-size:15px;letter-spacing:-.2px;text-transform:none}.brand-sub{margin-top:3px;color:#8ea2ff;font:600 9px var(--sans);letter-spacing:1.4px}
+.tb-co{padding:7px 11px;border-radius:12px;background:rgba(18,36,58,.72)}
+.tb-co:hover{border-color:var(--amber-dim);background:var(--panel2)}
+.tb-search{max-width:610px}.tb-search input{height:42px;border-radius:13px;background:rgba(18,36,58,.72);padding-left:38px;font-size:12.5px}
+.tb-search input:focus{outline:0;border-color:var(--amber-dim);box-shadow:0 0 0 4px var(--amber-bg),0 10px 24px rgba(0,0,0,.12)}
+.tb-search .lens{left:14px;font-size:16px;color:#8395ad}.tb-right{gap:10px}.tb-live{padding:7px 10px;border:1px solid rgba(66,214,164,.18);border-radius:99px;background:rgba(66,214,164,.06);letter-spacing:.7px;font-size:9px}
+.tb-bell{width:38px;height:38px;padding:0;border-radius:12px;background:rgba(18,36,58,.75)}
+.tb-user{width:38px;height:38px;border-radius:12px;color:#cbd4ff;background:linear-gradient(145deg,#1c304c,#16263d)}
+
+.ticker-wrap{margin:0;background:rgba(7,16,29,.62);border-color:var(--line);min-height:33px}
+.ticker-label{padding:7px 18px 7px 24px;background:transparent;color:#8595ae;font:700 9px var(--sans);letter-spacing:1.3px;border-right:1px solid var(--line)}
+.ticker-track{padding:7px 0;animation-duration:78s}.tk-item{padding:0 18px;border-color:var(--line);font-size:10px}.tk-name{font-family:var(--sans);font-weight:600}.tk-val{letter-spacing:.25px}
+
+.tabs{gap:6px;padding:9px 24px;background:rgba(7,16,29,.72);border-color:var(--line)}
+.tab{padding:9px 13px;border:0;border-radius:10px;color:#8595ad;font-size:11px;letter-spacing:0;text-transform:none}
+.tab:hover{color:var(--ink);background:rgba(255,255,255,.04)}.tab.on{color:#eef1ff;background:var(--amber-bg);box-shadow:inset 0 0 0 1px rgba(142,162,255,.2)}
+.tab .tno{display:none}
+
+.control-deck{
+  top:82px;margin:12px 24px 0;padding:10px 12px;border:1px solid var(--line);border-radius:16px;
+  background:rgba(12,25,42,.82);backdrop-filter:blur(18px);box-shadow:0 16px 44px rgba(0,0,0,.2);z-index:35
+}
+.control-intro{padding:0 7px}.control-kicker{color:#aebaff;font:700 9px var(--sans);letter-spacing:1px}.control-context{font-size:11px;color:#dce4ef}
+.control-fields{gap:8px}.control-field{height:39px;padding:0 11px;border-radius:11px;background:rgba(255,255,255,.025)}
+.control-field:hover{border-color:var(--amber-dim)}.control-field label{font-family:var(--sans);font-size:8px;letter-spacing:.8px}.control-field select{font-family:var(--sans);font-size:10.5px}
+.btn{min-height:38px;border-radius:11px;padding:8px 14px;background:rgba(255,255,255,.04);font-size:11px;letter-spacing:0}
+.btn:hover{transform:translateY(-1px);border-color:var(--amber-dim);background:var(--amber-bg);color:#e5eaff}
+.btn.primary{color:#08111f;background:linear-gradient(135deg,#aab6ff,#8097ff);border-color:transparent;box-shadow:0 8px 20px rgba(92,112,255,.22)}
+.btn.primary:hover{color:#08111f;filter:none;box-shadow:0 10px 28px rgba(92,112,255,.32)}
+.view-depth{height:39px}.view-depth .depth-dot{background:var(--amber);box-shadow:0 0 0 4px var(--amber-bg)}
+
+main.view{width:100%;max-width:1780px;margin:0 auto;padding:18px 24px 48px}.grid{gap:16px}
+.panel,.brief,.ask,.ficha-head,.kb-col{
+  border-color:var(--line);border-radius:18px;background:linear-gradient(155deg,rgba(16,32,52,.95),rgba(10,22,38,.92));
+  box-shadow:0 18px 50px rgba(0,0,0,.16),inset 0 1px rgba(255,255,255,.025)
+}
+.panel{overflow:hidden}.panel:hover{border-color:rgba(148,163,184,.22)}
+.p-head{min-height:54px;padding:14px 18px;border-color:var(--line);align-items:center}.p-title{font-size:11px;letter-spacing:.15px;text-transform:none}.p-sub{font-size:10px}.p-body{padding:16px 18px}.p-foot{padding:10px 18px;border-color:var(--line);font-size:9.5px;line-height:1.5}
+
+.brief{position:relative;overflow:hidden;padding:22px 24px;background:linear-gradient(145deg,rgba(36,49,91,.96),rgba(13,28,48,.92) 58%,rgba(11,25,43,.94))}
+.brief::after{content:"";position:absolute;width:260px;height:260px;right:-90px;top:-150px;border-radius:50%;background:rgba(126,146,255,.19);filter:blur(4px)}
+.brief h2{position:relative;z-index:1;margin:0 0 5px;font-size:22px;letter-spacing:-.6px;text-transform:none}.brief p{position:relative;z-index:1;font-size:11px;max-width:720px}.fn{position:relative;z-index:1;margin-top:16px;gap:7px}.fn-row{grid-template-columns:54px minmax(90px,210px) 1fr}.fn-track{height:8px;border-radius:99px;background:rgba(255,255,255,.07)}.fn-bar{border-radius:99px}.fn-n{font-size:12px}.fn-t{font-size:10.5px}
+.ask{padding:22px;border-color:rgba(142,162,255,.28);background:linear-gradient(155deg,rgba(17,33,55,.96),rgba(12,25,42,.94))}.ask-row{gap:9px}.ask-input{height:44px;border-radius:12px;background:rgba(4,12,24,.42);font-size:12px}.ask-input:focus{outline:0;border-color:var(--amber-dim);box-shadow:0 0 0 4px var(--amber-bg)}
+.ask-chips{gap:7px;margin-top:12px}.chip{padding:5px 10px;border-radius:9px;background:rgba(255,255,255,.03);font-size:10px}.chip:hover{transform:translateY(-1px);background:var(--amber-bg);color:#e9edff}
+
+.kpi{position:relative;overflow:hidden;padding:17px 18px;border-radius:16px;background:rgba(13,28,47,.9);border-color:var(--line)}
+.kpi::before{content:"";position:absolute;left:0;right:0;top:0;height:2px;background:linear-gradient(90deg,transparent,rgba(142,162,255,.62),transparent);opacity:0;transition:opacity .2s}
+.kpi:hover{transform:translateY(-3px);border-color:rgba(142,162,255,.38);background:rgba(18,36,58,.96);box-shadow:0 14px 34px rgba(0,0,0,.2)}.kpi:hover::before{opacity:1}
+.k-label{font-family:var(--sans);font-size:9px;letter-spacing:.35px;text-transform:none}.k-val{margin-top:8px;font-size:23px;letter-spacing:-1px}.k-sub{margin-top:7px;font-size:9.5px;line-height:1.45}.kpi.hot{border-color:rgba(142,162,255,.36);background:linear-gradient(150deg,rgba(45,53,96,.8),rgba(13,28,47,.95))}
+
+.hm-stage{min-height:470px;border-radius:15px;border-color:var(--line);background:radial-gradient(circle at 48% 45%,rgba(82,117,177,.15),transparent 46%),rgba(5,15,28,.56)}
+.hm-stage::before{opacity:.12;background-size:44px 44px}.br-map{min-height:470px;padding:8px;filter:drop-shadow(0 24px 38px rgba(0,0,0,.32))}.br-state{stroke:#0b1a2b;stroke-width:1.4}.br-state:hover,.br-state:focus{stroke:#dfe6ff}.br-state.sel{stroke:#b9c4ff;stroke-width:3;filter:brightness(1.14) drop-shadow(0 0 10px rgba(142,162,255,.44))}
+.hm-flex{display:grid;grid-template-columns:minmax(360px,1.55fr) minmax(260px,.75fr);gap:20px}.hm-drill{min-width:0;padding:4px 0 4px 20px;border-color:var(--line)}
+.hm-drill h3{font-size:20px;letter-spacing:-.4px}.hm-drill h4{margin-top:18px;font-family:var(--sans);font-size:9px;letter-spacing:.65px}.kv{padding:7px 0;border-bottom:1px solid rgba(148,163,184,.08);font-size:10.5px}.geo-row{padding:9px 10px;border-radius:10px;font-size:10.5px}.geo-row:hover{background:var(--amber-bg);color:#e9edff}.heat-tag{border-radius:99px;padding:3px 7px;font-size:8px}.hm-mode{padding:5px 10px;border-radius:9px;font-family:var(--sans);font-size:8.5px}.hm-mode.on{color:#f3f5ff;background:var(--amber-bg);border-color:rgba(142,162,255,.38)}
+.hm-lgbar{height:6px;background:linear-gradient(90deg,#19365a,#3156a8,#3a9bb5,#48c9a8,#a7b4ff)}
+
+.opp-row{min-height:68px;padding:11px 16px;border-color:var(--line)}.opp-row:hover{background:rgba(142,162,255,.055)}.opp-t{font-size:11px}.opp-s{margin-top:4px;font-size:9.5px}.opp-fig b{font-size:11px}.opp-fig span{font-size:9px}
+.hbar{padding:7px 0;font-size:10.5px}.hb-track{height:7px}.hb-fill{background:linear-gradient(90deg,#627eea,#55c7bc)}.hb-val{font-size:9.5px}
+.pill{border-radius:99px;padding:3px 7px;font-family:var(--sans);font-size:8px;letter-spacing:.35px}.conf{border-radius:6px;font-family:var(--sans);font-size:7.5px}
+
+.explorer-layer{background:rgba(3,9,17,.72);backdrop-filter:blur(12px)}.explorer-panel{width:min(640px,96vw);background:#0b1829;border-color:var(--line);box-shadow:-30px 0 90px rgba(0,0,0,.5)}
+.explorer-head{padding:24px 26px 18px;border-color:var(--line)}.explorer-head h2{font-size:22px;letter-spacing:-.5px}.explorer-tools{padding:13px 26px;border-color:var(--line)}.explorer-list{padding:18px 26px 34px}
+.explorer-close{width:40px;height:40px;border-radius:12px}.explorer-result{padding:15px 16px;margin-bottom:10px;border-radius:14px;background:rgba(18,36,58,.72)}.explorer-result:hover{transform:translateX(-3px);border-color:var(--amber-dim)}
+.detail-metric,.detail-section{border-radius:13px;background:rgba(18,36,58,.62)}.detail-metric{padding:13px}.detail-section{padding:15px}.source-link{border-color:var(--line)}
+
+.tbl th{font-family:var(--sans);font-size:8px}.tbl td{padding:10px 12px;border-color:var(--line)}.tbl tbody tr.rlink:hover{background:rgba(142,162,255,.05)}
+.ficha-head{padding:22px}.fh-title{font-size:24px;letter-spacing:-.7px}.fh-crumb{font-family:var(--sans);font-size:9px}.cd-box,.sc,.kb-card,.acc-item{border-radius:13px;background:rgba(18,36,58,.72)}
+.kb{gap:14px}.kb-col{border-radius:16px}.kb-head{padding:13px 14px;font-size:9px}.kb-cards{padding:10px;gap:9px}.kb-card{padding:12px}.kb-card:hover{transform:translateY(-2px);box-shadow:0 10px 24px rgba(0,0,0,.16)}
+
+.statusbar{gap:18px;padding:8px 24px;background:rgba(7,16,29,.9);border-color:var(--line);backdrop-filter:blur(18px);font-family:var(--sans);font-size:8.5px}.sb-demo{letter-spacing:.35px}.sb-dot{width:6px;height:6px}
+.toast{border-radius:14px;background:#14243a;border-color:rgba(142,162,255,.32);box-shadow:0 18px 50px rgba(0,0,0,.42)}
+
+@media(max-width:1200px){
+  .tb-co{display:none}.control-deck{top:78px}.hm-flex{grid-template-columns:1fr}.hm-drill{padding:18px 0 0;border-left:0;border-top:1px solid var(--line)}
+}
+@media(max-width:820px){
+  .topbar{padding:11px 14px;gap:10px}.brand-mark{width:38px;height:38px}.brand-sub,.tb-clock,.tb-live{display:none}.tb-search{order:3;flex-basis:100%;max-width:none}.tb-right{margin-left:auto}
+  .ticker-label{padding-left:14px}.tabs{padding:7px 12px}.tab{padding:8px 10px;font-size:10px}
+  .control-deck{position:relative;top:auto;margin:10px 12px 0;border-radius:14px}.control-intro{width:100%}.control-fields{order:3;flex-basis:100%;padding-bottom:2px}.view-depth{margin-left:auto}
+  main.view,body.comfortable main.view{padding:14px 12px 38px}.grid{gap:12px}.brief,.ask{padding:18px}.brief h2{font-size:19px}.fn-row{grid-template-columns:44px 75px 1fr}
+  .hm-stage,.br-map{min-height:380px}.hm-map{min-width:0}.hm-flex{display:flex}.panel,.brief,.ask,.ficha-head{border-radius:15px}
+  .statusbar{padding:7px 12px;gap:10px}.statusbar span:nth-child(3),.statusbar span:nth-child(4){display:none}.sb-demo{width:100%;margin:0}
+}
 </style>
 
 <div id="app">
@@ -440,7 +562,7 @@ main.view.on{display:block}
       <div class="brand-mark">BL</div>
       <div>
         <div class="brand-name">Bolsa de Licitações</div>
-        <div class="brand-sub">Terminal · Mercado Público</div>
+        <div class="brand-sub">Inteligência do mercado público</div>
       </div>
     </div>
     <button class="tb-co" title="Escopo atual da exploração do mercado público">
@@ -462,17 +584,17 @@ main.view.on{display:block}
 
   <!-- TICKER -->
   <div class="ticker-wrap">
-    <div class="ticker-label">ÍNDICES DA BOLSA</div>
+    <div class="ticker-label">FONTES CONECTADAS</div>
     <div class="ticker"><div class="ticker-track" id="tickerTrack"></div></div>
   </div>
 
   <!-- TABS -->
   <nav class="tabs" id="tabs">
-    <button class="tab on" data-view="terminal"><span class="tno">F1</span>Terminal</button>
-    <button class="tab" data-view="ficha"><span class="tno">F2</span>Ficha da Licitação</button>
-    <button class="tab" data-view="mercado"><span class="tno">F3</span>Raio-X do Mercado</button>
-    <button class="tab" data-view="concorrente"><span class="tno">F4</span>Raio-X do Concorrente</button>
-    <button class="tab" data-view="docs"><span class="tno">F5</span>Central de Documentação</button>
+    <button class="tab on" data-view="terminal"><span class="tno">F1</span>Visão geral</button>
+    <button class="tab" data-view="ficha"><span class="tno">F2</span>Licitações</button>
+    <button class="tab" data-view="mercado"><span class="tno">F3</span>Mercado</button>
+    <button class="tab" data-view="concorrente"><span class="tno">F4</span>Concorrência</button>
+    <button class="tab" data-view="docs"><span class="tno">F5</span>Documentos</button>
     <button class="tab" data-view="carteira"><span class="tno">F6</span>Carteira</button>
   </nav>
 
@@ -483,9 +605,9 @@ main.view.on{display:block}
       <div class="control-field"><label for="filterUf">Região</label><select id="filterUf"><option value="">Brasil inteiro</option></select></div>
       <div class="control-field"><label for="filterSegment">Mercado</label><select id="filterSegment"><option>Todos os segmentos</option><option>Medicamentos</option><option>Material hospitalar</option><option>Construção</option><option>Tecnologia</option><option>Alimentação</option></select></div>
       <div class="control-field"><label for="filterStatus">Situação</label><select id="filterStatus"><option value="open">Oportunidades abertas</option><option value="published_today">Publicadas hoje</option><option value="results">Com resultados</option><option value="contracts">Com contratos</option><option value="failed">Desertas e fracassadas</option></select></div>
-      <button class="btn primary" id="applyFilters">Atualizar visão</button>
+      <button class="btn primary" id="applyFilters">Aplicar filtros</button>
     </div>
-    <button class="btn view-depth" id="viewDepth" aria-pressed="false"><span class="depth-dot"></span><span>Visão completa</span></button>
+    <button class="btn view-depth" id="viewDepth" aria-pressed="false"><span class="depth-dot"></span><span>Mostrar todos</span></button>
   </section>
 
   <!-- ===================== VIEW: TERMINAL ===================== -->
@@ -493,7 +615,7 @@ main.view.on{display:block}
     <div class="grid">
       <section class="brief c7" id="briefBox"></section>
       <section class="ask c5">
-        <div class="p-title" style="margin-bottom:10px">🧠 Pergunte à Bolsa</div>
+        <div class="p-title" style="margin-bottom:10px">Pesquisa inteligente</div>
         <div class="ask-row">
           <input class="ask-input" id="askInput" placeholder="Ex.: licitações de medicamentos em MG abrindo em 7 dias…">
           <button class="btn primary" id="askBtn">Perguntar</button>
@@ -506,7 +628,7 @@ main.view.on{display:block}
 
       <section class="panel c7">
         <div class="p-head">
-          <span class="p-title">🗺️ Mapa de Calor — Mercado Público</span>
+          <span class="p-title">Mapa nacional de oportunidades</span>
           <div class="p-tools hm-modes" id="hmModes"></div>
         </div>
         <div class="p-body">
@@ -522,7 +644,7 @@ main.view.on{display:block}
       </section>
 
       <section class="panel c5">
-        <div class="p-head"><span class="p-title" id="heatTitle">🌡️ Índice de Aquecimento</span><span class="p-sub" id="heatSubtitle">por segmento do seu portfólio</span></div>
+        <div class="p-head"><span class="p-title" id="heatTitle">Cobertura nacional</span><span class="p-sub" id="heatSubtitle">por segmento do seu portfólio</span></div>
         <div class="p-body" id="heatIndex"></div>
         <div class="p-foot">Componentes: novas oportunidades, valor publicado, nº de compradores, recorrência, contratos vencendo, PCA e concorrência. Passe o mouse para a composição.</div>
       </section>
@@ -634,6 +756,7 @@ main.view.on{display:block}
    ============================================================ */
 /* ===================== HELPERS ===================== */
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+document.body.classList.add('focus-mode');
 const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const safeUrl=value=>{try{const u=new URL(String(value));return ['http:','https:'].includes(u.protocol)?u.href:'#';}catch{return '#';}};
 const fmtBRL=(v,dec=0)=>v.toLocaleString('pt-BR',{style:'currency',currency:'BRL',minimumFractionDigits:dec,maximumFractionDigits:dec});
@@ -1834,16 +1957,16 @@ function applyRealStates(states){
   $('#hmModes').innerHTML=HM_MODES.map(m=>`<button class="hm-mode${m===hmMode?' on':''}" data-m="${m.id}">${m.n}</button>`).join('');
   if(states.length){hmSel=states[0].code;}
   renderHeat();
-  $('#heatTitle').textContent='🌎 Cobertura real por estado';
+  $('#heatTitle').textContent='Cobertura real por estado';
   $('#heatSubtitle').textContent='presença atual na base nacional';
   const total=states.reduce((sum,s)=>sum+Number(s.procurements||0),0)||1;
   $('#heatIndex').innerHTML=states.slice(0,8).map(s=>`<button class="hbar geo-row" data-map-state="${esc(s.code)}" style="grid-template-columns:minmax(90px,1.15fr) 2fr auto"><span>${esc(UF_NAMES[s.code]||s.name||s.code)}</span><span class="hb-track"><span class="hb-fill" style="display:block;width:${Math.max(4,s.procurements/total*100)}%;background:var(--info)"></span></span><span class="hb-val">${fmtN(s.procurements)} · ${fmtMi(s.estimated_value)}</span></button>`).join('')+'<div class="note" style="margin-top:8px">A ausência de cor significa que ainda não há registro coletado para o estado — não significa inexistência de licitações.</div>';
   $('#heatIndex').addEventListener('click',e=>{const state=e.target.closest('[data-map-state]');if(state){hmSel=state.dataset.mapState;$('#filterUf').value=hmSel;renderHeat();openStateExplorer(hmSel);}});
 }
 function applyRealLists(recent,value,deadline){
-  $('#quentesTitle').textContent='🔄 Processos mais recentes';$('#quentesSubtitle').textContent='ordem de entrada na base';
-  $('#margensTitle').textContent='💰 Maiores valores publicados';$('#margensSubtitle').textContent='valor estimado confirmado';
-  $('#chanceTitle').textContent='⏱️ Prazos mais próximos';$('#chanceSubtitle').textContent='encerramento de propostas';
+  $('#quentesTitle').textContent='Processos mais recentes';$('#quentesSubtitle').textContent='ordem de entrada na base';
+  $('#margensTitle').textContent='Maiores valores publicados';$('#margensSubtitle').textContent='valor estimado confirmado';
+  $('#chanceTitle').textContent='Prazos mais próximos';$('#chanceSubtitle').textContent='encerramento de propostas';
   $('#blkQuentes').innerHTML=recent.length?recent.map(p=>realPanelRow(p,formatDate(p.source_created_at||p.collected_at))).join(''):'<div class="explorer-empty">Nenhum processo no recorte.</div>';
   $('#blkMargens').innerHTML=value.length?value.map(p=>realPanelRow(p,`${p.items_count||0} itens · ${p.documents_count||0} docs`)).join(''):'<div class="explorer-empty">Nenhum valor informado no recorte.</div>';
   $('#blkChance').innerHTML=deadline.length?deadline.map(p=>realPanelRow(p,deadlineLabel(p.proposal_end))).join(''):'<div class="explorer-empty">Nenhum prazo informado no recorte.</div>';
@@ -1857,7 +1980,7 @@ function applyRealSources(sources,states){
   $('.statusbar').innerHTML=`<span><span class="sb-dot"></span>BASE NACIONAL CONECTADA</span><span>${operating} fontes operando</span><span>${states.length} estados presentes</span><span>última execução ${formatDateTime(latest?.last_finished_at)}</span><span class="sb-demo" style="color:var(--up)">● TERMINAL COM DADOS REAIS · MÓDULOS F2–F6 AINDA EM DEMONSTRAÇÃO</span>`;
 }
 function installRealSearch(){
-  $('.ask .p-title').textContent='⌕ Pesquisar na base real';
+  $('.ask .p-title').textContent='Pesquisa na base real';
   const oldInput=$('#askInput'),oldButton=$('#askBtn'),newInput=oldInput.cloneNode(true),newButton=oldButton.cloneNode(true);
   oldInput.replaceWith(newInput);oldButton.replaceWith(newButton);newInput.placeholder='Busque objeto, processo, órgão ou número PNCP…';
   $('#askChips').innerHTML=['material','engenharia','internet','veículos'].map(q=>`<button class="chip" data-real-search="${q}">${q}</button>`).join('');
