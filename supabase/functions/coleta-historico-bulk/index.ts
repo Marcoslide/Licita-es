@@ -1,9 +1,10 @@
 // ============================================================
-// BOLSA DE LICITAÇÕES — Memória Histórica: importador BULK v6
+// BOLSA DE LICITAÇÕES — Memória Histórica: importador BULK v10
 // (estados PENDING/DOWNLOADING/IMPORTING/VALIDATING/COMPLETE/PARTIAL/
 //  SOURCE_NOT_AVAILABLE/FAILED; retomada intra-mês por fase/linha;
-//  CSV anual por Range de bytes com registros multiline; validação de
-//  cobertura no fechamento; UMA fonte por invocação)
+//  CSV anual por Range com registros multiline; filas independentes por
+//  fonte (p.fonte) com lease anti-colisão; brutos no bucket memoria-bruta;
+//  parsers Contratos.gov (contratos + empenhos de contrato))
 // 1) job "descobrir": sonda programaticamente a cobertura real
 //    (earliest/latest) das fontes de arquivos oficiais (§3, §70)
 //    — Portal da Transparência (ZIPs mensais) e repositórios de
@@ -227,6 +228,22 @@ async function importarTransparenciaMes(ano: number, mes: number, deadline: numb
   const zipBytes = buf.length;
   const hash = await sha256hex(buf);
   await sql`update bolsa.arquivos_historicos set tamanho_bytes = ${zipBytes}, sha256 = ${hash}, baixado_em = now(), import_status = 'IMPORTING' where id = ${arqId}`;
+
+  // §5: bruto imutável vai para o object storage (uma única vez por arquivo)
+  if (!arqRows[0].detalhe?.storage_path) {
+    try {
+      const sp = `transparencia/${ym}.zip`;
+      const up = await fetch(`${Deno.env.get("SUPABASE_URL")}/storage/v1/object/memoria-bruta/${sp}`, {
+        method: "POST",
+        headers: { authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+                   "content-type": "application/zip", "x-upsert": "true" },
+        body: buf,
+      });
+      if (up.ok) await sql`update bolsa.arquivos_historicos set storage_path = ${sp},
+          detalhe = coalesce(detalhe,'{}'::jsonb) || ${{ storage_path: sp }}::jsonb where id = ${arqId}`;
+      else await up.body?.cancel();
+    } catch { /* upload de bruto nunca derruba a importação */ }
+  }
 
   // NÃO inflar o ZIP inteiro (os 4 CSVs juntos estouram a memória do worker):
   // primeiro só listamos os nomes, depois inflamos um arquivo por fase.
@@ -600,8 +617,24 @@ async function importarCsvRange(arq: any, deadline: number): Promise<Record<stri
         situacao: col(["situacao"]),
         ano: col(["ano","compra"], ["ano"]),
         data: col(["data","publicacao"], ["data","resultado"], ["data"]),
+        // extras p/ Contratos.gov (headers reais do comprasnet-contratos)
+        idExato: H.findIndex((h) => h === "id"),
+        processo: col(["processo"]),
+        tipo: col(["tipo"]),
+        categoria: col(["categoria"]),
+        vigIni: col(["vigencia","inicio"], ["inicio","vigencia"], ["data","assinatura"]),
+        vigFim: col(["vigencia","fim"], ["fim","vigencia"]),
+        valorGlobal: col(["valor","global"], ["valor","inicial"]),
+        contratoId: col(["contrato","id"], ["id","contrato"]),
+        empenho: col(["empenho"], ["numero","empenho"]),
+        vEmpenhado: col(["empenhado"]),
+        vLiquidado: col(["liquidado"]),
+        vPago: col(["pago"]),
+        credor: col(["credor"], ["cnpj","cpf"]),
         header: H.slice(0, 40),
       };
+      if (arq.dataset === "contratos_anual" && mapa.idExato >= 0) mapa.chave = mapa.idExato;
+      if (arq.dataset === "contratos_anual_empenhos" && mapa.idExato >= 0 && mapa.chave < 0) mapa.chave = mapa.idExato;
       if (mapa.chave < 0) {
         await salvar("FAILED", { motivo: "cabecalho sem coluna-chave reconhecida", header: mapa.header });
         return { arquivo: arq.id, erro: "cabecalho sem chave", header: mapa.header };
@@ -611,11 +644,95 @@ async function importarCsvRange(arq: any, deadline: number): Promise<Record<stri
 
     // chunk baixado é processado por inteiro (o cursor avança bytes completos;
     // cortar no meio perderia linhas em silêncio — nunca §64)
-    const ehResultado = arq.dataset === "comprasgov_anual_resultados" || arq.dataset === "comprasgov_anual_itens";
+    const destino = (arq.dataset === "comprasgov_anual_resultados" || arq.dataset === "comprasgov_anual_itens") ? "itens"
+      : arq.dataset === "contratos_anual" ? "contratos"
+      : arq.dataset === "contratos_anual_empenhos" ? "contrato_empenhos"
+      : "licitacoes";
     for (let b = idx; b < linhas.length; b += 500) {
       const lote = linhas.slice(b, b + 500).filter((l) => l.length > 0);
       if (!lote.length) continue;
-      if (ehResultado) {
+      if (destino === "contratos") {
+        const a = { ch: [] as string[], nu: [] as (string|null)[], pr: [] as (string|null)[], tp: [] as (string|null)[],
+          ct: [] as (string|null)[], si: [] as (string|null)[], onm: [] as (string|null)[], ug: [] as (string|null)[],
+          fn2: [] as (string|null)[], fnm: [] as (string|null)[], ob: [] as (string|null)[], vg: [] as (number|null)[],
+          vi: [] as (string|null)[], vf: [] as (string|null)[], an: [] as (number|null)[] };
+        for (const l of lote) {
+          try {
+            const c = parseCsvLinha(l, sep);
+            const ch = (c[mapa.chave] ?? "").trim();
+            if (!ch) throw new Error("chave vazia");
+            const dataBr = (i: number) => i >= 0 ? (brData(c[i]) ?? ((c[i] ?? "").match(/^\d{4}-\d{2}-\d{2}/)?.[0] ?? null)) : null;
+            a.ch.push(ch);
+            a.nu.push(mapa.item >= 0 ? c[mapa.item] : (mapa.chave >= 0 ? c[mapa.chave] : null));
+            a.pr.push(mapa.processo >= 0 ? c[mapa.processo] : null);
+            a.tp.push(mapa.tipo >= 0 ? c[mapa.tipo] : null);
+            a.ct.push(mapa.categoria >= 0 ? c[mapa.categoria] : null);
+            a.si.push(mapa.situacao >= 0 ? c[mapa.situacao] : null);
+            a.onm.push(mapa.orgaoNome >= 0 ? c[mapa.orgaoNome] : null);
+            a.ug.push(mapa.uasg >= 0 ? c[mapa.uasg] : null);
+            a.fn2.push(mapa.forn >= 0 ? (c[mapa.forn] ?? "").replace(/\D/g, "") || null : null);
+            a.fnm.push(mapa.fornNome >= 0 ? c[mapa.fornNome] : null);
+            a.ob.push(mapa.objeto >= 0 ? (c[mapa.objeto] ?? "").slice(0, 800) : null);
+            a.vg.push(mapa.valorGlobal >= 0 ? brNum(c[mapa.valorGlobal]) : (mapa.valor >= 0 ? brNum(c[mapa.valor]) : null));
+            a.vi.push(dataBr(mapa.vigIni));
+            a.vf.push(dataBr(mapa.vigFim));
+            a.an.push(arq.ano ?? null);
+            st.lidas++;
+          } catch (e) {
+            st.erros++;
+            await sql`insert into bolsa.import_erros (arquivo_id, erro, conteudo) values (${arq.id}, ${String((e as Error).message)}, ${l.slice(0, 300)})`;
+          }
+        }
+        if (a.ch.length) {
+          await sql`insert into bolsa.contratos_legado (fonte, chave_fonte, numero, processo, tipo, categoria, situacao,
+                      orgao_nome, unidade_codigo, fornecedor_ni, fornecedor_nome, objeto, valor_global, vigencia_inicio, vigencia_fim, ano)
+                    select distinct on (ch) 'contratos_gov', ch, nu, pr, tp, ct, si, onm, ug, fn2, fnm, ob, vg, vi::date, vf::date, an
+                    from unnest(${a.ch}::text[], ${a.nu}::text[], ${a.pr}::text[], ${a.tp}::text[], ${a.ct}::text[],
+                                ${a.si}::text[], ${a.onm}::text[], ${a.ug}::text[], ${a.fn2}::text[], ${a.fnm}::text[],
+                                ${a.ob}::text[], ${a.vg}::numeric[], ${a.vi}::text[], ${a.vf}::text[], ${a.an}::int[])
+                      as t(ch, nu, pr, tp, ct, si, onm, ug, fn2, fnm, ob, vg, vi, vf, an)
+                    on conflict (fonte, chave_fonte) do update set
+                      situacao = excluded.situacao, valor_global = excluded.valor_global,
+                      vigencia_fim = excluded.vigencia_fim, last_seen_at = now()`;
+          st.inseridos += a.ch.length;
+        }
+      } else if (destino === "contrato_empenhos") {
+        const a = { co: [] as string[], em: [] as string[], dt: [] as (string|null)[], cr: [] as (string|null)[],
+          crn: [] as (string|null)[], ve: [] as (number|null)[], vl: [] as (number|null)[], vp: [] as (number|null)[],
+          an: [] as (number|null)[] };
+        for (const l of lote) {
+          try {
+            const c = parseCsvLinha(l, sep);
+            const co = (mapa.contratoId >= 0 ? c[mapa.contratoId] ?? "" : "").trim();
+            const em = (mapa.empenho >= 0 ? c[mapa.empenho] ?? "" : (c[mapa.chave] ?? "")).trim();
+            if (!co || !em) throw new Error("contrato/empenho vazio");
+            a.co.push(co); a.em.push(em);
+            a.dt.push(mapa.data >= 0 ? (brData(c[mapa.data]) ?? ((c[mapa.data] ?? "").match(/^\d{4}-\d{2}-\d{2}/)?.[0] ?? null)) : null);
+            a.cr.push(mapa.credor >= 0 ? (c[mapa.credor] ?? "").replace(/\D/g, "") || null : null);
+            a.crn.push(mapa.fornNome >= 0 ? c[mapa.fornNome] : null);
+            a.ve.push(mapa.vEmpenhado >= 0 ? brNum(c[mapa.vEmpenhado]) : (mapa.valor >= 0 ? brNum(c[mapa.valor]) : null));
+            a.vl.push(mapa.vLiquidado >= 0 ? brNum(c[mapa.vLiquidado]) : null);
+            a.vp.push(mapa.vPago >= 0 ? brNum(c[mapa.vPago]) : null);
+            a.an.push(arq.ano ?? null);
+            st.lidas++;
+          } catch (e) {
+            st.erros++;
+            await sql`insert into bolsa.import_erros (arquivo_id, erro, conteudo) values (${arq.id}, ${String((e as Error).message)}, ${l.slice(0, 300)})`;
+          }
+        }
+        if (a.co.length) {
+          await sql`insert into bolsa.contrato_empenhos_legado (fonte, contrato_chave, empenho_codigo, data_emissao,
+                      credor_ni, credor_nome, valor_empenhado, valor_liquidado, valor_pago, ano)
+                    select distinct on (co, em) 'contratos_gov', co, em, dt::date, cr, crn, ve, vl, vp, an
+                    from unnest(${a.co}::text[], ${a.em}::text[], ${a.dt}::text[], ${a.cr}::text[], ${a.crn}::text[],
+                                ${a.ve}::numeric[], ${a.vl}::numeric[], ${a.vp}::numeric[], ${a.an}::int[])
+                      as t(co, em, dt, cr, crn, ve, vl, vp, an)
+                    on conflict (fonte, contrato_chave, empenho_codigo) do update set
+                      valor_empenhado = excluded.valor_empenhado, valor_liquidado = excluded.valor_liquidado,
+                      valor_pago = excluded.valor_pago`;
+          st.inseridos += a.co.length;
+        }
+      } else if (destino === "itens") {
         const a = { ch: [] as string[], it: [] as (string|null)[], de: [] as (string|null)[],
           qt: [] as (number|null)[], vu: [] as (number|null)[], ve: [] as (string|null)[],
           vn: [] as (string|null)[], an: [] as (number|null)[] };
@@ -698,31 +815,55 @@ async function importarCsvRange(arq: any, deadline: number): Promise<Record<stri
   return { arquivo: arq.id, dataset: arq.dataset, parcial: true, cursor_bytes: cursor };
 }
 
-async function jobAuto(deadline: number): Promise<Record<string, unknown>> {
+async function jobAuto(deadline: number, fonte?: string): Promise<Record<string, unknown>> {
   const out: Record<string, unknown> = {};
-  // UMA fonte por invocação: chunk Compras.gov + ZIP mensal na mesma execução
-  // estoura os recursos do worker (WORKER_RESOURCE_LIMIT). Ticks */10 caem nos
-  // minutos 0,10,20,... — %20 alterna as fontes de forma justa e sem estado.
-  const vezCompras = new Date().getUTCMinutes() % 20 < 10;
-  // prioridade: compras (licitações) -> resultados (vencedores) -> itens; hold fica fora;
-  // IMPORTING/PARTIAL primeiro para resgatar órfãos e retomar cursores
-  const claimCompras = () => sql`select id, fonte, dataset, ano, url, cursor_bytes, resto_linha, detalhe
-                       from bolsa.arquivos_historicos
-                       where import_status in ('PENDING','PARTIAL','IMPORTING')
-                         and dataset in ('comprasgov_anual_compras','comprasgov_anual_resultados','comprasgov_anual_itens')
-                         and (detalhe->>'hold') is null
-                       order by import_status in ('IMPORTING','PARTIAL') desc,
-                                case dataset when 'comprasgov_anual_compras' then 1
-                                             when 'comprasgov_anual_resultados' then 2 else 3 end,
-                                ano desc limit 1`;
+  // Filas INDEPENDENTES por fonte (§22): cada cron dispara com p.fonte e as
+  // fontes progridem em paralelo (workers separados, sem estourar CPU).
+  // Sem fonte forçada, alterna por minuto. Lease de 90-120s evita dois
+  // workers no mesmo arquivo quando os ticks se sobrepõem.
+  const vezCompras = fonte ? fonte !== "transparencia" : new Date().getUTCMinutes() % 2 === 0;
+  // fila por fonte: 'compras' = anuais do Compras.gov; 'contratos' = Contratos.gov;
+  // sem fonte, os cinco datasets numa fila só
+  const dsFila = fonte === "contratos"
+    ? ["contratos_anual", "contratos_anual_empenhos"]
+    : fonte === "compras"
+      ? ["comprasgov_anual_compras", "comprasgov_anual_resultados", "comprasgov_anual_itens"]
+      : ["comprasgov_anual_compras", "comprasgov_anual_resultados", "comprasgov_anual_itens",
+         "contratos_anual", "contratos_anual_empenhos"];
+  // prioridade: compras (licitações) -> resultados -> itens -> contratos -> empenhos de contrato
+  const claimCompras = () => sql`
+    update bolsa.arquivos_historicos a
+       set detalhe = coalesce(a.detalhe,'{}'::jsonb) || jsonb_build_object('lease_ate', (now() + interval '90 seconds')::text)
+     where a.id = (
+       select id from bolsa.arquivos_historicos
+       where import_status in ('PENDING','PARTIAL','IMPORTING')
+         and dataset = any(${dsFila}::text[])
+         and (detalhe->>'hold') is null
+         and coalesce(nullif(detalhe->>'lease_ate','')::timestamptz, '-infinity') < now()
+       order by import_status in ('IMPORTING','PARTIAL') desc,
+                case dataset when 'comprasgov_anual_compras' then 1
+                             when 'comprasgov_anual_resultados' then 2
+                             when 'comprasgov_anual_itens' then 3
+                             when 'contratos_anual' then 4 else 5 end,
+                ano desc limit 1)
+     returning a.id, a.fonte, a.dataset, a.ano, a.url, a.cursor_bytes, a.resto_linha, a.detalhe`;
+  const claimTransp = () => sql`
+    update bolsa.arquivos_historicos a
+       set detalhe = coalesce(a.detalhe,'{}'::jsonb) || jsonb_build_object('lease_ate', (now() + interval '120 seconds')::text)
+     where a.id = (
+       select id from bolsa.arquivos_historicos
+       where import_status in ('PENDING','PARTIAL','IMPORTING','DOWNLOADING') and fonte = 'transparencia'
+         and coalesce(nullif(detalhe->>'lease_ate','')::timestamptz, '-infinity') < now()
+       order by import_status in ('IMPORTING','PARTIAL','DOWNLOADING') desc, ano desc, mes desc limit 1)
+     returning a.id, a.ano, a.mes`;
   if (vezCompras) {
     const cg = await claimCompras();
     if (cg.length) { out.compras_gov = await importarCsvRange(cg[0], deadline); return out; }
+    if (fonte) { out.fila = "compras vazia"; return out; }
   }
-  const r = await sql`select id, fonte, dataset, ano, mes from bolsa.arquivos_historicos
-                      where import_status in ('PENDING','PARTIAL','IMPORTING','DOWNLOADING') and fonte = 'transparencia'
-                      order by import_status in ('IMPORTING','PARTIAL','DOWNLOADING') desc, ano desc, mes desc limit 1`;
+  const r = await claimTransp();
   if (r.length) { out.transparencia = await importarTransparenciaMes(r[0].ano, r[0].mes, deadline); return out; }
+  if (fonte === "transparencia") { out.fila = "transparencia vazia"; return out; }
   const cg2 = await claimCompras();
   if (cg2.length) out.compras_gov = await importarCsvRange(cg2[0], deadline);
   else out.fila = "vazia";
@@ -750,7 +891,7 @@ Deno.serve(async (req: Request) => {
       }
     }
     else if (job === "transparencia_mes") out = await importarTransparenciaMes(Number(p.ano), Number(p.mes), deadline);
-    else if (job === "auto") out = await jobAuto(deadline);
+    else if (job === "auto") out = await jobAuto(deadline, typeof p.fonte === "string" ? p.fonte : undefined);
     else out = { erro: "job desconhecido" };
   } catch (e) {
     out = { erro: String((e as Error).message) };
