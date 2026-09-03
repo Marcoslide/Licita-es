@@ -1,0 +1,15 @@
+{
+  "name": "bolsa-de-licitacoes",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Bolsa de Licitações — terminal do mercado público + motor nacional de coleta (PNCP)",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "coleta:status": "node engine/jobs/run.mjs status",
+    "coleta:delta": "node engine/jobs/run.mjs delta",
+    "coleta:detalhes": "node engine/jobs/run.mjs detalhes",
+    "test": "node engine/test/run-tests.mjs",
+    "build": "node scripts/build.mjs"
+  }
+}

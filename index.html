@@ -416,6 +416,7 @@ main.view.on{display:block}
     <button class="tab" data-view="concorrente"><span class="tno">F4</span>Raio-X do Concorrente</button>
     <button class="tab" data-view="docs"><span class="tno">F5</span>Central de Documentação</button>
     <button class="tab" data-view="carteira"><span class="tno">F6</span>Carteira</button>
+    <button class="tab" data-view="coleta" style="color:var(--up)"><span class="tno">F7</span>Coleta Nacional ● REAL</button>
   </nav>
 
   <!-- ===================== VIEW: TERMINAL ===================== -->
@@ -536,23 +537,25 @@ main.view.on{display:block}
   <!-- ===================== VIEW: CARTEIRA ===================== -->
   <main class="view" id="view-carteira"></main>
 
+  <!-- ===================== VIEW: COLETA NACIONAL (DADOS REAIS) ===================== -->
+  <main class="view" id="view-coleta"></main>
+
   <!-- STATUSBAR -->
   <footer class="statusbar">
-    <span><span class="sb-dot"></span>PNCP · sincronizado 06:00</span>
-    <span><span class="sb-dot"></span>Compras.gov · OK</span>
-    <span><span class="sb-dot"></span>14 fontes ativas</span>
-    <span>última atualização há 12 min</span>
-    <span title="A tecnologia trabalha. A pessoa decide.">⚙ 6 motores de inteligência em execução</span>
-    <span class="sb-demo">▲ PROTÓTIPO — DADOS SIMULADOS PARA DEMONSTRAÇÃO</span>
+    <span id="sbFonte"><span class="sb-dot"></span>PNCP · coleta própria ativa (Supabase sa-east-1, cron 20 min)</span>
+    <span title="Telas F1–F6: visão de produto com dados simulados. Aba F7: dados reais da nossa base.">F1–F6: simulação da visão · <b class="up">F7: DADOS REAIS</b></span>
+    <span class="sb-demo">▲ TELAS DE VISÃO USAM DADOS SIMULADOS — A COLETA REAL ESTÁ NA ABA F7</span>
   </footer>
 
   <div class="toast-wrap" id="toasts"></div>
 </div>
 
+<script src="data/snapshot.js"></script>
 <script>
 "use strict";
 /* ============================================================
    BOLSA DE LICITAÇÕES — protótipo navegável (dados simulados)
+   + aba F7 Coleta Nacional (dados REAIS da nossa base)
    ============================================================ */
 /* ===================== HELPERS ===================== */
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
@@ -1600,5 +1603,203 @@ $('#view-carteira').innerHTML=`
     <div class="p-foot">Fato ≠ inferência ≠ previsão: cada insight carrega sua classificação e evidências ao ser expandido.</div>
   </section>
 </div>`;
+/* ===================== RENDER: COLETA NACIONAL (DADOS REAIS) ===================== */
+(function(){
+  const S = window.BOLSA_SNAPSHOT;
+  const view = $('#view-coleta');
+  if (!S) {
+    view.innerHTML = `<div class="panel" style="max-width:720px;margin:40px auto"><div class="p-body" style="text-align:center;padding:40px">
+      <div style="font-size:34px">📡</div>
+      <h2 style="font:700 18px var(--disp)">Nenhuma coleta carregada</h2>
+      <p class="mut">Esta aba mostra somente dados reais da base nacional da Bolsa. O arquivo <code>data/snapshot.js</code>
+      não foi encontrado — gere um instantâneo a partir da base (views <code>bolsa_vw_*</code>) ou aguarde a próxima coleta.
+      Nada é simulado aqui: sem dados, a tela fica vazia.</p></div></div>`;
+    return;
+  }
+  const R = S.resumo;
+  const dt = s => new Date(s).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+  const linkNcp = ncp => {
+    const m = /^(\d{14})-\d-(\d+)\/(\d{4})$/.exec(ncp);
+    return m ? `https://pncp.gov.br/app/editais/${m[1]}/${m[3]}/${parseInt(m[2], 10)}` : 'https://pncp.gov.br';
+  };
+  const REAL = '<span class="conf c-conf" title="Dado real coletado pela Bolsa no PNCP — rastreável até a fonte">REAL · PNCP</span>';
+
+  const maxV = Math.max(...S.por_uf.map(u => u.valor || 0));
+  const ufTiles = (() => {
+    const pos = Object.fromEntries(ESTADOS.map(e => [e[0], [e[1], e[2]]]));
+    const cells = Array.from({ length: 7 * 8 }, () => null);
+    for (const u of S.por_uf) { const p = pos[u.uf]; if (p) cells[p[1] * 7 + p[0]] = u; }
+    return cells.map(u => {
+      if (!u) return '<div class="hm-tile hm-empty"></div>';
+      const t = Math.log10(1 + (u.valor || 0)) / Math.log10(1 + maxV);
+      const bg = heatColor(t), dark = t > .55;
+      return `<div class="hm-tile" style="background:${bg};color:${dark ? '#10131b' : '#dce6f5'};cursor:default"
+        title="${u.uf}: ${u.processos} processos · ${fmtMi(u.valor || 0)} estimados · ${u.abertas} recebendo propostas">
+        <span class="hm-uf">${u.uf}</span><span class="hm-v">${u.processos}</span></div>`;
+    }).join('');
+  })();
+
+  view.innerHTML = `
+  <div class="grid">
+    <section class="ficha-head c12" style="border-color:rgba(52,211,153,.45)">
+      <div class="fh-main">
+        <div class="fh-crumb">MOTOR NACIONAL DE DADOS › fonte: PNCP (coleta própria) › ${REAL}</div>
+        <h1 class="fh-title">Coleta Nacional — Base Real da Bolsa</h1>
+        <div class="fh-meta">
+          <span>Fonte <b>${S.fonte_primaria}</b></span>
+          <span>Infra <b>Supabase Postgres · sa-east-1 · Edge Function + pg_cron</b></span>
+          <span>Instantâneo <b id="colSnapWhen">${dt(S.gerado_em)}</b> <span id="colLive" class="pill neu">INSTANTÂNEO</span></span>
+        </div>
+      </div>
+      <div class="fh-side">
+        <div class="verdict" style="background:var(--up-bg)"><span class="v-word" style="font-size:15px">COLETANDO</span>
+          <small>delta a cada 20 min · detalhes 3×/h · contratos 1×/h</small></div>
+      </div>
+    </section>
+
+    <div class="c12"><div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))" id="colKpis"></div></div>
+
+    <section class="panel c7">
+      <div class="p-head"><span class="p-title">🗺️ Mapa real por UF</span><span class="p-sub">cor: valor estimado (escala log) · nº: processos coletados</span></div>
+      <div class="p-body"><div class="hm-grid">${ufTiles}</div>
+        <div class="hm-legend"><span>menos valor</span><div class="hm-lgbar"></div><span>mais valor</span>
+          <span class="mut">· universo coletado até agora (${fmtN(R.licitacoes)} processos)</span></div>
+      </div>
+      <div class="p-foot">Semente do mapa de calor da Bolsa (§82) — com base nos dados atualmente monitorados.</div>
+    </section>
+
+    <section class="panel c5">
+      <div class="p-head"><span class="p-title">🩺 Saúde da coleta</span><span class="p-sub">painel técnico (§62)</span></div>
+      <div class="p-body">
+        <div class="kv"><span>PNCP</span><b class="up">🟢 ${S.saude.status} · último sucesso ${dt(S.saude.ultimo_sucesso)}</b></div>
+        <div class="kv"><span class="mut">Execuções registradas</span><b>${S.saude.execucoes}</b></div>
+        <div class="kv"><span class="mut">Agendamentos (pg_cron)</span><b>${S.saude.cron.map(c => c.job + ' ' + c.freq).join(' · ')}</b></div>
+        <div style="display:flex;gap:4px;flex-wrap:wrap;margin:8px 0">
+          ${Object.entries(S.saude.capabilities).map(([k, v]) => `<span class="pill ${v === true ? 'ok' : v === false ? 'neu' : 'info'}">${k} ${v === true ? '✔' : v === false ? '✖' : '· ' + v}</span>`).join('')}
+        </div>
+        <div class="tblwrap"><table class="tbl"><thead><tr><th>Job</th><th>Quando</th><th class="num">Reg.</th><th class="num">Ins.</th><th class="num">Erros</th></tr></thead>
+          <tbody>${S.saude.ultimas_execucoes.map(e => `<tr><td class="td-main">${e.job}</td><td class="td-sub">${e.em}${e.nota ? ' · ' + e.nota : ''}</td>
+            <td class="num">${e.registros ?? (e.docs != null ? e.docs + ' docs' : '—')}</td><td class="num">${e.inseridos ?? '—'}</td>
+            <td class="num ${e.erros ? 'warn-c' : 'up'}">${e.erros}</td></tr>`).join('')}</tbody></table></div>
+        <div class="note" style="margin-top:6px">Erros são transitórios (timeout/HTTP 0 com retry) e ficam registrados no log — falha total marcaria a fonte TEMPORARILY_UNAVAILABLE.</div>
+      </div>
+    </section>
+
+    <section class="panel c6">
+      <div class="p-head"><span class="p-title">🔗 Cadeia completa — prova real</span><span class="p-sub">licitação → órgão → itens → documento → resultado → fornecedor</span></div>
+      <div class="p-body">
+        <div class="opp-t" style="white-space:normal">${S.cadeia_exemplo.objeto}</div>
+        <div class="opp-s" style="white-space:normal;margin:2px 0 8px">${S.cadeia_exemplo.orgao} · ${S.cadeia_exemplo.cidade}/${S.cadeia_exemplo.uf} · ${S.cadeia_exemplo.modalidade} · ${fmtMi(S.cadeia_exemplo.valor_estimado)} estimados ${REAL}</div>
+        <div class="kv"><span class="mut">Nº de controle PNCP</span><b class="mono">${S.cadeia_exemplo.ncp}</b></div>
+        <div class="kv"><span class="mut">Itens coletados</span><b>${S.cadeia_exemplo.itens}</b></div>
+        <div class="kv"><span class="mut">Documento</span><b>${S.cadeia_exemplo.documentos[0].titulo} (${S.cadeia_exemplo.documentos[0].tipo})</b></div>
+        <div class="tblwrap" style="margin-top:6px"><table class="tbl">
+          <thead><tr><th>Item</th><th>Fornecedor vencedor (CNPJ público)</th><th class="num">V. unit. homolog.</th><th class="num">Total</th></tr></thead>
+          <tbody>${S.cadeia_exemplo.resultados.map(r => `<tr><td class="num">${r.item}</td>
+            <td>${r.fornecedor}<div class="td-sub mono">${r.ni}</div></td>
+            <td class="num">${fmtBRL(r.vu, 2)}</td><td class="num">${fmtBRL(r.vt, 2)}</td></tr>`).join('')}</tbody></table></div>
+        <div style="margin-top:8px"><a href="${S.cadeia_exemplo.url_pncp}" target="_blank" rel="noopener">Ver a fonte no PNCP →</a></div>
+      </div>
+    </section>
+
+    <section class="panel c6">
+      <div class="p-head"><span class="p-title">🏆 Ranking real de fornecedores</span><span class="p-sub">por valor homologado — universo coletado</span></div>
+      <div class="p-body flush"><div class="tblwrap"><table class="tbl">
+        <thead><tr><th>Fornecedor</th><th>Porte</th><th class="num">Itens</th><th class="num">V. homologado</th></tr></thead>
+        <tbody>${S.top_fornecedores.map(f => `<tr><td class="td-main">${f.nome}<div class="td-sub mono">${f.ni}</div></td>
+          <td>${f.porte ?? '—'}</td><td class="num">${f.itens}</td><td class="num">${fmtMi(f.valor_homologado)}</td></tr>`).join('')}</tbody></table></div></div>
+      <div class="p-foot">COM BASE NOS DADOS ATUALMENTE MONITORADOS PELA BOLSA — não representa o mercado inteiro (§83).</div>
+    </section>
+
+    <section class="panel c4">
+      <div class="p-head"><span class="p-title">🏛️ Maiores compradores</span><span class="p-sub">valor estimado</span></div>
+      <div class="p-body flush">${S.top_orgaos.map(o => `<div class="opp-row" style="cursor:default">
+        <div class="opp-main"><div class="opp-t">${o.nome}</div><div class="opp-s">esfera ${o.esfera} · ${o.processos} processo(s)</div></div>
+        <div class="opp-fig"><b>${fmtMi(o.valor)}</b></div></div>`).join('')}</div>
+    </section>
+
+    <section class="panel c4">
+      <div class="p-head"><span class="p-title">📑 Modalidades coletadas</span></div>
+      <div class="p-body">${S.modalidades.map(m => `<div class="hbar"><span>${m.nome}</span>
+        <div class="hb-track"><div class="hb-fill" style="width:${(m.processos / S.modalidades[0].processos) * 100}%;background:var(--teal)"></div></div>
+        <span class="hb-val">${m.processos} · ${fmtMi(m.valor)}</span></div>`).join('')}
+        <div class="note" style="margin-top:8px">Situações como deserta/fracassada ainda não apareceram no universo coletado — quando aparecerem, entram aqui (nada é inventado).</div>
+      </div>
+    </section>
+
+    <section class="panel c4">
+      <div class="p-head"><span class="p-title">⏳ Contratos vencendo (reais)</span><span class="p-sub">${fmtN(R.contratos_vencendo_180d)} em até 180 dias</span></div>
+      <div class="p-body flush">${S.contratos_vencendo.map(c => `<div class="opp-row" style="cursor:default">
+        <div class="opp-main"><div class="opp-t">${c.objeto}</div><div class="opp-s">${c.fornecedor} · ${c.uf}</div></div>
+        <div class="opp-fig"><b>${fmtMi(c.valor)}</b><span>${c.dias === 0 ? 'vence HOJE' : 'em ' + c.dias + 'd'}</span></div></div>`).join('')}</div>
+      <div class="p-foot">Semente do radar de renovação — classificação do valor: CONTRATADO (global), nunca "faturamento".</div>
+    </section>
+
+    <section class="panel c7">
+      <div class="p-head"><span class="p-title">🕐 Últimas licitações coletadas</span><span class="p-sub">com link para a fonte oficial</span></div>
+      <div class="p-body flush">${S.ultimas.map(l => `<div class="opp-row" onclick="window.open('${linkNcp(l.ncp)}','_blank','noopener')">
+        <div class="opp-main"><div class="opp-t">${l.objeto}</div><div class="opp-s">${l.cidade}/${l.uf} · publicada ${l.pub} · <span class="mono">${l.ncp}</span></div></div>
+        <div class="opp-fig"><b>${fmtMi(l.valor)}</b></div><span class="pill ok">PNCP ↗</span></div>`).join('')}</div>
+    </section>
+
+    <section class="panel c5">
+      <div class="p-head"><span class="p-title">🔍 Minas Gerais — universo coletado</span><span class="p-sub">semente da prova de visão de mercado (§82)</span></div>
+      <div class="p-body">
+        <div class="kv"><span class="mut">Processos</span><b>${S.mg_universo.processos}</b></div>
+        <div class="kv"><span class="mut">Valor estimado</span><b>${fmtMi(S.mg_universo.valor)}</b></div>
+        <h4 style="margin:10px 0 4px;font:600 10px var(--sans);letter-spacing:1px;text-transform:uppercase;color:var(--mut)">Cidades por valor</h4>
+        ${S.mg_universo.cidades.map(c => `<div class="hbar"><span>${c.nome}</span>
+          <div class="hb-track"><div class="hb-fill" style="width:${(c.v / S.mg_universo.cidades[0].v) * 100}%;background:var(--amber)"></div></div>
+          <span class="hb-val">${c.n} · ${fmtMi(c.v)}</span></div>`).join('')}
+        <h4 style="margin:10px 0 4px;font:600 10px var(--sans);letter-spacing:1px;text-transform:uppercase;color:var(--mut)">Órgãos mais ativos</h4>
+        ${S.mg_universo.orgaos.map(o => `<div class="kv"><span>${o.nome}</span><b>${o.n} proc.</b></div>`).join('')}
+      </div>
+    </section>
+
+    <section class="panel c12">
+      <div class="p-head"><span class="p-title">🧭 Fontes — roadmap de conectores</span></div>
+      <div class="p-body" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px">
+        ${[['PNCP', 'ATIVA — licitações, itens, documentos, resultados, contratos', 'ok'],
+           ['Compras.gov.br', 'Etapa 2 — planejada', 'neu'],
+           ['Contratos.gov.br', 'Etapa 3 — planejada', 'neu'],
+           ['Portal da Transparência', 'Etapa 4 — planejada (pagamentos/empenhos)', 'neu'],
+           ['Portais complementares', 'Etapa 5 — planejada', 'neu'],
+           ['Estaduais e municipais', 'Etapa 6 — planejada', 'neu']]
+          .map(f => `<div class="sc" style="text-align:left"><b>${f[0]}</b><div class="small mut" style="margin:3px 0 6px">${f[1]}</div><span class="pill ${f[2]}">${f[2] === 'ok' ? '🟢 COLETANDO' : 'PLANEJADA'}</span></div>`).join('')}
+      </div>
+      <div class="p-foot">Só listamos como ativa a fonte que está de fato coletando, com job rodando, dados gravados e log verificável (§60/§97).</div>
+    </section>
+  </div>`;
+
+  const kpis = [
+    ['Licitações coletadas', fmtN(R.licitacoes), 'desde a 1ª coleta (02–03/09 + amostra jun/2026)'],
+    ['Valor estimado somado', fmtMi(R.valor_estimado_total), 'CONFIRMADO nas fontes'],
+    ['Recebendo propostas', fmtN(R.recebendo_propostas), 'encerramento futuro'],
+    ['Itens', fmtN(R.itens), 'nível de item preservado'],
+    ['Documentos', fmtN(R.documentos), 'metadados + URL oficial'],
+    ['Resultados homologados', fmtN(R.resultados), fmtMi(R.valor_homologado_total) + ' homologados'],
+    ['Fornecedores públicos', fmtN(R.fornecedores), 'CNPJ validado por dígito'],
+    ['Órgãos compradores', fmtN(R.orgaos), '—'],
+    ['Contratos', fmtN(R.contratos), fmtMi(R.valor_contratado_total) + ' contratados'],
+    ['Vencendo em 180d', fmtN(R.contratos_vencendo_180d), 'radar de renovação'],
+    ['Payloads RAW imutáveis', fmtN(R.raw_payloads), 'hash SHA-256 por corpo'],
+    ['Eventos de histórico', fmtN(R.eventos), R.eventos_alteracao + ' alterações detectadas'],
+  ];
+  $('#colKpis').innerHTML = kpis.map(k => `<div class="kpi"><div class="k-label">${k[0]}</div>
+    <div class="k-val" style="font-size:20px">${k[1]}</div><div class="k-sub">${k[2]}</div></div>`).join('');
+
+  // tenta atualizar AO VIVO da nossa base (nunca do PNCP — §90); sem rede, mantém o instantâneo
+  if (S.supabase && location.protocol.startsWith('http')) {
+    fetch(`${S.supabase.url}/rest/v1/bolsa_vw_resumo?select=*`, {
+      headers: { apikey: S.supabase.anon, authorization: 'Bearer ' + S.supabase.anon },
+    }).then(r => r.ok ? r.json() : null).then(rows => {
+      const v = rows && rows[0]; if (!v) return;
+      $('#colLive').textContent = 'AO VIVO'; $('#colLive').className = 'pill ok';
+      $('#colSnapWhen').textContent = new Date(v.ultima_coleta_em).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) + ' (última coleta)';
+      const nums = [fmtN(v.licitacoes), fmtMi(v.valor_estimado_total || 0), fmtN(v.recebendo_propostas), fmtN(v.itens), fmtN(v.documentos), fmtN(v.resultados), fmtN(v.fornecedores), fmtN(v.orgaos), fmtN(v.contratos), fmtN(v.contratos_vencendo_180d), fmtN(v.raw_payloads), fmtN(v.eventos)];
+      $$('#colKpis .k-val').forEach((el, i) => { if (nums[i] != null) el.textContent = nums[i]; });
+    }).catch(() => { /* mantém instantâneo embutido */ });
+  }
+})();
 /* ===JS-END=== */
 </script>

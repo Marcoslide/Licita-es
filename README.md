@@ -33,3 +33,22 @@ cruzada entre oportunidade → mercado → concorrente → documentos → cartei
 Fase 1 do roadmap da especificação: modelagem das entidades centrais (licitação, órgão,
 item, fornecedor, documento…), conectores de coleta (PNCP, Compras.gov), normalização/
 deduplicação e busca — mantendo esta experiência como norte da interface.
+
+---
+
+## Fase 2 — Coleta Nacional (dados reais)
+
+A fase de coleta está **implantada e rodando**: conector PNCP como Edge Function no
+Supabase (Postgres, schema isolado `bolsa`, região sa-east-1), agendado por `pg_cron`
+(delta 20 min · detalhes 3×/h · contratos 1×/h), com camada RAW imutável, normalização,
+dedup por identificador oficial, eventos de histórico, checkpoints e log de coleta.
+
+- **Evidências e provas com dados reais**: [`RELATORIO-COLETA.md`](RELATORIO-COLETA.md)
+- **Arquitetura do motor**: [`engine/README.md`](engine/README.md)
+- **Função implantada**: [`supabase/functions/coleta-pncp/`](supabase/functions/coleta-pncp/)
+- **Migrações aplicadas**: [`supabase/migrations/`](supabase/migrations/)
+- **Aba F7 · Coleta Nacional** no terminal mostra somente dados reais da nossa base
+  (instantâneo embutido + atualização ao vivo via views públicas `bolsa_vw_*`).
+
+Build de arquivo único para teste: `npm run build` → `dist/bolsa.html`.
+Testes do conector (fixtures com payloads reais): `npm test`.
