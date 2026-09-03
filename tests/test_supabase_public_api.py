@@ -11,6 +11,9 @@ class FakeClient:
 
     def get(self, resource, params, *, profile="public", count=False):
         self.calls.append((resource, params, profile, count))
+        values = dict(params)
+        if int(values.get("offset", "0")) > 0:
+            return ([], 0 if count else None)
         if resource == "bolsa_vw_resumo":
             return ([{
                 "licitacoes": 596, "valor_estimado_total": 2423540684.07, "orgaos": 485,
@@ -32,7 +35,35 @@ class FakeClient:
             }], 1)
         if resource == "orgaos":
             return ([{"cnpj": "07615750000117", "razao_social": "SECRETARIA DE SAÚDE"}], None)
-        if resource in {"itens", "documentos"}:
+        if resource == "itens":
+            return ([{
+                "numero_controle_pncp": "07615750000117-1-000063/2026",
+                "descricao": "Material hospitalar descartável", "quantidade": 100,
+                "unidade": "UN", "valor_unitario_estimado": 12.5,
+                "valor_total_estimado": 1250, "catalogo_codigo": "12345",
+                "material_ou_servico": "MATERIAL",
+            }], None)
+        if resource == "resultados_itens":
+            return ([{
+                "numero_controle_pncp": "07615750000117-1-000063/2026",
+                "fornecedor_ni": "12345678000100", "fornecedor_nome": "FORNECEDOR TESTE",
+                "valor_total_homologado": 1000, "valor_unitario_homologado": 10,
+                "quantidade_homologada": 100, "percentual_desconto": 20,
+            }], None)
+        if resource == "contratos":
+            return ([], None)
+        if resource == "contratos_gov":
+            return ([], None)
+        if resource == "atas":
+            return ([], None)
+        if resource == "pca_itens":
+            return ([{
+                "id": 1, "orgao_cnpj": "07615750000117", "ano_pca": 2027,
+                "descricao": "Material hospitalar descartável", "categoria_nome": "Saúde",
+                "quantidade": 500, "valor_total": 5000, "data_desejada": "2027-03-01",
+                "catalogo_codigo": "12345",
+            }], None)
+        if resource == "documentos":
             return ([], None)
         raise AssertionError(f"Recurso inesperado: {resource}")
 
@@ -56,6 +87,36 @@ class SupabasePublicApiTests(unittest.TestCase):
         self.assertEqual("07615750000117-1-000063/2026", result["items"][0]["id"])
         procurement_call = next(call for call in client.calls if call[0] == "licitacoes")
         self.assertIn(("uf", "in.(MG,SP)"), procurement_call[1])
+
+    def test_combined_scope_filters_are_sent_to_the_same_query(self) -> None:
+        client = FakeClient()
+        result = SupabasePublicApi(client).list_procurements({
+            "q": ["material hospitalar"], "mode": ["exact"], "uf": ["MG"],
+            "city": ["Belo Horizonte"], "modality": ["Pregão"],
+            "min_value": ["500000"], "max_value": ["2000000"], "period": ["180"],
+        })
+        procurement_call = next(call for call in client.calls if call[0] == "licitacoes" and call[3])
+        params = procurement_call[1]
+        self.assertIn(("uf", "eq.MG"), params)
+        self.assertIn(("municipio_nome", "ilike.*Belo Horizonte*"), params)
+        self.assertIn(("modalidade_nome", "ilike.*Pregão*"), params)
+        self.assertIn(("valor_total_estimado", "gte.500000.0"), params)
+        self.assertIn(("valor_total_estimado", "lte.2000000.0"), params)
+        self.assertEqual("exact", result["search"]["mode"])
+        self.assertEqual(["material hospitalar"], result["search"]["terms"])
+
+    def test_contextual_analytics_never_fall_back_to_global_values(self) -> None:
+        result = SupabasePublicApi(FakeClient()).list_procurements({
+            "q": ["material hospitalar"], "uf": ["MG"], "facets": ["1"], "limit": ["10"],
+        })
+        facets = result["facets"]
+        self.assertEqual(1, result["total"])
+        self.assertEqual(120000, facets["estimated_value"])
+        self.assertEqual("MG", facets["states"][0]["code"])
+        self.assertEqual("SECRETARIA DE SAÚDE", facets["top_organizations"][0]["name"])
+        self.assertEqual("FORNECEDOR TESTE", facets["top_suppliers"][0]["name"])
+        self.assertEqual(1, facets["pca"]["count"])
+        self.assertFalse(facets["prices"]["available"], "uma amostra isolada não pode virar média")
 
 
 if __name__ == "__main__":

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+import statistics
 import threading
 import time
 from collections import Counter, defaultdict
@@ -204,11 +205,19 @@ class SupabasePublicApi:
             if item.strip().upper() in UF_NAMES
         ]
         text = (_first(query, "q") or "").strip()[:120]
+        search_mode = (_first(query, "mode") or "smart").strip().lower()
+        city = (_first(query, "city") or "").strip()[:100]
+        organization = (_first(query, "organization") or "").strip()[:120]
+        supplier = (_first(query, "supplier") or "").strip()[:120]
+        modality = (_first(query, "modality") or "").strip()[:120]
+        catalog_code = (_first(query, "catalog") or "").strip()[:80]
         sort = (_first(query, "sort") or "recent").strip().lower()
         period = (_first(query, "period") or "").strip().lower()
         status = (_first(query, "status") or "").strip().lower()
         want_facets = (_first(query, "facets") or "").lower() in {"1", "true", "yes"}
         terms, intent = expand_search_terms(text)
+        if search_mode == "exact" and text:
+            terms, intent = [text], None
 
         filters: list[tuple[str, str]] = []
         logical: list[str] = []
@@ -216,12 +225,47 @@ class SupabasePublicApi:
             filters.append(("uf", f"eq.{requested_ufs[0]}"))
         elif requested_ufs:
             filters.append(("uf", f"in.({','.join(requested_ufs)})"))
+        if city:
+            filters.append(("municipio_nome", f"ilike.*{_pg_token(city)}*"))
+        if organization:
+            org_ids = self._organization_ids(organization)
+            if not org_ids:
+                return self._empty_result(limit, offset, text, terms, intent, search_mode)
+            filters.append(("orgao_cnpj", f"in.({','.join(org_ids)})"))
+        if supplier:
+            supplier_keys = self._supplier_procurement_keys(supplier)
+            if not supplier_keys:
+                return self._empty_result(limit, offset, text, terms, intent, search_mode)
+            filters.append(("numero_controle_pncp", f"in.({','.join(supplier_keys)})"))
+        if catalog_code:
+            catalog_keys = self._catalog_procurement_keys(catalog_code)
+            if not catalog_keys:
+                return self._empty_result(limit, offset, text, terms, intent, search_mode)
+            filters.append(("numero_controle_pncp", f"in.({','.join(catalog_keys)})"))
+        if modality:
+            modalities = [_pg_token(item) for item in modality.split(",") if _pg_token(item)]
+            if len(modalities) == 1:
+                filters.append(("modalidade_nome", f"ilike.*{modalities[0]}*"))
+            elif modalities:
+                filters.append(("or", f"({','.join(f'modalidade_nome.ilike.*{item}*' for item in modalities)})"))
+
+        min_value = _optional_float(_first(query, "min_value"))
+        max_value = _optional_float(_first(query, "max_value"))
+        if min_value is not None:
+            filters.append(("valor_total_estimado", f"gte.{min_value}"))
+        if max_value is not None:
+            filters.append(("valor_total_estimado", f"lte.{max_value}"))
+
         if period == "today":
             today = datetime.now(timezone.utc).date().isoformat()
             filters.append(("data_publicacao_pncp", f"gte.{today}T00:00:00Z"))
-        elif period in {"7", "30", "365"}:
-            since = (datetime.now(timezone.utc) - timedelta(days=int(period))).isoformat()
+        elif _period_days(period):
+            since = (datetime.now(timezone.utc) - timedelta(days=_period_days(period))).isoformat()
             filters.append(("data_publicacao_pncp", f"gte.{since}"))
+        if _first(query, "from"):
+            filters.append(("data_publicacao_pncp", f"gte.{_first(query, 'from')}"))
+        if _first(query, "to"):
+            filters.append(("data_publicacao_pncp", f"lte.{_first(query, 'to')}"))
 
         if status == "open":
             logical.append("or(data_encerramento_proposta.is.null,data_encerramento_proposta.gte.now)")
@@ -235,7 +279,7 @@ class SupabasePublicApi:
             related, _ = self.client.get(table, [("select", column), (column, "not.is.null"), ("limit", "1000")], profile="bolsa")
             keys = sorted({str(row.get(column)) for row in related if row.get(column)})
             if not keys:
-                return self._empty_result(limit, offset, text, terms, intent)
+                return self._empty_result(limit, offset, text, terms, intent, search_mode)
             filters.append(("numero_controle_pncp", f"in.({','.join(keys)})"))
 
         if text:
@@ -268,11 +312,11 @@ class SupabasePublicApi:
         )
         params = [("select", select), *filters, ("order", order), ("limit", str(limit)), ("offset", str(offset))]
         rows, total = self.client.get("licitacoes", params, profile="bolsa", count=True)
-        items = self._enrich_procurements(rows)
-        facets = self._facets(filters) if want_facets else None
+        items = self._enrich_procurements(rows, query=text, terms=terms, search_mode=search_mode)
+        facets = self._facets(filters, terms=terms, text=text, catalog_code=catalog_code, scope=query) if want_facets else None
         return {
             "total": total if total is not None else len(items), "limit": limit, "offset": offset, "items": items,
-            "search": ({"query": text, "mode": "semantic", "intent": intent, "terms": terms} if text else None),
+            "search": ({"query": text, "mode": search_mode, "intent": intent, "terms": terms} if text else None),
             "facets": facets,
             "data_source": "supabase-live",
         }
@@ -368,7 +412,9 @@ class SupabasePublicApi:
 
         return self._cached("sources", 25, load)
 
-    def _enrich_procurements(self, rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    def _enrich_procurements(
+        self, rows: list[dict[str, Any]], *, query: str = "", terms: Optional[list[str]] = None, search_mode: str = "smart",
+    ) -> list[dict[str, Any]]:
         ncps = [str(row.get("numero_controle_pncp")) for row in rows if row.get("numero_controle_pncp")]
         org_ids = sorted({str(row.get("orgao_cnpj")) for row in rows if row.get("orgao_cnpj")})
         org_names = self._organization_names(org_ids)
@@ -377,6 +423,17 @@ class SupabasePublicApi:
         result = []
         for row in rows:
             ncp = str(row.get("numero_controle_pncp") or "")
+            object_text = str(row.get("objeto") or "")
+            match_reason = None
+            if query:
+                if _fold(query) in _fold(object_text):
+                    match_reason = f'O objeto contém a busca "{query}".'
+                elif any(_fold(term) in _fold(object_text) for term in (terms or [])):
+                    match_reason = "O objeto contém um termo relacionado interpretado pela busca inteligente."
+                elif search_mode == "exact":
+                    match_reason = "Um item, órgão ou identificador vinculado corresponde à busca exata."
+                else:
+                    match_reason = "Um item ou órgão vinculado corresponde a um termo semanticamente relacionado."
             result.append({
                 "id": ncp, "pncp_control_number": ncp, "purchase_number": row.get("numero_compra"),
                 "process_number": row.get("processo"), "object": row.get("objeto"),
@@ -389,6 +446,7 @@ class SupabasePublicApi:
                 "organization_name": org_names.get(str(row.get("orgao_cnpj")), row.get("orgao_cnpj") or "Órgão não informado"),
                 "purchasing_unit_name": None, "state_code": row.get("uf"), "city_name": row.get("municipio_nome"),
                 "items_count": item_counts.get(ncp, 0), "documents_count": document_counts.get(ncp, 0),
+                "match_reason": match_reason,
             })
         return result
 
@@ -399,6 +457,39 @@ class SupabasePublicApi:
             "orgaos", [("select", "cnpj,razao_social"), ("cnpj", f"in.({','.join(ids[:500])})"), ("limit", "500")], profile="bolsa",
         )
         return {str(row.get("cnpj")): str(row.get("razao_social") or row.get("cnpj")) for row in rows}
+
+    def _organization_ids(self, search: str) -> list[str]:
+        clean = search.strip()
+        if re.fullmatch(r"\d{14}", clean):
+            return [clean]
+        terms = [_pg_token(item) for item in clean.split(",") if _pg_token(item)]
+        conditions = ",".join(f"razao_social.ilike.*{term}*" for term in terms[:5])
+        rows, _ = self.client.get(
+            "orgaos", [("select", "cnpj"), ("or", f"({conditions})"), ("limit", "500")], profile="bolsa",
+        )
+        return sorted({str(row.get("cnpj")) for row in rows if row.get("cnpj")})
+
+    def _supplier_procurement_keys(self, search: str) -> list[str]:
+        clean = _pg_token(search)
+        conditions = [f"fornecedor_nome.ilike.*{clean}*"]
+        if re.fullmatch(r"\d{11,14}", search.strip()):
+            conditions.append(f"fornecedor_ni.eq.{search.strip()}")
+        rows, _ = self.client.get(
+            "resultados_itens",
+            [("select", "numero_controle_pncp"), ("or", f"({','.join(conditions)})"), ("limit", "1000")],
+            profile="bolsa",
+        )
+        return sorted({str(row.get("numero_controle_pncp")) for row in rows if row.get("numero_controle_pncp")})
+
+    def _catalog_procurement_keys(self, search: str) -> list[str]:
+        codes = [_pg_token(item) for item in search.split(",") if _pg_token(item)]
+        conditions = ",".join(f"catalogo_codigo.eq.{code}" for code in codes[:20])
+        rows, _ = self.client.get(
+            "itens",
+            [("select", "numero_controle_pncp"), ("or", f"({conditions})"), ("limit", "1000")],
+            profile="bolsa",
+        )
+        return sorted({str(row.get("numero_controle_pncp")) for row in rows if row.get("numero_controle_pncp")})
 
     def _related_counts(self, table: str, ncps: list[str]) -> Counter[str]:
         if not ncps:
@@ -430,37 +521,361 @@ class SupabasePublicApi:
             keys.update(str(row.get("numero_controle_pncp")) for row in org_lics if row.get("numero_controle_pncp"))
         return sorted(keys)[:300]
 
-    def _facets(self, filters: list[tuple[str, str]]) -> dict[str, Any]:
-        rows, _ = self.client.get(
+    def _facets(
+        self, filters: list[tuple[str, str]], *, terms: list[str], text: str, catalog_code: str,
+        scope: Mapping[str, list[str]],
+    ) -> dict[str, Any]:
+        rows = self._all_rows(
             "licitacoes",
-            [("select", "uf,orgao_cnpj,valor_total_estimado,data_encerramento_proposta"), *filters, ("limit", "1000")],
-            profile="bolsa",
+            [("select", "numero_controle_pncp,uf,municipio_nome,orgao_cnpj,modalidade_nome,situacao_nome,"
+                        "valor_total_estimado,data_publicacao_pncp,data_encerramento_proposta") , *filters],
         )
         states: dict[str, dict[str, Any]] = {}
+        cities: dict[tuple[str, str], dict[str, Any]] = {}
+        org_stats: dict[str, dict[str, Any]] = {}
+        modalities: Counter[str] = Counter()
+        statuses: Counter[str] = Counter()
+        timeline: dict[str, dict[str, Any]] = {}
+        now = datetime.now(timezone.utc)
+        new_since = now - timedelta(days=7)
+        open_count = new_count = failed_count = 0
         for row in rows:
             code = str(row.get("uf") or "").upper()
             if code not in UF_NAMES:
                 continue
-            state = states.setdefault(code, {"code": code, "name": UF_NAMES[code], "procurements": 0, "estimated_value": 0.0, "organizations": set()})
+            state = states.setdefault(code, {
+                "code": code, "name": UF_NAMES[code], "procurements": 0, "estimated_value": 0.0,
+                "organizations": set(), "city_names": set(), "organization_stats": {},
+            })
             state["procurements"] += 1
-            state["estimated_value"] += _float(row.get("valor_total_estimado"))
+            value = _float(row.get("valor_total_estimado"))
+            state["estimated_value"] += value
             if row.get("orgao_cnpj"):
-                state["organizations"].add(str(row["orgao_cnpj"]))
-        organizations = {str(row.get("orgao_cnpj")) for row in rows if row.get("orgao_cnpj")}
+                org_id = str(row["orgao_cnpj"])
+                state["organizations"].add(org_id)
+                state_org = state["organization_stats"].setdefault(org_id, {"procurements": 0, "estimated_value": 0.0})
+                state_org["procurements"] += 1
+                state_org["estimated_value"] += value
+                org = org_stats.setdefault(org_id, {"procurements": 0, "estimated_value": 0.0})
+                org["procurements"] += 1
+                org["estimated_value"] += value
+            city_name = str(row.get("municipio_nome") or "").strip()
+            if city_name:
+                state["city_names"].add(city_name)
+                city = cities.setdefault((code, city_name), {"name": city_name, "state_code": code, "procurements": 0, "estimated_value": 0.0})
+                city["procurements"] += 1
+                city["estimated_value"] += value
+            if row.get("modalidade_nome"):
+                modalities[str(row["modalidade_nome"])] += 1
+            if row.get("situacao_nome"):
+                statuses[str(row["situacao_nome"])] += 1
+                folded_status = _fold(str(row["situacao_nome"]))
+                if "desert" in folded_status or "fracass" in folded_status:
+                    failed_count += 1
+            end_at = _parse_datetime(row.get("data_encerramento_proposta"))
+            if end_at is None or end_at >= now:
+                open_count += 1
+            published_at = _parse_datetime(row.get("data_publicacao_pncp"))
+            if published_at:
+                if published_at >= new_since:
+                    new_count += 1
+                month = published_at.strftime("%Y-%m")
+                point = timeline.setdefault(month, {"month": month, "procurements": 0, "estimated_value": 0.0})
+                point["procurements"] += 1
+                point["estimated_value"] += value
+
+        organizations = sorted(org_stats)
+        org_names = self._organization_names(organizations)
+        top_organizations = sorted(({
+            "id": org_id, "name": org_names.get(org_id, org_id), **stats,
+        } for org_id, stats in org_stats.items()), key=lambda item: (item["estimated_value"], item["procurements"]), reverse=True)[:10]
+        ncps = [str(row.get("numero_controle_pncp")) for row in rows if row.get("numero_controle_pncp")]
+        item_rows = self._related_rows(
+            "itens", "numero_controle_pncp,descricao,quantidade,unidade,valor_unitario_estimado,"
+            "valor_total_estimado,catalogo_codigo,material_ou_servico", ncps,
+        )
+        matching_items = [
+            row for row in item_rows
+            if (text and _matches_terms(str(row.get("descricao") or ""), terms))
+            or (catalog_code and str(row.get("catalogo_codigo") or "") in catalog_code.split(","))
+        ]
+        price_groups: dict[tuple[str, str], list[float]] = defaultdict(list)
+        quantities: dict[tuple[str, str], float] = defaultdict(float)
+        group_labels: dict[tuple[str, str], str] = {}
+        for item in matching_items:
+            unit = _normalize_unit(item.get("unidade"))
+            description = " ".join(str(item.get("descricao") or "Item sem descrição").split())
+            catalog = str(item.get("catalogo_codigo") or "").strip()
+            specification = f"CATÁLOGO {catalog}" if catalog else _description_signature(description)
+            group = (specification, unit)
+            group_labels[group] = description[:180]
+            price = _float(item.get("valor_unitario_estimado"))
+            if price > 0:
+                price_groups[group].append(price)
+            quantities[group] += _float(item.get("quantidade"))
+        dominant_group = max(price_groups, key=lambda group: len(price_groups[group]), default=None)
+        dominant_prices = price_groups.get(dominant_group, []) if dominant_group else []
+        dominant_unit = dominant_group[1] if dominant_group else None
+        price_available = len(dominant_prices) >= 2
+        price_summary = {
+            "available": price_available, "unit": dominant_unit,
+            "basis": group_labels.get(dominant_group) if dominant_group else None,
+            "samples": len(dominant_prices), "quantity": quantities.get(dominant_group, 0.0) if dominant_group else 0.0,
+            "average": statistics.fmean(dominant_prices) if dominant_prices else None,
+            "median": statistics.median(dominant_prices) if dominant_prices else None,
+            "minimum": min(dominant_prices) if dominant_prices else None,
+            "maximum": max(dominant_prices) if dominant_prices else None,
+            "groups": [{"basis": group_labels.get(group), "unit": group[1], "samples": len(values)} for group, values in sorted(price_groups.items(), key=lambda item: len(item[1]), reverse=True)[:5]],
+            "note": (
+                f"Calculado apenas para a especificação comparável predominante em {dominant_unit}; outras descrições e unidades foram separadas."
+                if price_available else "São necessárias ao menos duas amostras com a mesma especificação e unidade neste escopo."
+            ),
+        }
+
+        result_rows = self._related_rows(
+            "resultados_itens", "numero_controle_pncp,fornecedor_ni,fornecedor_nome,valor_total_homologado,"
+            "valor_unitario_homologado,quantidade_homologada,percentual_desconto", ncps,
+        )
+        supplier_stats: dict[str, dict[str, Any]] = {}
+        for result in result_rows:
+            supplier_id = str(result.get("fornecedor_ni") or result.get("fornecedor_nome") or "Não informado")
+            supplier_stat = supplier_stats.setdefault(supplier_id, {
+                "id": supplier_id, "name": result.get("fornecedor_nome") or supplier_id,
+                "wins": 0, "homologated_value": 0.0, "discounts": [],
+            })
+            supplier_stat["wins"] += 1
+            supplier_stat["homologated_value"] += _float(result.get("valor_total_homologado"))
+            if result.get("percentual_desconto") is not None:
+                supplier_stat["discounts"].append(_float(result.get("percentual_desconto")))
+        top_suppliers = []
+        for supplier_stat in sorted(supplier_stats.values(), key=lambda item: (item["homologated_value"], item["wins"]), reverse=True)[:10]:
+            discounts = supplier_stat.pop("discounts")
+            supplier_stat["average_discount"] = statistics.fmean(discounts) if discounts else None
+            top_suppliers.append(supplier_stat)
+
+        requested_states = {item.strip().upper() for item in (_first(scope, "uf") or "").split(",") if item.strip()}
+        requested_city = _fold(_first(scope, "city") or "")
+        requested_org = _fold(_first(scope, "organization") or "")
+        requested_supplier = _fold(_first(scope, "supplier") or "")
+        min_scope_value = _optional_float(_first(scope, "min_value"))
+        max_scope_value = _optional_float(_first(scope, "max_value"))
+        scope_days = _period_days(_first(scope, "period") or "")
+        scope_since = now - timedelta(days=scope_days) if scope_days else None
+        selected_ncps = set(ncps)
+
+        all_contract_rows = self._all_rows(
+            "contratos", [("select", "numero_controle_pncp_compra,numero_contrato,objeto,orgao_cnpj,fornecedor_nome,"
+                                      "valor_global,valor_inicial,data_assinatura,vigencia_fim,uf,municipio_nome")],
+        )
+        contract_rows = []
+        for contract in all_contract_rows:
+            object_searchable = str(contract.get("objeto") or "")
+            if text and str(contract.get("numero_controle_pncp_compra") or "") not in selected_ncps and not _matches_terms(object_searchable, terms):
+                continue
+            if requested_states and str(contract.get("uf") or "").upper() not in requested_states:
+                continue
+            if requested_city and requested_city not in _fold(str(contract.get("municipio_nome") or "")):
+                continue
+            if requested_org and requested_org not in _fold(f"{contract.get('orgao_cnpj') or ''} {org_names.get(str(contract.get('orgao_cnpj')), '')}"):
+                continue
+            if requested_supplier and requested_supplier not in _fold(str(contract.get("fornecedor_nome") or "")):
+                continue
+            contract_value = _float(contract.get("valor_global") or contract.get("valor_inicial"))
+            if min_scope_value is not None and contract_value < min_scope_value:
+                continue
+            if max_scope_value is not None and contract_value > max_scope_value:
+                continue
+            if scope_since and (_parse_datetime(contract.get("data_assinatura")) or datetime.min.replace(tzinfo=timezone.utc)) < scope_since:
+                continue
+            contract_rows.append(contract)
+
+        gov_geography_unavailable = bool(requested_states or requested_city)
+        government_contracts = []
+        if not gov_geography_unavailable:
+            all_government_contracts = self._all_rows(
+                "contratos_gov", [("select", "id_fonte,numero,orgao_nome,uasg_nome,fornecedor_nome,objeto,categoria,"
+                                               "vigencia_inicio,vigencia_fim,valor_global,valor_inicial,situacao")],
+            )
+            for contract in all_government_contracts:
+                object_searchable = " ".join(str(contract.get(key) or "") for key in ("objeto", "categoria"))
+                organization_searchable = " ".join(str(contract.get(key) or "") for key in ("orgao_nome", "uasg_nome"))
+                if text and not _matches_terms(object_searchable, terms):
+                    continue
+                if requested_org and requested_org not in _fold(organization_searchable):
+                    continue
+                if requested_supplier and requested_supplier not in _fold(str(contract.get("fornecedor_nome") or "")):
+                    continue
+                contract_value = _float(contract.get("valor_global") or contract.get("valor_inicial"))
+                if min_scope_value is not None and contract_value < min_scope_value:
+                    continue
+                if max_scope_value is not None and contract_value > max_scope_value:
+                    continue
+                if scope_since and (_parse_datetime(contract.get("vigencia_inicio")) or datetime.min.replace(tzinfo=timezone.utc)) < scope_since:
+                    continue
+                government_contracts.append(contract)
+        expiring_limit = now + timedelta(days=180)
+        expiring_contracts = []
+        for contract in contract_rows:
+            end_at = _parse_datetime(contract.get("vigencia_fim"))
+            if end_at and now <= end_at <= expiring_limit:
+                expiring_contracts.append({
+                    "number": contract.get("numero_contrato"), "object": contract.get("objeto"),
+                    "supplier": contract.get("fornecedor_nome"), "value": _float(contract.get("valor_global") or contract.get("valor_inicial")),
+                    "validity_end": contract.get("vigencia_fim"), "state_code": contract.get("uf"), "city": contract.get("municipio_nome"),
+                })
+        for contract in government_contracts:
+            end_at = _parse_datetime(contract.get("vigencia_fim"))
+            if end_at and now <= end_at <= expiring_limit:
+                expiring_contracts.append({
+                    "number": contract.get("numero"), "object": contract.get("objeto"),
+                    "supplier": contract.get("fornecedor_nome"), "value": _float(contract.get("valor_global") or contract.get("valor_inicial")),
+                    "validity_end": contract.get("vigencia_fim"), "state_code": None, "city": None,
+                })
+        expiring_contracts.sort(key=lambda item: str(item.get("validity_end") or ""))
+
+        all_ata_rows = self._all_rows(
+            "atas", [("select", "numero_controle_pncp_compra,numero_controle_pncp_ata,numero_ata,objeto,orgao_cnpj,"
+                                  "uf,municipio_nome,data_assinatura,vigencia_fim,cancelado")],
+        )
+        ata_rows = []
+        for ata in all_ata_rows:
+            if text and str(ata.get("numero_controle_pncp_compra") or "") not in selected_ncps and not _matches_terms(str(ata.get("objeto") or ""), terms):
+                continue
+            if requested_states and str(ata.get("uf") or "").upper() not in requested_states:
+                continue
+            if requested_city and requested_city not in _fold(str(ata.get("municipio_nome") or "")):
+                continue
+            if requested_org and requested_org not in _fold(f"{ata.get('orgao_cnpj') or ''} {org_names.get(str(ata.get('orgao_cnpj')), '')}"):
+                continue
+            if scope_since and (_parse_datetime(ata.get("data_assinatura")) or datetime.min.replace(tzinfo=timezone.utc)) < scope_since:
+                continue
+            ata_rows.append(ata)
+        active_atas = [row for row in ata_rows if not row.get("cancelado")]
+        expiring_atas = []
+        for ata in active_atas:
+            end_at = _parse_datetime(ata.get("vigencia_fim"))
+            if end_at and now <= end_at <= expiring_limit:
+                expiring_atas.append({
+                    "number": ata.get("numero_ata") or ata.get("numero_controle_pncp_ata"),
+                    "object": ata.get("objeto"), "validity_end": ata.get("vigencia_fim"),
+                    "state_code": ata.get("uf"), "city": ata.get("municipio_nome"),
+                })
+        expiring_atas.sort(key=lambda item: str(item.get("validity_end") or ""))
+
+        pca_rows = self._all_rows(
+            "pca_itens",
+            [("select", "id,orgao_cnpj,ano_pca,descricao,categoria_nome,quantidade,valor_total,data_desejada,catalogo_codigo")],
+        )
+        scoped_orgs = set(organizations)
+        future_items = []
+        for item in pca_rows:
+            if scoped_orgs and str(item.get("orgao_cnpj") or "") not in scoped_orgs:
+                continue
+            if text and not _matches_terms(f"{item.get('descricao') or ''} {item.get('categoria_nome') or ''}", terms):
+                continue
+            future_items.append({
+                "id": item.get("id"), "description": item.get("descricao"), "category": item.get("categoria_nome"),
+                "quantity": _float(item.get("quantidade")), "estimated_value": _float(item.get("valor_total")),
+                "desired_at": item.get("data_desejada"), "catalog_code": item.get("catalogo_codigo"),
+                "organization_name": org_names.get(str(item.get("orgao_cnpj")), item.get("orgao_cnpj")),
+            })
+        future_items.sort(key=lambda item: item["estimated_value"], reverse=True)
+
         return {
             "states": sorted(({
-                **state, "organizations": len(state["organizations"]), "cities": 0,
-                "top_organizations": [], "last_collected_at": None,
+                "code": state["code"], "name": state["name"], "procurements": state["procurements"],
+                "estimated_value": state["estimated_value"], "organizations": len(state["organizations"]),
+                "cities": len(state["city_names"]), "last_collected_at": None,
+                "top_organizations": [{"legal_name": org_names.get(org_id, org_id), **stats} for org_id, stats in sorted(
+                    state["organization_stats"].items(), key=lambda item: (item[1]["estimated_value"], item[1]["procurements"]), reverse=True,
+                )[:3]],
             } for state in states.values()), key=lambda state: state["procurements"], reverse=True),
             "organizations": len(organizations), "estimated_value": sum(_float(row.get("valor_total_estimado")) for row in rows),
+            "open_procurements": open_count, "new_procurements": new_count, "failed_procurements": failed_count,
+            "cities": sorted(cities.values(), key=lambda item: (item["estimated_value"], item["procurements"]), reverse=True)[:12],
+            "top_organizations": top_organizations,
+            "modalities": [{"name": name, "procurements": count} for name, count in modalities.most_common(10)],
+            "statuses": [{"name": name, "procurements": count} for name, count in statuses.most_common(10)],
+            "timeline": [timeline[key] for key in sorted(timeline)[-24:]],
+            "prices": price_summary,
+            "top_suppliers": top_suppliers,
+            "results_count": len(result_rows),
+            "contracts": {
+                "count": len(contract_rows) + len(government_contracts),
+                "pncp_count": len(contract_rows), "federal_count": len(government_contracts),
+                "value": sum(_float(row.get("valor_global") or row.get("valor_inicial")) for row in [*contract_rows, *government_contracts]),
+                "expiring": expiring_contracts[:12],
+            },
+            "atas": {"count": len(active_atas), "expiring": expiring_atas[:12]},
+            "pca": {"count": len(future_items), "items": future_items[:12]},
+            "availability": {
+                "competition": {"available": False, "reason": "A fonte atual não publica o histórico completo de participantes e lances para este recorte."},
+                "suppliers": {"available": bool(result_rows), "reason": None if result_rows else "Ainda não há resultados homologados vinculados neste escopo."},
+                "prices": {"available": price_available, "reason": price_summary["note"]},
+                "pca": {"available": bool(future_items), "reason": None if future_items else "Nenhum item de PCA relacionado foi localizado no escopo atual."},
+                "federal_contracts": {
+                    "available": not gov_geography_unavailable,
+                    "reason": "Contratos.gov não fornece UF/município neste conjunto; os contratos federais foram excluídos do recorte geográfico."
+                    if gov_geography_unavailable else None,
+                },
+            },
             "records_sampled": len(rows),
         }
 
-    def _empty_result(self, limit: int, offset: int, text: str, terms: list[str], intent: Optional[str]) -> dict[str, Any]:
+    def _all_rows(self, resource: str, params: list[tuple[str, str]], *, maximum: int = 5000) -> list[dict[str, Any]]:
+        rows: list[dict[str, Any]] = []
+        batch = 1000
+        while len(rows) < maximum:
+            page, _ = self.client.get(
+                resource, [*params, ("limit", str(min(batch, maximum - len(rows)))), ("offset", str(len(rows)))], profile="bolsa",
+            )
+            rows.extend(page)
+            if len(page) < batch:
+                break
+        return rows
+
+    def _related_rows(
+        self, resource: str, select: str, ncps: list[str], *, key: str = "numero_controle_pncp",
+    ) -> list[dict[str, Any]]:
+        if not ncps:
+            return []
+        if len(ncps) > 100:
+            selected = set(ncps)
+            return [row for row in self._all_rows(resource, [("select", select)]) if str(row.get(key) or "") in selected]
+        rows: list[dict[str, Any]] = []
+        for start in range(0, len(ncps), 60):
+            batch = ncps[start:start + 60]
+            page, _ = self.client.get(
+                resource, [("select", select), (key, f"in.({','.join(batch)})"), ("limit", "1000")], profile="bolsa",
+            )
+            rows.extend(page)
+        return rows
+
+    def _empty_result(
+        self, limit: int, offset: int, text: str, terms: list[str], intent: Optional[str], search_mode: str = "smart",
+    ) -> dict[str, Any]:
         return {
             "total": 0, "limit": limit, "offset": offset, "items": [],
-            "search": ({"query": text, "mode": "semantic", "intent": intent, "terms": terms} if text else None),
-            "facets": {"states": [], "organizations": 0, "estimated_value": 0, "records_sampled": 0},
+            "search": ({"query": text, "mode": search_mode, "intent": intent, "terms": terms} if text else None),
+            "facets": {
+                "states": [], "organizations": 0, "estimated_value": 0, "open_procurements": 0,
+                "new_procurements": 0, "failed_procurements": 0, "cities": [], "top_organizations": [],
+                "modalities": [], "statuses": [], "timeline": [], "top_suppliers": [], "results_count": 0,
+                "prices": {"available": False, "unit": None, "samples": 0, "quantity": 0, "average": None,
+                           "median": None, "minimum": None, "maximum": None, "groups": [],
+                           "note": "Nenhum resultado encontrado para este contexto."},
+                "contracts": {"count": 0, "pncp_count": 0, "federal_count": 0, "value": 0, "expiring": []},
+                "atas": {"count": 0, "expiring": []},
+                "pca": {"count": 0, "items": []},
+                "availability": {
+                    "competition": {"available": False, "reason": "Sem dados neste escopo."},
+                    "suppliers": {"available": False, "reason": "Sem resultados homologados neste escopo."},
+                    "prices": {"available": False, "reason": "Sem preços comparáveis neste escopo."},
+                    "pca": {"available": False, "reason": "Sem itens de PCA neste escopo."},
+                    "federal_contracts": {"available": False, "reason": "Sem dados neste escopo."},
+                },
+                "records_sampled": 0,
+            },
             "data_source": "supabase-live",
         }
 
@@ -511,6 +926,50 @@ def _pg_token(value: str) -> str:
     return re.sub(r"[(),.*]", " ", value).strip()[:60]
 
 
+def _matches_terms(value: str, terms: list[str]) -> bool:
+    folded = _fold(value)
+    return any(_fold(term) in folded for term in terms if term)
+
+
+def _normalize_unit(value: Any) -> str:
+    unit = " ".join(str(value or "NÃO INFORMADA").upper().split())
+    aliases = {
+        "UN": "UNIDADE", "UND": "UNIDADE", "UNID": "UNIDADE", "UNIDADE(S)": "UNIDADE",
+        "CX": "CAIXA", "PCT": "PACOTE", "KG.": "KG", "L": "LITRO", "LT": "LITRO",
+    }
+    return aliases.get(unit, unit)[:60]
+
+
+def _description_signature(value: str) -> str:
+    words = re.findall(r"[a-z0-9]+", _fold(value))
+    ignored = {"de", "da", "do", "das", "dos", "para", "com", "sem", "em", "e", "a", "o"}
+    meaningful = [word for word in words if word not in ignored]
+    return " ".join(meaningful[:10]) or "item-sem-especificacao"
+
+
+def _parse_datetime(value: Any) -> Optional[datetime]:
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return parsed.astimezone(timezone.utc)
+    except (TypeError, ValueError):
+        return None
+
+
+def _period_days(value: str) -> int:
+    clean = value.strip().lower()
+    if clean.endswith("m") and clean[:-1].isdigit():
+        return max(1, min(3650, int(clean[:-1]) * 30))
+    if clean.endswith("y") and clean[:-1].isdigit():
+        return max(1, min(3650, int(clean[:-1]) * 365))
+    if clean.isdigit():
+        return max(1, min(3650, int(clean)))
+    return 0
+
+
 def _pncp_url(ncp: str) -> str:
     match = re.match(r"(\d{14})-\d+-(\d+)/(\d{4})$", ncp)
     if not match:
@@ -544,3 +1003,12 @@ def _float(value: Any) -> float:
         return float(value or 0)
     except (TypeError, ValueError):
         return 0.0
+
+
+def _optional_float(value: Optional[str]) -> Optional[float]:
+    if value is None or not str(value).strip():
+        return None
+    try:
+        return float(str(value).replace(",", "."))
+    except (TypeError, ValueError):
+        return None
