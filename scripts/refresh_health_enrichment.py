@@ -34,6 +34,15 @@ def fetch(url: str, user_agent: str, *, binary: bool = False) -> bytes | str:
     return payload if binary else payload.decode("utf-8", errors="replace")
 
 
+def remote_version(url: str, user_agent: str) -> str:
+    request = Request(url, method="HEAD", headers={"User-Agent": user_agent, "Accept": "*/*"})
+    with urlopen(request, timeout=30) as response:
+        return "|".join((
+            response.headers.get("ETag", ""), response.headers.get("Last-Modified", ""),
+            response.headers.get("Content-Length", ""),
+        ))
+
+
 def discover_bps(user_agent: str, first_year: int) -> list[dict[str, str]]:
     resources: list[dict[str, str]] = []
     try:
@@ -53,8 +62,10 @@ def discover_bps(user_agent: str, first_year: int) -> list[dict[str, str]]:
         resources = [{
             "year": str(year),
             "url": f"https://s3.sa-east-1.amazonaws.com/ckan.saude.gov.br/BPS/csv/{year}_csv.zip",
-            "updated_at": "discovered-by-official-pattern",
+            "updated_at": "",
         } for year in range(first_year, current_year + 1)]
+        for resource in resources:
+            resource["updated_at"] = remote_version(resource["url"], user_agent)
     unique = {item["year"]: item for item in resources}
     return [unique[year] for year in sorted(unique)]
 
