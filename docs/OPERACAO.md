@@ -40,7 +40,9 @@ docker compose --env-file deploy/vps/.env -f deploy/vps/docker-compose.yml up -d
 
 O staging publica somente em loopback: API em `127.0.0.1:18120` e interface em `127.0.0.1:18121`. A rede bridge permite saída para as APIs oficiais, mas nenhum contêiner recebe porta pública. Nada fica exposto na internet até que um domínio seja escolhido e o proxy HTTPS compartilhado seja configurado conscientemente.
 
-Os vhosts preparados para `bolsa.frontlinetec.com.br` ficam em `deploy/vps/proxy`. A versão HTTP existe apenas para o desafio ACME inicial; depois da emissão do certificado ela deve ser substituída pela versão HTTPS. O proxy compartilhado deve ser conectado à rede `licita-es-internal` sem recriar os demais projetos.
+Os vhosts preparados para `bolsa.frontlinetec.com.br` ficam em `deploy/vps/proxy`. A versão HTTP existe apenas para o desafio ACME inicial; depois da emissão do certificado ela deve ser substituída pela versão HTTPS. O proxy compartilhado deve ser conectado somente à rede externa `licita-es-proxy`, que expõe o contêiner web pelo alias exclusivo `licita-es-web`. A API e o scheduler permanecem na rede `licita-es-internal` e não devem ser ligados ao proxy compartilhado.
+
+Execute primeiro `deploy/vps/bootstrap.sh`, suba o Compose e então execute como root `deploy/vps/install-shared-proxy.sh`. Os scripts são idempotentes: preparam a rede de proxy, conectam apenas os dois contêineres envolvidos, instalam o vhost HTTPS, validam o Nginx e recarregam sua configuração sem recriar o proxy compartilhado.
 
 ## Backfill
 

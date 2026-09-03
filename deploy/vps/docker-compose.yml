@@ -61,7 +61,8 @@ services:
     ports:
       - "127.0.0.1:18121:8080"
     networks:
-      internal:
+      internal: {}
+      proxy:
         aliases:
           - licita-es-web
     healthcheck:
@@ -73,3 +74,6 @@ services:
 networks:
   internal:
     name: licita-es-internal
+  proxy:
+    name: licita-es-proxy
+    external: true
