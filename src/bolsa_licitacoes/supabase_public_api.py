@@ -513,9 +513,9 @@ class SupabasePublicApi:
         if catalog_codes:
             query["catalog"] = [",".join(dict.fromkeys(catalog_codes[:8]))]
         elif descriptions:
-            # A compact technical signature is safer than treating a complete specification as one phrase.
-            signature = _description_signature(descriptions[0])
-            query["q"] = [" ".join(signature.split()[:6])]
+            # Without a catalog code, keep the historical cut in the first specific product term.
+            terms = [word for word in normalize_text(descriptions[0]).split() if len(word) >= 4]
+            query["q"] = [next((word for word in terms if word not in {"material", "servico", "aquisicao"}), terms[0] if terms else "")]
         else:
             return {"available": False, "reason": "A licitação ainda não possui itens suficientes para comparação."}
         payload = self.list_procurements(query)
@@ -538,7 +538,7 @@ class SupabasePublicApi:
             })
         scope_label = (
             f"CATMAT {', '.join(dict.fromkeys(catalog_codes[:8]))}" if catalog_codes
-            else " ".join(_description_signature(descriptions[0]).split()[:6])
+            else query.get("q", ["item sem catálogo"])[0]
         )
         return {
             "available": bool(payload.get("total")),

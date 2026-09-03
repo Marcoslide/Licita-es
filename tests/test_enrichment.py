@@ -73,6 +73,20 @@ class EnrichmentTests(unittest.TestCase):
         result = HealthPriceIndex(Path(self.tempdir.name) / "missing.db").enrich([])
         self.assertFalse(result["available"])
 
+    def test_text_match_does_not_mix_pharmaceutical_forms(self) -> None:
+        with sqlite3.connect(self.path) as connection:
+            connection.execute(
+                "update bps_prices set description='Ceftriaxona 1 g ampola', description_key='ceftriaxona 1 g ampola' where id=1"
+            )
+            connection.execute(
+                "update bps_prices set description='Ceftriaxona 1 g creme', description_key='ceftriaxona 1 g creme', unit='BISNAGA' where id=2"
+            )
+            connection.execute("create virtual table bps_fts using fts5(description, content='bps_prices', content_rowid='id')")
+            connection.execute("insert into bps_fts(rowid,description) select id,description from bps_prices")
+        result = HealthPriceIndex(self.path).enrich([{"item_number": 1, "description": "Ceftriaxona 1 g creme"}])
+        self.assertEqual(1, result["items"][0]["bps"]["samples"])
+        self.assertEqual("BISNAGA", result["items"][0]["bps"]["unit"])
+
     def test_dou_score_requires_context_beyond_process_number(self) -> None:
         procurement = {"organization_name": "Prefeitura de Guaraciaba", "city_name": "Guaraciaba", "object": "medicamentos hospitalares"}
         strong = DouSearch._score({"title": "Aviso", "content": "Prefeitura de Guaraciaba compra medicamentos hospitalares"}, procurement)

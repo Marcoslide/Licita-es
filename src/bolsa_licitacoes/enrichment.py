@@ -29,6 +29,12 @@ MEDICINE_CUES = {
     "mg", "ml", "comprimido", "capsula", "ampola", "frasco", "solucao", "injetavel", "dosagem",
     "concentracao", "medicamento", "farmaco", "principio", "farmaceutica", "farmaceutico",
 }
+PHARMACEUTICAL_FORMS = (
+    {"creme", "crem"}, {"pomada", "pom"}, {"comprimido", "com"}, {"capsula", "cap"},
+    {"ampola", "amp"}, {"frasco", "fa", "fr"}, {"injetavel", "inj"}, {"solucao", "sol"},
+    {"suspensao", "susp"}, {"xarope", "xpe"}, {"gel"}, {"colirio", "oft"},
+    {"spray"}, {"aerossol"}, {"elixir", "elx"}, {"gotas", "gota"}, {"envelope", "env"},
+)
 
 
 def normalize_text(value: object) -> str:
@@ -134,6 +140,9 @@ class HealthPriceIndex:
             candidates = []
         required = set(tokens[:2])
         rows = [row for row in candidates if required.issubset(set(str(row["description_key"]).split()))]
+        requested_forms = _form_groups(description)
+        if requested_forms:
+            rows = [row for row in rows if _matches_form(str(row["description_key"]), requested_forms)]
         return rows, "descrição técnica compatível" if rows else None
 
     def _cmed_rows(
@@ -151,6 +160,11 @@ class HealthPriceIndex:
             rows = connection.execute(
                 f"select * from cmed_prices where registration in ({placeholders}) limit 16", registrations
             ).fetchall()
+            requested_forms = _form_groups(normalize_text(description))
+            if requested_forms:
+                rows = [row for row in rows if _matches_form(
+                    normalize_text(f"{row['presentation'] or ''} {row['product'] or ''}"), requested_forms
+                )]
             if rows:
                 return rows, "registro Anvisa confirmado pelo BPS"
         normalized = normalize_text(description)
@@ -339,3 +353,13 @@ class DouSearch:
             "available": False, "reason": reason, "results": [], "matched": 0,
             "source": {"name": "Diário Oficial da União — Imprensa Nacional", "url": "https://www.in.gov.br/"},
         }
+
+
+def _form_groups(description: str) -> list[set[str]]:
+    tokens = set(normalize_text(description).split())
+    return [group for group in PHARMACEUTICAL_FORMS if tokens & group]
+
+
+def _matches_form(candidate: str, requested: list[set[str]]) -> bool:
+    tokens = set(normalize_text(candidate).split())
+    return all(bool(tokens & group) for group in requested)
