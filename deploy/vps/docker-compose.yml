@@ -61,7 +61,9 @@ services:
     ports:
       - "127.0.0.1:18121:8080"
     networks:
-      - internal
+      internal:
+        aliases:
+          - licita-es-web
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/health"]
       interval: 30s

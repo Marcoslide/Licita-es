@@ -40,6 +40,8 @@ docker compose --env-file deploy/vps/.env -f deploy/vps/docker-compose.yml up -d
 
 O staging publica somente em loopback: API em `127.0.0.1:18120` e interface em `127.0.0.1:18121`. A rede bridge permite saída para as APIs oficiais, mas nenhum contêiner recebe porta pública. Nada fica exposto na internet até que um domínio seja escolhido e o proxy HTTPS compartilhado seja configurado conscientemente.
 
+Os vhosts preparados para `bolsa.frontlinetec.com.br` ficam em `deploy/vps/proxy`. A versão HTTP existe apenas para o desafio ACME inicial; depois da emissão do certificado ela deve ser substituída pela versão HTTPS. O proxy compartilhado deve ser conectado à rede `licita-es-internal` sem recriar os demais projetos.
+
 ## Backfill
 
 Use janelas pequenas e `max-pages`; cada período é uma execução isolada. `collection_checkpoints` persiste período/cursor/status, mas o orquestrador recorrente que agenda automaticamente janelas de 5–15 minutos e retoma checkpoints ainda não foi conectado a uma fila externa, pois o projeto não possuía sistema de filas.
