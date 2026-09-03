@@ -18,6 +18,7 @@ class MarketSearchEngineTests(unittest.TestCase):
             SearchDocument("office", "Aquisição de cadeira de escritório giratória", item_rows=[
                 {"numero_item": 1, "descricao": "Cadeira executiva para escritório", "catalogo_codigo": "CAT-20"},
             ]),
+            SearchDocument("school-computers", "Aquisição de computadores para escolas municipais"),
             SearchDocument("medicine-1g", "Aquisição de medicamentos", item_rows=[
                 {"numero_item": 9, "descricao": "Ceftriaxona sódica 1 g solução injetável", "catalogo_codigo": "BR123"},
             ]),
@@ -45,6 +46,11 @@ class MarketSearchEngineTests(unittest.TestCase):
         self.assertEqual("cadeira escolar", plan.correction)
         self.assertGreaterEqual(plan.correction_confidence or 0, .8)
         self.assertEqual("school", hits[0].procurement_id)
+        self.assertNotIn("school-computers", [hit.procurement_id for hit in hits])
+
+    def test_plural_is_not_reported_as_a_typo(self) -> None:
+        plan, _ = self.search("cadeiras escolares")
+        self.assertIsNone(plan.correction)
 
     def test_exact_mode_requires_literal_phrase_in_object_or_item(self) -> None:
         _, hits = self.search('"cadeira escolar"', "exact")

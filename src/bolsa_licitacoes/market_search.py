@@ -190,6 +190,9 @@ class QueryCompiler:
             if token in vocab or len(token) < 4:
                 corrections.append(token)
                 continue
+            if any(_stem_portuguese(candidate) == _stem_portuguese(token) for candidate in vocab):
+                corrections.append(token)
+                continue
             threshold = _fuzzy_threshold(token)
             candidate = get_close_matches(token, vocab, n=1, cutoff=threshold)
             if candidate:
@@ -204,6 +207,7 @@ class QueryCompiler:
         if fuzzy_terms and corrections:
             correction = " ".join(corrections)
             correction_confidence = min(confidence_values) if confidence_values else None
+            core_terms = _core_terms(corrections)
 
         return QueryPlan(
             original=original,
@@ -331,7 +335,7 @@ class MarketSearchEngine:
             score -= 8
         score -= _noise_penalty(plan, searchable)
         threshold = {"exact": 45, "precise": 52, "balanced": 28, "broad": 18}[plan.mode]
-        if coverage < _coverage_floor(plan) and not exact_mode_ok and not catalog_items and not identifier_match and not organization_match:
+        if coverage < _coverage_floor(plan) and not exact_mode_ok and not catalog_items and not synonym_matches and not specification_warning and not identifier_match and not organization_match:
             return None
         effective_threshold = min(threshold, 20) if specification_warning and core_matches else threshold
         if score < effective_threshold:
@@ -443,7 +447,7 @@ def _fuzzy_threshold(token: str) -> float:
 def _coverage_floor(plan: QueryPlan) -> float:
     if len(plan.core_terms) <= 1:
         return 1.0
-    return {"exact": 1.0, "precise": .75, "balanced": .5, "broad": .34}[plan.mode]
+    return {"exact": 1.0, "precise": 1.0, "balanced": .75, "broad": .5}[plan.mode]
 
 
 def _noise_penalty(plan: QueryPlan, text: str) -> int:
