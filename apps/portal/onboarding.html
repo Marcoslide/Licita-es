@@ -28,7 +28,7 @@
     <div class="form-msg" id="msg"></div>
     <div style="display:flex;gap:10px">
       <button class="btn primary big" type="submit">Começar a explorar</button>
-      <a class="btn big ghost" href="app.html">Pular</a>
+      <button class="btn big ghost" type="button" id="btnPular">Pular</button>
     </div>
   </form>
 </div></div>
@@ -59,6 +59,14 @@ document.getElementById("f").addEventListener("submit", async (e) => {
     track("onboarding_completed", onboarding);
     location.href = "app.html";
   } catch { formMsg(document.getElementById("msg"), "err", "Não foi possível salvar — você pode pular e ajustar depois."); }
+});
+document.getElementById("btnPular").addEventListener("click", async () => {
+  // grava onboarding mesmo ao pular — senão login.html manda pra cá de novo em todo login futuro
+  try {
+    const u = (await sb.auth.getUser()).data.user;
+    await sb.from("saas_perfis").update({ onboarding: { pulado_em: new Date().toISOString() } }).eq("user_id", u.id);
+  } catch { /* mesmo se falhar, segue pro app — não travar o usuário aqui */ }
+  location.href = "app.html";
 });
 </script>
 </body></html>
