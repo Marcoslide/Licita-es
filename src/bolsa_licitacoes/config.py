@@ -13,6 +13,8 @@ class Settings:
     retries: int
     user_agent: str
     admin_api_token: str
+    supabase_url: str
+    supabase_anon_key: str
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -26,4 +28,6 @@ class Settings:
                 "BolsaDeLicitacoes/0.1 (+contato-do-operador)",
             ),
             admin_api_token=os.getenv("BOLSA_ADMIN_API_TOKEN", ""),
+            supabase_url=os.getenv("BOLSA_SUPABASE_URL", ""),
+            supabase_anon_key=os.getenv("BOLSA_SUPABASE_ANON_KEY", ""),
         )

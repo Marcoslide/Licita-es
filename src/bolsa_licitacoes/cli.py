@@ -85,7 +85,10 @@ def main() -> None:
     elif args.command == "stats":
         print(json.dumps(db.table_counts(), ensure_ascii=False, indent=2))
     elif args.command == "serve-admin":
-        serve(db, args.host, args.port, settings.admin_api_token)
+        serve(
+            db, args.host, args.port, settings.admin_api_token,
+            supabase_url=settings.supabase_url, supabase_anon_key=settings.supabase_anon_key,
+        )
     elif args.command == "run-scheduler":
         run_scheduler(db, settings)
     elif args.command == "collect-pncp":

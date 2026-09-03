@@ -543,6 +543,23 @@ main.view{width:100%;max-width:1780px;margin:0 auto;padding:18px 24px 48px}.grid
 .statusbar{gap:18px;padding:8px 24px;background:rgba(7,16,29,.9);border-color:var(--line);backdrop-filter:blur(18px);font-family:var(--sans);font-size:8.5px}.sb-demo{letter-spacing:.35px}.sb-dot{width:6px;height:6px}
 .toast{border-radius:14px;background:#14243a;border-color:rgba(142,162,255,.32);box-shadow:0 18px 50px rgba(0,0,0,.42)}
 
+body[data-data-mode="real"] .demo-tab{display:none}
+.real-source-strip{display:flex;flex-wrap:wrap;gap:7px;margin-top:15px;position:relative;z-index:1}
+.real-source-chip{display:flex;align-items:center;gap:7px;padding:6px 9px;border:1px solid rgba(142,162,255,.2);border-radius:10px;background:rgba(6,14,28,.2);font-size:9px;color:var(--mut)}
+.real-source-chip b{color:var(--ink);font-family:var(--mono);font-size:10px}.real-source-chip i{width:6px;height:6px;border-radius:50%;background:var(--up);box-shadow:0 0 0 3px var(--up-bg)}
+.search-context{display:flex;align-items:flex-start;gap:12px;padding:14px 16px;margin-bottom:12px;border:1px solid rgba(142,162,255,.26);border-radius:14px;background:linear-gradient(135deg,rgba(142,162,255,.11),rgba(66,214,164,.05))}
+.search-context-main{flex:1;min-width:0}.search-context h3{margin:0 0 3px;font-size:13px}.search-context p{margin:0;color:var(--mut);font-size:10px}.semantic-terms{display:flex;gap:5px;flex-wrap:wrap;margin-top:9px}.semantic-term{padding:3px 7px;border-radius:7px;background:rgba(255,255,255,.045);color:#bfc9d9;font-size:8.5px}
+.real-results-view{max-width:1280px;margin:0 auto}.real-view-head{display:flex;gap:14px;align-items:flex-end;justify-content:space-between;margin-bottom:16px}.real-view-head h1{margin:0 0 4px;font:700 25px var(--disp);letter-spacing:-.8px}.real-view-head p{margin:0;color:var(--mut);font-size:11px}.real-view-search{display:flex;gap:8px;min-width:min(470px,48vw)}.real-view-search input{flex:1;height:42px;border:1px solid var(--line2);border-radius:12px;background:var(--panel);color:var(--ink);padding:0 13px;font:500 11px var(--sans)}
+.real-result-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.real-result-list .explorer-result{height:100%;margin:0}.real-pagination{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:14px;color:var(--mut);font-size:10px}
+
+.setup-layer{position:fixed;inset:0;z-index:120;display:none;place-items:center;padding:22px;background:rgba(2,8,16,.78);backdrop-filter:blur(16px)}
+.setup-layer.on{display:grid}.setup-panel{width:min(760px,96vw);max-height:92vh;overflow:auto;border:1px solid rgba(142,162,255,.28);border-radius:24px;background:linear-gradient(150deg,#14253c,#0b1829 70%);box-shadow:0 40px 120px rgba(0,0,0,.55)}
+.setup-head{padding:25px 28px 20px;border-bottom:1px solid var(--line);display:flex;gap:18px;align-items:flex-start}.setup-mark{width:44px;height:44px;flex:0 0 44px;border-radius:14px;background:var(--amber-bg);display:grid;place-items:center;color:#c9d1ff;font:700 17px var(--disp)}
+.setup-head h2{margin:0 0 5px;font:700 23px var(--disp);letter-spacing:-.7px}.setup-head p{margin:0;color:var(--mut);font-size:11px;max-width:580px}.setup-close{margin-left:auto;width:38px;height:38px;border:1px solid var(--line2);border-radius:11px;background:rgba(255,255,255,.03)}
+.setup-body{padding:22px 28px 28px}.setup-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.setup-field{display:flex;flex-direction:column;gap:6px}.setup-field.wide{grid-column:1/-1}.setup-field label{font:700 9px var(--sans);letter-spacing:.35px;color:#dce4ef}.setup-field small{color:var(--dim);font-size:8.5px}.setup-field input,.setup-field textarea,.setup-field select{width:100%;border:1px solid var(--line2);border-radius:11px;background:rgba(4,12,24,.4);color:var(--ink);padding:10px 12px;font:500 11px var(--sans);outline:0}.setup-field textarea{min-height:72px;resize:vertical}.setup-field input:focus,.setup-field textarea:focus,.setup-field select:focus{border-color:var(--amber-dim);box-shadow:0 0 0 4px var(--amber-bg)}
+.region-choices{display:flex;flex-wrap:wrap;gap:6px;max-height:104px;overflow:auto;padding:2px}.region-choice{padding:5px 8px;border:1px solid var(--line);border-radius:8px;color:var(--mut);font-size:8.5px}.region-choice.on{color:#eef1ff;border-color:rgba(142,162,255,.45);background:var(--amber-bg)}
+.setup-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;margin-top:20px}.setup-note{margin-right:auto;color:var(--dim);font-size:8.5px;max-width:300px}
+
 @media(max-width:1200px){
   .tb-co{display:none}.control-deck{top:78px}.hm-flex{grid-template-columns:1fr}.hm-drill{padding:18px 0 0;border-left:0;border-top:1px solid var(--line)}
 }
@@ -553,6 +570,7 @@ main.view{width:100%;max-width:1780px;margin:0 auto;padding:18px 24px 48px}.grid
   main.view,body.comfortable main.view{padding:14px 12px 38px}.grid{gap:12px}.brief,.ask{padding:18px}.brief h2{font-size:19px}.fn-row{grid-template-columns:44px 75px 1fr}
   .hm-stage,.br-map{min-height:380px}.hm-map{min-width:0}.hm-flex{display:flex}.panel,.brief,.ask,.ficha-head{border-radius:15px}
   .statusbar{padding:7px 12px;gap:10px}.statusbar span:nth-child(3),.statusbar span:nth-child(4){display:none}.sb-demo{width:100%;margin:0}
+  .real-view-head{align-items:stretch;flex-direction:column}.real-view-search{min-width:0;width:100%}.real-result-list{grid-template-columns:1fr}.setup-grid{grid-template-columns:1fr}.setup-field.wide{grid-column:auto}.setup-head,.setup-body{padding-left:18px;padding-right:18px}.setup-note{display:none}
 }
 </style>
 
@@ -567,9 +585,9 @@ main.view{width:100%;max-width:1780px;margin:0 auto;padding:18px 24px 48px}.grid
         <div class="brand-sub">Inteligência do mercado público</div>
       </div>
     </div>
-    <button class="tb-co" title="Escopo atual da exploração do mercado público">
+    <button class="tb-co" id="profileBtn" title="Configure o que sua empresa deseja monitorar">
       <span class="co-dot"></span>
-      <div><b>Mercado Público Nacional</b><br><span>Brasil · PNCP + Compras.gov · dados públicos</span></div>
+      <div><b id="profileName">Meu monitoramento</b><br><span id="profileSummary">Brasil · todos os mercados · dados públicos</span></div>
       <span class="mut">▾</span>
     </button>
     <div class="tb-search">
@@ -594,19 +612,19 @@ main.view{width:100%;max-width:1780px;margin:0 auto;padding:18px 24px 48px}.grid
   <nav class="tabs" id="tabs">
     <button class="tab on" data-view="terminal"><span class="tno">F1</span>Visão geral</button>
     <button class="tab" data-view="ficha"><span class="tno">F2</span>Licitações</button>
-    <button class="tab" data-view="mercado"><span class="tno">F3</span>Mercado</button>
-    <button class="tab" data-view="concorrente"><span class="tno">F4</span>Concorrência</button>
-    <button class="tab" data-view="docs"><span class="tno">F5</span>Documentos</button>
-    <button class="tab" data-view="carteira"><span class="tno">F6</span>Carteira</button>
+    <button class="tab demo-tab" data-view="mercado"><span class="tno">F3</span>Mercado</button>
+    <button class="tab demo-tab" data-view="concorrente"><span class="tno">F4</span>Concorrência</button>
+    <button class="tab demo-tab" data-view="docs"><span class="tno">F5</span>Documentos</button>
+    <button class="tab demo-tab" data-view="carteira"><span class="tno">F6</span>Carteira</button>
   </nav>
 
   <section class="control-deck" aria-label="Controles da visão de mercado">
     <div class="control-intro"><span class="control-kicker">Explorar</span><span class="control-context" id="controlContext">Brasil · mercado completo</span></div>
     <div class="control-fields">
-      <div class="control-field"><label for="filterPeriod">Período</label><select id="filterPeriod"><option value="today">Hoje</option><option value="7">7 dias</option><option value="30" selected>30 dias</option><option value="365">12 meses</option></select></div>
+      <div class="control-field"><label for="filterPeriod">Período</label><select id="filterPeriod"><option value="" selected>Todo o histórico</option><option value="today">Hoje</option><option value="7">7 dias</option><option value="30">30 dias</option><option value="365">12 meses</option></select></div>
       <div class="control-field"><label for="filterUf">Região</label><select id="filterUf"><option value="">Brasil inteiro</option></select></div>
       <div class="control-field"><label for="filterSegment">Mercado</label><select id="filterSegment"><option>Todos os segmentos</option><option>Medicamentos</option><option>Material hospitalar</option><option>Construção</option><option>Tecnologia</option><option>Alimentação</option></select></div>
-      <div class="control-field"><label for="filterStatus">Situação</label><select id="filterStatus"><option value="open">Oportunidades abertas</option><option value="published_today">Publicadas hoje</option><option value="results">Com resultados</option><option value="contracts">Com contratos</option><option value="failed">Desertas e fracassadas</option></select></div>
+      <div class="control-field"><label for="filterStatus">Situação</label><select id="filterStatus"><option value="" selected>Todas as situações</option><option value="open">Oportunidades abertas</option><option value="published_today">Publicadas hoje</option><option value="results">Com resultados</option><option value="contracts">Com contratos</option><option value="failed">Desertas e fracassadas</option></select></div>
       <button class="btn primary" id="applyFilters">Aplicar filtros</button>
     </div>
     <button class="btn view-depth" id="viewDepth" aria-pressed="false"><span class="depth-dot"></span><span>Mostrar todos</span></button>
@@ -746,6 +764,27 @@ main.view{width:100%;max-width:1780px;margin:0 auto;padding:18px 24px 48px}.grid
       <div class="explorer-tools"><span class="pill info">DEMONSTRAÇÃO NAVEGÁVEL</span><span class="pill neu">ABERTAS</span><span class="pill neu">30 DIAS</span></div>
       <div class="explorer-list" id="stateExplorerList"></div>
     </aside>
+  </div>
+
+  <div class="setup-layer" id="interestSetup" aria-hidden="true">
+    <section class="setup-panel" role="dialog" aria-modal="true" aria-labelledby="interestSetupTitle">
+      <div class="setup-head">
+        <div class="setup-mark">◎</div>
+        <div><h2 id="interestSetupTitle">O que sua empresa procura?</h2><p>Conte o que você vende ou deseja acompanhar. A Bolsa transforma sua intenção em termos relacionados e reorganiza o mercado para você.</p></div>
+        <button class="setup-close" id="interestSetupClose" type="button" aria-label="Fechar configuração">✕</button>
+      </div>
+      <form class="setup-body" id="interestForm">
+        <div class="setup-grid">
+          <div class="setup-field wide"><label for="profileInterest">Produtos, serviços ou assuntos de interesse</label><textarea id="profileInterest" maxlength="300" placeholder="Ex.: material hospitalar, bombas de infusão, manutenção predial, molduras…"></textarea><small>Você pode escrever do seu jeito; a busca amplia sinônimos, variações e descrições relacionadas.</small></div>
+          <div class="setup-field"><label for="profileKeywords">Palavras importantes</label><input id="profileKeywords" maxlength="180" placeholder="Ex.: seringa, cateter, ambulatório"></div>
+          <div class="setup-field"><label for="profileOrganizations">Órgãos de interesse</label><input id="profileOrganizations" maxlength="180" placeholder="Ex.: SES, hospitais, prefeituras"></div>
+          <div class="setup-field"><label for="profileSegment">Segmento principal</label><select id="profileSegment"><option value="">Todos os segmentos</option><option>Material hospitalar</option><option>Medicamentos</option><option>Tecnologia</option><option>Obras e engenharia</option><option>Veículos e frota</option><option>Alimentação</option><option>Limpeza</option></select></div>
+          <div class="setup-field"><label for="profileOpportunity">Tipo de oportunidade</label><select id="profileOpportunity"><option value="open">Recebendo propostas</option><option value="">Todas as situações</option><option value="results">Com resultados</option><option value="contracts">Com contratos</option><option value="failed">Desertas ou fracassadas</option></select></div>
+          <div class="setup-field wide"><label>Regiões de interesse</label><div class="region-choices" id="profileRegions" aria-label="Selecione estados de interesse"></div></div>
+        </div>
+        <div class="setup-actions"><span class="setup-note">A configuração fica neste dispositivo e pode ser alterada a qualquer momento em “Meu monitoramento”.</span><button class="btn" id="interestSetupSkip" type="button">Ver Brasil inteiro</button><button class="btn primary" type="submit">Personalizar minha visão</button></div>
+      </form>
+    </section>
   </div>
 
   <div class="toast-wrap" id="toasts"></div>
@@ -1150,7 +1189,7 @@ function renderDrill(){
       <div class="kv"><span class="mut">Cidades presentes</span><b>${fmtN(state?.cities||0)}</b></div>
       <div class="kv"><span class="mut">Última coleta</span><b>${formatDateTime(state?.last_collected_at)}</b></div>
       <h4>Principais compradores no recorte</h4>
-      ${orgs.length?orgs.map(o=>`<button class="geo-row" data-geo="${esc(o.legal_name||'Não informado')}"><span>⌂</span><span>${esc(o.legal_name||'Não informado')}</span><span class="geo-val">${fmtN(o.procurements)} proc. · ${fmtMi(o.estimated_value||0)}</span></button>`).join(''):'<div class="note">Ainda não há processos coletados para este estado.</div>'}
+      ${orgs.length?orgs.map(o=>`<button class="geo-row" data-geo="${esc(o.legal_name||'Não informado')}"><span>⌂</span><span>${esc(o.legal_name||'Não informado')}</span><span class="geo-val">${fmtN(o.procurements)} proc. · ${fmtMi(o.estimated_value||0)}</span></button>`).join(''):state?'<div class="note">Os compradores deste recorte aparecem na lista de resultados.</div>':'<div class="note">Ainda não há processos coletados para este estado.</div>'}
       <div style="margin-top:10px"><button class="btn primary" data-open-state="${e[0]}" ${state?'':'disabled'}>Explorar processos reais →</button></div>`;
     return;
   }
@@ -1907,133 +1946,104 @@ $('#view-carteira').innerHTML=`
 </div>`;
 
 /* ===================== DADOS REAIS: BASE NACIONAL ===================== */
-const formatDateTime=value=>{
-  if(!value)return '—';
-  const date=new Date(String(value).replace(' ','T'));
-  return Number.isNaN(date.getTime())?esc(value):date.toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'});
-};
-const formatDate=value=>{
-  if(!value)return '—';
-  const date=new Date(value);
-  return Number.isNaN(date.getTime())?esc(value):date.toLocaleDateString('pt-BR');
-};
-const deadlineLabel=value=>{
-  if(!value)return 'prazo não informado';
-  const ms=new Date(value).getTime()-Date.now();
-  if(Number.isNaN(ms))return formatDate(value);
-  const days=Math.ceil(ms/86400000);
-  return days<0?'prazo encerrado':days===0?'encerra hoje':`encerra em ${days}d`;
-};
+const PROFILE_KEY='bolsa.interesses.v1';
+let nationalSummary=null,nationalStateRows=[],nationalLists=null,activeSearch='',nationalPage=0,nationalPageTotal=0;
+const formatDateTime=value=>{if(!value)return '—';const date=new Date(String(value).replace(' ','T'));return Number.isNaN(date.getTime())?esc(value):date.toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'});};
+const formatDate=value=>{if(!value)return '—';const date=new Date(value);return Number.isNaN(date.getTime())?esc(value):date.toLocaleDateString('pt-BR');};
+const deadlineLabel=value=>{if(!value)return 'prazo não informado';const ms=new Date(value).getTime()-Date.now();if(Number.isNaN(ms))return formatDate(value);const days=Math.ceil(ms/86400000);return days<0?'prazo encerrado':days===0?'encerra hoje':`encerra em ${days}d`;};
+const realId=p=>String(p.id||p.pncp_control_number||'');
 function realProcessRow(p){
-  return `<button class="explorer-result" data-real-id="${Number(p.id)}"><span><b>${esc(p.object||'Objeto não informado')}</b><small>${esc(p.organization_name||p.purchasing_unit_name||'Órgão não informado')} · ${esc(p.city_name||'—')}/${esc(p.state_code||'—')} · ${esc(p.pncp_control_number||p.process_number||'sem identificador')}</small><small>${esc(p.modality_name||'—')} · ${deadlineLabel(p.proposal_end)} · ${Number(p.items_count||0)} itens · ${Number(p.documents_count||0)} documentos</small></span><span class="er-value">${fmtMi(Number(p.estimated_value||0))}</span></button>`;
+  return `<button class="explorer-result" data-real-id="${esc(realId(p))}"><span><b>${esc(p.object||'Objeto não informado')}</b><small>${esc(p.organization_name||p.purchasing_unit_name||'Órgão não informado')} · ${esc(p.city_name||'—')}/${esc(p.state_code||'—')} · ${esc(p.pncp_control_number||p.process_number||'sem identificador')}</small><small>${esc(p.modality_name||'—')} · ${deadlineLabel(p.proposal_end)} · ${Number(p.items_count||0)} itens · ${Number(p.documents_count||0)} documentos</small></span><span class="er-value">${fmtMi(Number(p.estimated_value||0))}</span></button>`;
 }
 function realPanelRow(p,secondary){
-  return `<button class="opp-row" data-real-id="${Number(p.id)}" style="width:100%;text-align:left;color:inherit"><div class="opp-main"><div class="opp-t">${esc(p.object||'Objeto não informado')}</div><div class="opp-s">${esc(p.organization_name||'Órgão não informado')} · ${esc(p.city_name||'—')}/${esc(p.state_code||'—')} · ${esc(p.pncp_control_number||'—')}</div></div><div class="opp-fig"><b>${fmtMi(Number(p.estimated_value||0))}</b><span>${esc(secondary||deadlineLabel(p.proposal_end))}</span></div><span class="pill ok">REAL</span></button>`;
+  return `<button class="opp-row" data-real-id="${esc(realId(p))}" style="width:100%;text-align:left;color:inherit"><div class="opp-main"><div class="opp-t">${esc(p.object||'Objeto não informado')}</div><div class="opp-s">${esc(p.organization_name||'Órgão não informado')} · ${esc(p.city_name||'—')}/${esc(p.state_code||'—')} · ${esc(p.pncp_control_number||'—')}</div></div><div class="opp-fig"><b>${fmtMi(Number(p.estimated_value||0))}</b><span>${esc(secondary||deadlineLabel(p.proposal_end))}</span></div><span class="pill ok">REAL</span></button>`;
 }
 function applyRealSummary(summary){
   const last=formatDateTime(summary.last_collected_at);
-  $('#briefBox').innerHTML=`<h2>Mercado real na <span class="amber-c">Bolsa</span></h2><p>Visão produzida exclusivamente a partir dos registros gravados na nossa base nacional. Última atualização: ${last}.</p><div class="fn">
-    ${[[summary.procurements,'processos públicos monitorados','f0',100],[summary.organizations,'órgãos compradores identificados','f1',82],[summary.contracts,'contratos públicos relacionados','f2',68],[summary.items,'itens estruturados','f3',54],[summary.documents,'documentos encontrados','f4',40],[summary.suppliers,'fornecedores públicos identificados','f5',26]].map(r=>`<div class="fn-row"><div class="fn-n">${fmtN(r[0])}</div><div class="fn-track"><div class="fn-bar ${r[2]}" style="width:${r[3]}%"></div></div><div class="fn-t">${r[1]}</div></div>`).join('')}</div><div style="margin-top:12px"><span class="conf c-conf">CONFIRMADO</span> <span class="note">Nenhuma projeção ou score simulado entra neste resumo.</span></div>`;
-  const cards=[
-    ['Processos monitorados',fmtN(summary.procurements),'registros normalizados do PNCP'],
-    ['Valor estimado conhecido',fmtMi(summary.estimated_value),'soma apenas de valores publicados'],
-    ['Estados cobertos',fmtN(summary.states),'com processos presentes na base'],
-    ['Órgãos compradores',fmtN(summary.organizations),'entidades públicas identificadas'],
-    ['Contratos coletados',fmtN(summary.contracts),'contratos públicos relacionados'],
-    ['Itens e documentos',`${fmtN(summary.items)} · ${fmtN(summary.documents)}`,'itens estruturados · documentos'],
-  ];
+  $('#briefBox').innerHTML=`<h2>Inteligência pública em <span class="amber-c">tempo real</span></h2><p>Dados consolidados diretamente do motor nacional da Bolsa. Última atualização: ${last}.</p><div class="fn">
+    ${[[summary.procurements,'licitações monitoradas','f0',100],[summary.open_procurements||0,'recebendo propostas','f1',82],[summary.organizations,'órgãos compradores','f2',68],[summary.items,'itens estruturados','f3',54]].map(r=>`<div class="fn-row"><div class="fn-n">${fmtN(r[0])}</div><div class="fn-track"><div class="fn-bar ${r[2]}" style="width:${r[3]}%"></div></div><div class="fn-t">${r[1]}</div></div>`).join('')}</div><div class="real-source-strip"><span class="real-source-chip"><i></i><b>${fmtN(summary.price_registry_atas||0)}</b> atas de RP</span><span class="real-source-chip"><i></i><b>${fmtN(summary.pca_items||0)}</b> itens de PCA</span><span class="real-source-chip"><i></i><b>${fmtN(summary.contracts_gov||0)}</b> contratos federais</span><span class="real-source-chip"><i></i><b>${fmtN(summary.commitments||0)}</b> empenhos</span></div>`;
+  const cards=[['Licitações monitoradas',fmtN(summary.procurements),'base nacional consolidada'],['Valor estimado',fmtMi(summary.estimated_value),'valores publicados'],['Estados presentes',fmtN(summary.states),'cobertura nacional'],['Órgãos compradores',fmtN(summary.organizations),'entidades identificadas'],['Contratos coletados',fmtN(summary.contracts),'PNCP + Contratos.gov'],['Itens e documentos',`${fmtN(summary.items)} · ${fmtN(summary.documents)}`,'itens · documentos']];
   $('#kpis').innerHTML=cards.map((k,i)=>`<button class="kpi${i===1?' hot':''}" data-real-kpi="${i}" style="grid-column:span 1;text-align:left;color:inherit"><div class="k-label">${k[0]}</div><div class="k-val">${k[1]}</div><div class="k-sub">${k[2]} · <span class="conf c-conf">REAL</span></div></button>`).join('');
 }
-function applyRealStates(states){
-  realStateRows=states;
-  const byCode=new Map(states.map(state=>[state.code,state]));
-  ESTADOS.forEach(state=>{
-    const real=byCode.get(state[0]);state[3]=Number(real?.estimated_value||0)/1e9;state[4]=Number(real?.procurements||0);
-  });
+function applySearchSummary(data,q){
+  const facets=data.facets||{},states=facets.states||[];
+  const cards=[['Resultados relacionados',fmtN(data.total),`intenção: ${data.search?.intent||q}`],['Valor relacionado',fmtMi(Number(facets.estimated_value||0)),'no universo encontrado'],['Estados encontrados',fmtN(states.length),'distribuição dos resultados'],['Órgãos relacionados',fmtN(facets.organizations||0),'compradores identificados'],['Termos interpretados',fmtN(data.search?.terms?.length||1),'sinônimos e variações'],['Base consultada',fmtN(nationalSummary?.procurements||0),'licitações reais']];
+  $('#kpis').innerHTML=cards.map((k,i)=>`<div class="kpi${i===0?' hot':''}"><div class="k-label">${k[0]}</div><div class="k-val">${k[1]}</div><div class="k-sub">${esc(k[2])} · <span class="conf c-conf">REAL</span></div></div>`).join('');
+}
+function applyRealStates(states,contextual=false){
+  realStateRows=states;const byCode=new Map(states.map(state=>[state.code,state]));
+  ESTADOS.forEach(state=>{const real=byCode.get(state[0]);state[3]=Number(real?.estimated_value||0)/1e9;state[4]=Number(real?.procurements||0);});
   const maxValue=Math.max(.000001,...ESTADOS.map(e=>e[3])),maxProcesses=Math.max(1,...ESTADOS.map(e=>e[4]));
-  HM_MODES.splice(0,HM_MODES.length,
-    {id:'valor',n:'Valor',leg:'valor estimado conhecido na base',fmt:e=>fmtMi(e[3]*1e9),val:e=>e[3],lo:0,hi:maxValue},
-    {id:'proc',n:'Processos',leg:'processos atualmente monitorados',fmt:e=>fmtN(e[4]),val:e=>e[4],lo:0,hi:maxProcesses}
-  );
-  hmMode=HM_MODES[0];
-  $('#hmModes').innerHTML=HM_MODES.map(m=>`<button class="hm-mode${m===hmMode?' on':''}" data-m="${m.id}">${m.n}</button>`).join('');
-  if(states.length){hmSel=states[0].code;}
-  renderHeat();
-  $('#heatTitle').textContent='Cobertura real por estado';
-  $('#heatSubtitle').textContent='presença atual na base nacional';
+  HM_MODES.splice(0,HM_MODES.length,{id:'valor',n:'Valor',leg:'valor estimado conhecido',fmt:e=>fmtMi(e[3]*1e9),val:e=>e[3],lo:0,hi:maxValue},{id:'proc',n:'Processos',leg:'licitações no recorte atual',fmt:e=>fmtN(e[4]),val:e=>e[4],lo:0,hi:maxProcesses});
+  hmMode=HM_MODES[0];$('#hmModes').innerHTML=HM_MODES.map(m=>`<button class="hm-mode${m===hmMode?' on':''}" data-m="${m.id}">${m.n}</button>`).join('');if(states.length)hmSel=states[0].code;renderHeat();
+  $('#heatTitle').textContent=contextual?'Distribuição da busca':'Cobertura real por estado';$('#heatSubtitle').textContent=contextual?'resultados relacionados por estado':'presença atual na base nacional';
   const total=states.reduce((sum,s)=>sum+Number(s.procurements||0),0)||1;
-  $('#heatIndex').innerHTML=states.slice(0,8).map(s=>`<button class="hbar geo-row" data-map-state="${esc(s.code)}" style="grid-template-columns:minmax(90px,1.15fr) 2fr auto"><span>${esc(UF_NAMES[s.code]||s.name||s.code)}</span><span class="hb-track"><span class="hb-fill" style="display:block;width:${Math.max(4,s.procurements/total*100)}%;background:var(--info)"></span></span><span class="hb-val">${fmtN(s.procurements)} · ${fmtMi(s.estimated_value)}</span></button>`).join('')+'<div class="note" style="margin-top:8px">A ausência de cor significa que ainda não há registro coletado para o estado — não significa inexistência de licitações.</div>';
-  $('#heatIndex').addEventListener('click',e=>{const state=e.target.closest('[data-map-state]');if(state){hmSel=state.dataset.mapState;$('#filterUf').value=hmSel;renderHeat();openStateExplorer(hmSel);}});
+  $('#heatIndex').innerHTML=states.slice(0,8).map(s=>`<button class="hbar geo-row" data-map-state="${esc(s.code)}" style="grid-template-columns:minmax(90px,1.15fr) 2fr auto"><span>${esc(UF_NAMES[s.code]||s.name||s.code)}</span><span class="hb-track"><span class="hb-fill" style="display:block;width:${Math.max(4,s.procurements/total*100)}%;background:var(--info)"></span></span><span class="hb-val">${fmtN(s.procurements)} · ${fmtMi(Number(s.estimated_value||0))}</span></button>`).join('')+'<div class="note" style="margin-top:8px">Somente registros efetivamente presentes na base aparecem neste recorte.</div>';
+  $('#heatIndex').onclick=e=>{const state=e.target.closest('[data-map-state]');if(state){hmSel=state.dataset.mapState;$('#filterUf').value=hmSel;renderHeat();openStateExplorer(hmSel);}};
 }
 function applyRealLists(recent,value,deadline){
-  $('#quentesTitle').textContent='Processos mais recentes';$('#quentesSubtitle').textContent='ordem de entrada na base';
-  $('#margensTitle').textContent='Maiores valores publicados';$('#margensSubtitle').textContent='valor estimado confirmado';
-  $('#chanceTitle').textContent='Prazos mais próximos';$('#chanceSubtitle').textContent='encerramento de propostas';
-  $('#blkQuentes').innerHTML=recent.length?recent.map(p=>realPanelRow(p,formatDate(p.source_created_at||p.collected_at))).join(''):'<div class="explorer-empty">Nenhum processo no recorte.</div>';
-  $('#blkMargens').innerHTML=value.length?value.map(p=>realPanelRow(p,`${p.items_count||0} itens · ${p.documents_count||0} docs`)).join(''):'<div class="explorer-empty">Nenhum valor informado no recorte.</div>';
-  $('#blkChance').innerHTML=deadline.length?deadline.map(p=>realPanelRow(p,deadlineLabel(p.proposal_end))).join(''):'<div class="explorer-empty">Nenhum prazo informado no recorte.</div>';
+  $('#quentesTitle').textContent=activeSearch?'Mais relacionados':'Processos mais recentes';$('#quentesSubtitle').textContent=activeSearch?'resultado da intenção atual':'ordem de entrada na base';$('#margensTitle').textContent='Maiores valores publicados';$('#margensSubtitle').textContent='valor estimado confirmado';$('#chanceTitle').textContent='Prazos mais próximos';$('#chanceSubtitle').textContent='encerramento de propostas';
+  $('#blkQuentes').innerHTML=recent.length?recent.map(p=>realPanelRow(p,formatDate(p.source_created_at||p.collected_at))).join(''):'<div class="explorer-empty">Nenhum processo no recorte.</div>';$('#blkMargens').innerHTML=value.length?value.map(p=>realPanelRow(p,`${p.items_count||0} itens · ${p.documents_count||0} docs`)).join(''):'<div class="explorer-empty">Nenhum valor informado no recorte.</div>';$('#blkChance').innerHTML=deadline.length?deadline.map(p=>realPanelRow(p,deadlineLabel(p.proposal_end))).join(''):'<div class="explorer-empty">Nenhum prazo informado no recorte.</div>';
 }
 function applyRealSources(sources,states){
-  const items=sources.map(s=>({n:s.nome.toUpperCase(),ok:s.last_run_status==='SUCCESS'||s.status==='OPERANDO',v:s.last_records_seen||0,t:`${s.status} · último sucesso ${formatDateTime(s.ultima_coleta_sucesso)}`}));
-  const item=s=>`<span class="tk-item" title="${esc(s.t)}"><span class="tk-name">${esc(s.n)}</span><span class="tk-val ${s.ok?'up':'warn-c'}">${s.ok?'● OPERANDO':'▲ '+esc(s.v||'PENDENTE')}</span></span>`;
-  $('#tickerTrack').innerHTML=items.map(item).join('')+items.map(item).join('');
-  const operating=sources.filter(s=>s.last_run_status==='SUCCESS'||s.status==='OPERANDO').length;
-  const latest=[...sources].filter(s=>s.last_finished_at).sort((a,b)=>String(b.last_finished_at).localeCompare(String(a.last_finished_at)))[0];
-  $('.statusbar').innerHTML=`<span><span class="sb-dot"></span>BASE NACIONAL CONECTADA</span><span>${operating} fontes operando</span><span>${states.length} estados presentes</span><span>última execução ${formatDateTime(latest?.last_finished_at)}</span><span class="sb-demo" style="color:var(--up)">● TERMINAL COM DADOS REAIS · MÓDULOS F2–F6 AINDA EM DEMONSTRAÇÃO</span>`;
+  const items=sources.map(s=>({n:s.nome.toUpperCase(),ok:s.last_run_status==='SUCCESS'||s.status==='OPERANDO',v:s.last_records_seen||0,t:`${s.status} · último sucesso ${formatDateTime(s.ultima_coleta_sucesso)}`}));const item=s=>`<span class="tk-item" title="${esc(s.t)}"><span class="tk-name">${esc(s.n)}</span><span class="tk-val ${s.ok?'up':'warn-c'}">${s.ok?'● OPERANDO':'▲ '+esc(s.v||'PENDENTE')}</span></span>`;$('#tickerTrack').innerHTML=items.map(item).join('')+items.map(item).join('');
+  const operating=sources.filter(s=>s.last_run_status==='SUCCESS'||s.status==='OPERANDO').length,latest=[...sources].filter(s=>s.last_finished_at).sort((a,b)=>String(b.last_finished_at).localeCompare(String(a.last_finished_at)))[0];$('.statusbar').innerHTML=`<span><span class="sb-dot"></span>SUPABASE CONECTADO AO VIVO</span><span>${operating} fontes operando</span><span>${states.length} estados presentes</span><span>última coleta ${formatDateTime(latest?.last_finished_at)}</span><span class="sb-demo" style="color:var(--up)">● DADOS REAIS · BUSCA SEMÂNTICA ATIVA</span>`;
+}
+function currentSearchParams(q='',limit='24',sort='recent',facets=true){
+  const params=new URLSearchParams({limit,sort});if(q)params.set('q',q);if(facets)params.set('facets','1');const profile=loadProfile(),uf=$('#filterUf').value||(profile?.regions||[]).join(','),period=$('#filterPeriod').value,status=$('#filterStatus').value;if(uf)params.set('uf',uf);if(period)params.set('period',period);if(status)params.set('status',status);return params;
 }
 function installRealSearch(){
-  $('.ask .p-title').textContent='Pesquisa na base real';
-  const oldInput=$('#askInput'),oldButton=$('#askBtn'),newInput=oldInput.cloneNode(true),newButton=oldButton.cloneNode(true);
-  oldInput.replaceWith(newInput);oldButton.replaceWith(newButton);newInput.placeholder='Busque objeto, processo, órgão ou número PNCP…';
-  $('#askChips').innerHTML=['material','engenharia','internet','veículos'].map(q=>`<button class="chip" data-real-search="${q}">${q}</button>`).join('');
-  const submit=()=>{const q=newInput.value.trim();if(q)performRealSearch(q);};
-  newButton.addEventListener('click',submit);newInput.addEventListener('keydown',e=>{if(e.key==='Enter')submit();});
-  $('#askChips').addEventListener('click',e=>{const chip=e.target.closest('[data-real-search]');if(chip){newInput.value=chip.dataset.realSearch;performRealSearch(chip.dataset.realSearch);}});
-  const oldGlobal=$('#globalSearch'),newGlobal=oldGlobal.cloneNode(true);oldGlobal.replaceWith(newGlobal);
-  newGlobal.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.value.trim()){goView('terminal');performRealSearch(e.target.value.trim());}});
+  $('.ask .p-title').textContent='Pesquisa inteligente na base real';const oldInput=$('#askInput'),oldButton=$('#askBtn'),newInput=oldInput.cloneNode(true),newButton=oldButton.cloneNode(true);oldInput.replaceWith(newInput);oldButton.replaceWith(newButton);newInput.placeholder='Digite o que você vende ou procura…';$('#askChips').innerHTML=['material hospitalar','medicamentos','molduras','tecnologia','manutenção predial'].map(q=>`<button class="chip" data-real-search="${q}">${q}</button>`).join('');
+  const submit=()=>{const q=newInput.value.trim();if(q)performRealSearch(q);};newButton.addEventListener('click',submit);newInput.addEventListener('keydown',e=>{if(e.key==='Enter')submit();});$('#askChips').onclick=e=>{const chip=e.target.closest('[data-real-search]');if(chip){newInput.value=chip.dataset.realSearch;performRealSearch(chip.dataset.realSearch);}};
+  const oldGlobal=$('#globalSearch'),newGlobal=oldGlobal.cloneNode(true);oldGlobal.replaceWith(newGlobal);newGlobal.placeholder='Busque produtos, serviços, órgãos, processos ou números PNCP…';newGlobal.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.value.trim()){goView('terminal');$('#askInput').value=e.target.value.trim();performRealSearch(e.target.value.trim());}});
 }
 async function performRealSearch(q){
-  const target=$('#askResp');target.classList.add('on');target.innerHTML='<div class="ai-tag">◆ CONSULTANDO A BASE NACIONAL</div><div class="ai-txt">Pesquisando registros reais…</div>';
-  try{
-    const response=await fetch(`/api/public/procurements?q=${encodeURIComponent(q)}&limit=5&sort=recent`);if(!response.ok)throw new Error();
-    const data=await response.json();
-    target.innerHTML=`<div class="ai-tag">◆ RESULTADO CONFIRMADO NA BASE</div><div class="ai-txt">Encontrei <b>${fmtN(data.total)} processos</b> para “${esc(q)}” no universo atualmente coletado.</div>${data.items.map(p=>realProcessRow(p)).join('')||'<div class="note">Nenhum processo encontrado. A cobertura ainda está crescendo.</div>'}<div class="ask-src">CONFIRMADO — consulta feita na base própria da Bolsa; cada resultado mantém a fonte oficial.</div>`;
+  activeSearch=q;const target=$('#askResp');target.classList.add('on');target.innerHTML='<div class="ai-tag">INTERPRETANDO SUA INTENÇÃO</div><div class="ai-txt">Consultando objetos, itens, órgãos, sinônimos e variações na base real…</div>';
+  try{const response=await fetch(`/api/public/procurements?${currentSearchParams(q,'24','recent',true)}`);if(!response.ok)throw new Error();const data=await response.json(),terms=data.search?.terms||[q];
+    target.innerHTML=`<div class="search-context"><div class="search-context-main"><h3>${fmtN(data.total)} processos relacionados a “${esc(q)}”</h3><p>A Bolsa interpretou sua intenção${data.search?.intent?` como <b>${esc(data.search.intent)}</b>`:''} e reorganizou o painel inteiro.</p><div class="semantic-terms">${terms.slice(0,10).map(t=>`<span class="semantic-term">${esc(t)}</span>`).join('')}</div></div><button class="btn" data-clear-search>Limpar busca</button></div>${data.items.slice(0,5).map(realProcessRow).join('')||'<div class="explorer-empty">Nenhum processo relacionado foi encontrado neste recorte.</div>'}<div class="ask-src">CONFIRMADO — resultados da base nacional; os termos interpretados são mostrados acima.</div>`;
+    applySearchSummary(data,q);if(data.facets?.states?.length)applyRealStates(data.facets.states,true);const rows=data.items,byValue=[...rows].sort((a,b)=>Number(b.estimated_value||0)-Number(a.estimated_value||0)).slice(0,6),byDeadline=[...rows].filter(p=>p.proposal_end).sort((a,b)=>new Date(a.proposal_end)-new Date(b.proposal_end)).slice(0,6);applyRealLists(rows.slice(0,6),byValue,byDeadline);$('#controlContext').textContent=`Busca: ${q} · ${fmtN(data.total)} resultados`;$('#hmGrid').scrollIntoView({behavior:'smooth',block:'center'});
   }catch{target.innerHTML='<div class="ai-tag">BASE TEMPORARIAMENTE INDISPONÍVEL</div><div class="ai-txt">Não consegui concluir a consulta agora. Tente novamente em instantes.</div>';}
 }
+function clearRealSearch(){activeSearch='';$('#askInput').value='';$('#globalSearch').value='';$('#askResp').classList.remove('on');applyRealSummary(nationalSummary);applyRealStates(nationalStateRows);applyRealLists(nationalLists.recent,nationalLists.value,nationalLists.deadline);$('#controlContext').textContent='Brasil · mercado completo';}
 async function refreshRealLists(){
-  const uf=$('#filterUf').value,segment=$('#filterSegment').value,period=$('#filterPeriod').value,status=$('#filterStatus').value;
-  const query=new URLSearchParams({limit:'6',period,status});if(uf)query.set('uf',uf);if(segment!=='Todos os segmentos')query.set('q',segment);
-  try{
-    const [recent,value,deadline]=await Promise.all(['recent','value','deadline'].map(async sort=>{const q=new URLSearchParams(query);q.set('sort',sort);const r=await fetch(`/api/public/procurements?${q}`);if(!r.ok)throw new Error();return (await r.json()).items;}));
-    applyRealLists(recent,value,deadline);
-  }catch{toast('<b>Não foi possível atualizar o recorte</b><small>A visualização anterior foi preservada.</small>');}
+  const segment=$('#filterSegment').value,q=activeSearch||(segment!=='Todos os segmentos'?segment:'');const base=currentSearchParams(q,'12','recent',true);
+  try{const payloads=await Promise.all(['recent','value','deadline'].map(async sort=>{const params=new URLSearchParams(base);params.set('sort',sort);const r=await fetch(`/api/public/procurements?${params}`);if(!r.ok)throw new Error();return r.json();}));applyRealLists(payloads[0].items.slice(0,6),payloads[1].items.slice(0,6),payloads[2].items.slice(0,6));if(q){applySearchSummary(payloads[0],q);if(payloads[0].facets?.states?.length)applyRealStates(payloads[0].facets.states,true);}else{applyRealSummary(nationalSummary);applyRealStates(nationalStateRows);}}
+  catch{toast('<b>Não foi possível atualizar o recorte</b><small>A visualização anterior foi preservada.</small>');}
 }
 async function openProcurementDetail(id){
-  const layer=$('#stateExplorer');layer.classList.add('on');layer.setAttribute('aria-hidden','false');
-  $('#stateExplorerTitle').textContent='Ficha real da licitação';$('#stateExplorerSub').textContent='Carregando dados e proveniência…';$('#stateExplorerList').innerHTML='<div class="explorer-empty">Consultando a base nacional…</div>';
-  try{
-    const response=await fetch(`/api/public/procurements/${Number(id)}`);if(!response.ok)throw new Error();const data=await response.json(),p=data.procurement;
-    $('#stateExplorerTitle').textContent=p.pncp_control_number||p.process_number||'Licitação';
-    $('#stateExplorerSub').textContent=`${p.organization_name||p.purchasing_unit_name||'Órgão não informado'} · ${p.city_name||'—'}/${p.state_code||'—'}`;
-    const items=data.items.map(i=>`<div class="detail-item"><b>Item ${esc(i.item_number)} · ${esc(i.description||'Descrição não informada')}</b><small>${i.quantity??'—'} ${esc(i.unit||'')} · estimado: ${fmtMi(Number(i.estimated_total_value||0))}</small></div>`).join('')||'<div class="note">Itens ainda não coletados para este processo.</div>';
+  const layer=$('#stateExplorer');layer.classList.add('on');layer.setAttribute('aria-hidden','false');$('#stateExplorerTitle').textContent='Ficha real da licitação';$('#stateExplorerSub').textContent='Carregando dados e proveniência…';$('#stateExplorerList').innerHTML='<div class="explorer-empty">Consultando a base nacional…</div>';
+  try{const response=await fetch(`/api/public/procurement?id=${encodeURIComponent(String(id))}`);if(!response.ok)throw new Error();const data=await response.json(),p=data.procurement;
+    $('#stateExplorerTitle').textContent=p.pncp_control_number||p.process_number||'Licitação';$('#stateExplorerSub').textContent=`${p.organization_name||p.purchasing_unit_name||'Órgão não informado'} · ${p.city_name||'—'}/${p.state_code||'—'}`;
+    const shownItems=data.items.slice(0,120),items=shownItems.map(i=>`<div class="detail-item"><b>Item ${esc(i.item_number)} · ${esc(i.description||'Descrição não informada')}</b><small>${i.quantity??'—'} ${esc(i.unit||'')} · estimado: ${fmtMi(Number(i.estimated_total_value||0))}${i.catalog_item_code?` · catálogo ${esc(i.catalog_item_code)}`:''}</small></div>`).join('')||'<div class="note">Itens ainda não coletados para este processo.</div>';
     const docs=data.documents.map(d=>`<a class="source-link" href="${safeUrl(d.source_download_url)}" target="_blank" rel="noopener noreferrer"><span>${esc(d.original_name||d.document_type||'Documento')}</span><span>↗</span></a>`).join('')||'<div class="note">Documentos ainda não coletados para este processo.</div>';
+    const results=(data.results||[]).map(r=>`<div class="detail-item"><b>Item ${esc(r.item_number)} · ${esc(r.supplier_name||'Fornecedor não informado')}</b><small>${r.quantity??'—'} unidades · ${fmtMi(Number(r.total_value||0))}${r.discount_percent!=null?` · desconto ${pct(Number(r.discount_percent),1)}`:''}</small></div>`).join('')||'<div class="note">Resultados ainda não publicados para este processo.</div>';
+    const contracts=(data.contracts||[]).map(c=>`<div class="detail-item"><b>${esc(c.contract_number||'Contrato')} · ${esc(c.supplier_name||'Fornecedor não informado')}</b><small>${fmtMi(Number(c.current_value||c.initial_value||0))} · vigência até ${formatDate(c.validity_end)}</small></div>`).join('')||'<div class="note">Nenhum contrato vinculado até o momento.</div>';
     const sources=data.sources.map(s=>`<a class="source-link" href="${safeUrl(s.source_url)}" target="_blank" rel="noopener noreferrer"><span>${esc(s.nome)} · coletado ${formatDateTime(s.collected_at)}</span><span>↗</span></a>`).join('')||'<div class="note">Fonte estruturada não informada.</div>';
-    $('#stateExplorerList').innerHTML=`<div class="real-detail"><div><span class="pill ok">CONFIRMADO</span> <span class="pill info">${esc(p.status_name||'situação não informada')}</span></div><div class="detail-section"><h3>Objeto</h3><p>${esc(p.object||'Objeto não informado')}</p></div><div class="detail-grid"><div class="detail-metric"><span>Valor estimado</span><b>${fmtMi(Number(p.estimated_value||0))}</b></div><div class="detail-metric"><span>Modalidade</span><b>${esc(p.modality_name||'—')}</b></div><div class="detail-metric"><span>Início das propostas</span><b>${formatDateTime(p.proposal_start)}</b></div><div class="detail-metric"><span>Fim das propostas</span><b>${formatDateTime(p.proposal_end)}</b></div></div><div class="detail-section"><h3>Itens (${data.items.length})</h3>${items}</div><div class="detail-section"><h3>Documentos (${data.documents.length})</h3>${docs}</div><div class="detail-section"><h3>Fontes e rastreabilidade</h3>${sources}</div></div>`;
+    $('#stateExplorerList').innerHTML=`<div class="real-detail"><div><span class="pill ok">DADO REAL</span> <span class="pill info">${esc(p.status_name||'situação não informada')}</span></div><div class="detail-section"><h3>Objeto</h3><p>${esc(p.object||'Objeto não informado')}</p></div><div class="detail-grid"><div class="detail-metric"><span>Valor estimado</span><b>${fmtMi(Number(p.estimated_value||0))}</b></div><div class="detail-metric"><span>Modalidade</span><b>${esc(p.modality_name||'—')}</b></div><div class="detail-metric"><span>Início das propostas</span><b>${formatDateTime(p.proposal_start)}</b></div><div class="detail-metric"><span>Fim das propostas</span><b>${formatDateTime(p.proposal_end)}</b></div></div><div class="detail-section"><h3>Itens (${data.items.length})</h3>${items}${data.items.length>shownItems.length?`<div class="note">Exibindo os primeiros ${shownItems.length} itens.</div>`:''}</div><div class="detail-section"><h3>Resultados e fornecedores (${(data.results||[]).length})</h3>${results}</div><div class="detail-section"><h3>Contratos vinculados (${(data.contracts||[]).length})</h3>${contracts}</div><div class="detail-section"><h3>Documentos (${data.documents.length})</h3>${docs}</div><div class="detail-section"><h3>Fontes e rastreabilidade</h3>${sources}</div></div>`;
   }catch{$('#stateExplorerSub').textContent='Consulta indisponível';$('#stateExplorerList').innerHTML='<div class="explorer-empty">Não foi possível abrir esta ficha agora.</div>';}
 }
-document.addEventListener('click',e=>{const row=e.target.closest('[data-real-id]');if(row){e.preventDefault();openProcurementDetail(Number(row.dataset.realId));}});
+function installNationalView(){
+  $('#view-ficha').innerHTML=`<div class="real-results-view"><div class="real-view-head"><div><h1>Base Nacional de Licitações</h1><p id="nationalViewMeta">Carregando processos reais…</p></div><div class="real-view-search"><input id="nationalSearch" type="search" placeholder="Produto, serviço, órgão ou processo"><button class="btn primary" id="nationalSearchBtn">Pesquisar</button></div></div><div class="real-result-list" id="nationalResults"></div><div class="real-pagination"><span id="nationalPageInfo"></span><div><button class="btn" id="nationalPrev">Anterior</button> <button class="btn" id="nationalNext">Próxima</button></div></div></div>`;
+  $('#nationalSearchBtn').onclick=()=>{nationalPage=0;loadNationalPage($('#nationalSearch').value.trim());};$('#nationalSearch').onkeydown=e=>{if(e.key==='Enter'){nationalPage=0;loadNationalPage(e.target.value.trim());}};$('#nationalPrev').onclick=()=>{if(nationalPage>0){nationalPage--;loadNationalPage($('#nationalSearch').value.trim());}};$('#nationalNext').onclick=()=>{if((nationalPage+1)*20<nationalPageTotal){nationalPage++;loadNationalPage($('#nationalSearch').value.trim());}};loadNationalPage('');
+}
+async function loadNationalPage(q=''){
+  const target=$('#nationalResults');if(!target)return;target.innerHTML='<div class="explorer-empty">Consultando a base nacional…</div>';
+  try{const params=new URLSearchParams({limit:'20',offset:String(nationalPage*20),sort:'recent'});if(q)params.set('q',q);const response=await fetch(`/api/public/procurements?${params}`);if(!response.ok)throw new Error();const data=await response.json();nationalPageTotal=data.total;target.innerHTML=data.items.map(realProcessRow).join('')||'<div class="explorer-empty">Nenhum processo encontrado.</div>';$('#nationalViewMeta').textContent=`${fmtN(data.total)} processos reais · página ${nationalPage+1}`;$('#nationalPageInfo').textContent=`Exibindo ${nationalPage*20+1}–${Math.min((nationalPage+1)*20,data.total)} de ${fmtN(data.total)}`;$('#nationalPrev').disabled=nationalPage===0;$('#nationalNext').disabled=(nationalPage+1)*20>=data.total;}catch{target.innerHTML='<div class="explorer-empty">Não foi possível consultar a base agora.</div>';}
+}
+function loadProfile(){try{return JSON.parse(localStorage.getItem(PROFILE_KEY)||'null');}catch{return null;}}
+function openInterestSetup(){const layer=$('#interestSetup');layer.classList.add('on');layer.setAttribute('aria-hidden','false');const p=loadProfile()||{};$('#profileInterest').value=p.interest||'';$('#profileKeywords').value=p.keywords||'';$('#profileOrganizations').value=p.organizations||'';$('#profileSegment').value=p.segment||'';$('#profileOpportunity').value=p.opportunity??'open';$$('#profileRegions .region-choice').forEach(b=>b.classList.toggle('on',(p.regions||[]).includes(b.dataset.uf)));}
+function closeInterestSetup(){const layer=$('#interestSetup');layer.classList.remove('on');layer.setAttribute('aria-hidden','true');}
+function applyProfile(p,runSearch=false){if(!p||p.skipped)return;const label=p.segment||p.interest||'Meu monitoramento';$('#profileName').textContent=label.length>28?label.slice(0,28)+'…':label;$('#profileSummary').textContent=`${p.regions?.length?p.regions.join(', '):'Brasil'} · ${p.opportunity==='open'?'oportunidades abertas':'recorte personalizado'}`;if(p.regions?.length===1)$('#filterUf').value=p.regions[0];if(p.segment)$('#filterSegment').value=p.segment;if(p.opportunity!=null)$('#filterStatus').value=p.opportunity;const q=[p.interest,p.keywords,p.organizations].filter(Boolean).join(' ').trim();if(runSearch&&q){$('#askInput').value=q;performRealSearch(q);}}
+function initInterestSetup(){
+  $('#profileRegions').innerHTML=[...ESTADOS].sort((a,b)=>UF_NAMES[a[0]].localeCompare(UF_NAMES[b[0]],'pt-BR')).map(e=>`<button class="region-choice" type="button" data-uf="${e[0]}">${e[0]}</button>`).join('');$('#profileRegions').onclick=e=>{const b=e.target.closest('[data-uf]');if(b)b.classList.toggle('on');};$('#profileBtn').onclick=openInterestSetup;$('#interestSetupClose').onclick=closeInterestSetup;$('#interestSetupSkip').onclick=()=>{localStorage.setItem(PROFILE_KEY,JSON.stringify({skipped:true}));closeInterestSetup();};$('#interestForm').onsubmit=e=>{e.preventDefault();const p={interest:$('#profileInterest').value.trim(),keywords:$('#profileKeywords').value.trim(),organizations:$('#profileOrganizations').value.trim(),segment:$('#profileSegment').value,opportunity:$('#profileOpportunity').value,regions:$$('#profileRegions .region-choice.on').map(b=>b.dataset.uf)};localStorage.setItem(PROFILE_KEY,JSON.stringify(p));closeInterestSetup();applyProfile(p,true);toast('<b>Monitoramento personalizado</b><small>A Bolsa reorganizou a visão com base no que sua empresa procura.</small>');};
+  const saved=loadProfile();if(saved)applyProfile(saved,false);else setTimeout(openInterestSetup,500);
+}
+document.addEventListener('click',e=>{const row=e.target.closest('[data-real-id]');if(row){e.preventDefault();openProcurementDetail(row.dataset.realId);}if(e.target.closest('[data-clear-search]'))clearRealSearch();});
 $('#applyFilters').addEventListener('click',()=>{if(realStateRows)refreshRealLists();});
 async function loadPublicDashboard(){
-  try{
-    const [summary,states,recent,value,deadline,sources]=await Promise.all([
-      fetch('/api/public/summary'),fetch('/api/public/states'),fetch('/api/public/procurements?limit=6&sort=recent'),fetch('/api/public/procurements?limit=6&sort=value'),fetch('/api/public/procurements?limit=6&sort=deadline'),fetch('/api/public/sources')
-    ].map(async responsePromise=>{const response=await responsePromise;if(!response.ok)throw new Error(`HTTP ${response.status}`);return response.json();}));
-    applyRealSummary(summary);applyRealStates(states);applyRealLists(recent.items,value.items,deadline.items);applyRealSources(sources,states);installRealSearch();
-    document.body.dataset.dataMode='real';
-  }catch(error){
-    console.warn('Base real indisponível; protótipo preservado.',error);
-    toast('<b>Base real temporariamente indisponível</b><small>A demonstração visual foi preservada enquanto tentamos novamente.</small>');
-  }
+  try{const [summary,states,recent,value,deadline,sources]=await Promise.all([fetch('/api/public/summary'),fetch('/api/public/states'),fetch('/api/public/procurements?limit=6&sort=recent'),fetch('/api/public/procurements?limit=6&sort=value'),fetch('/api/public/procurements?limit=6&sort=deadline'),fetch('/api/public/sources')].map(async responsePromise=>{const response=await responsePromise;if(!response.ok)throw new Error(`HTTP ${response.status}`);return response.json();}));
+    nationalSummary=summary;nationalStateRows=states;nationalLists={recent:recent.items,value:value.items,deadline:deadline.items};applyRealSummary(summary);applyRealStates(states);applyRealLists(recent.items,value.items,deadline.items);applyRealSources(sources,states);installRealSearch();installNationalView();document.body.dataset.dataMode='real';initInterestSetup();
+  }catch(error){console.warn('Base real indisponível; interface preservada.',error);toast('<b>Base real temporariamente indisponível</b><small>A interface foi preservada enquanto tentamos novamente.</small>');}
 }
 loadPublicDashboard();
 /* ===JS-END=== */

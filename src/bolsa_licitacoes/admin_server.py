@@ -7,9 +7,28 @@ from urllib.parse import parse_qs, urlparse
 
 from .db import Database
 from .public_api import list_procurements, market_summary, procurement_detail, source_status, state_summary
+from .supabase_public_api import SupabasePublicApi, SupabasePublicError, SupabaseRestClient
 
 
-def serve(db: Database, host: str = "127.0.0.1", port: int = 8088, token: str = "") -> None:
+def serve(
+    db: Database,
+    host: str = "127.0.0.1",
+    port: int = 8088,
+    token: str = "",
+    *,
+    supabase_url: str = "",
+    supabase_anon_key: str = "",
+) -> None:
+    remote = SupabasePublicApi(SupabaseRestClient(supabase_url, supabase_anon_key)) if supabase_url and supabase_anon_key else None
+
+    def public_call(remote_method: str, local_method, *args):
+        if remote:
+            try:
+                return getattr(remote, remote_method)(*args)
+            except SupabasePublicError as exc:
+                print(f"Supabase public fallback: {exc}")
+        return local_method(db, *args)
+
     class Handler(BaseHTTPRequestHandler):
         server_version = "BolsaAPI"
         sys_version = ""
@@ -17,21 +36,36 @@ def serve(db: Database, host: str = "127.0.0.1", port: int = 8088, token: str = 
         def do_GET(self) -> None:  # noqa: N802
             parsed = urlparse(self.path)
             if parsed.path == "/health":
-                self._json(200, {"status": "ok"})
+                self._json(200, {"status": "ok", "public_data": "supabase-live" if remote else "sqlite"})
             elif parsed.path == "/api/public/summary":
-                self._json(200, market_summary(db), cache="public, max-age=30")
+                self._json(200, public_call("market_summary", market_summary), cache="public, max-age=20")
             elif parsed.path == "/api/public/states":
-                self._json(200, state_summary(db), cache="public, max-age=60")
+                self._json(200, public_call("state_summary", state_summary), cache="public, max-age=45")
             elif parsed.path == "/api/public/procurements":
-                self._json(200, list_procurements(db, parse_qs(parsed.query)), cache="public, max-age=20")
+                self._json(200, public_call("list_procurements", list_procurements, parse_qs(parsed.query)), cache="public, max-age=15")
             elif parsed.path == "/api/public/sources":
-                self._json(200, source_status(db), cache="public, max-age=30")
-            elif parsed.path.startswith("/api/public/procurements/"):
-                try:
-                    procurement_id = int(parsed.path.rsplit("/", 1)[-1])
-                except ValueError:
+                self._json(200, public_call("source_status", source_status), cache="public, max-age=20")
+            elif parsed.path == "/api/public/procurement" or parsed.path.startswith("/api/public/procurements/"):
+                from urllib.parse import unquote
+                query = parse_qs(parsed.query)
+                procurement_raw = (
+                    query.get("id", [""])[0]
+                    if parsed.path == "/api/public/procurement"
+                    else unquote(parsed.path.rsplit("/", 1)[-1])
+                )
+                if not procurement_raw:
                     self._json(400, {"error": "procurement id inválido"}); return
-                payload = procurement_detail(db, procurement_id)
+                if remote:
+                    try:
+                        payload = remote.procurement_detail(procurement_raw)
+                    except SupabasePublicError as exc:
+                        print(f"Supabase detail unavailable: {exc}")
+                        payload = None
+                else:
+                    try:
+                        payload = procurement_detail(db, int(procurement_raw))
+                    except ValueError:
+                        self._json(400, {"error": "procurement id inválido"}); return
                 self._json(404 if payload is None else 200, payload or {"error": "not found"}, cache="public, max-age=20")
             elif token and self.headers.get("Authorization") != f"Bearer {token}":
                 self._json(401, {"error": "unauthorized"})
