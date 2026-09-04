@@ -50,6 +50,13 @@ class ActiveScopeContractTests(unittest.TestCase):
         self.assertIn("const publicMap='https://bolsa.frontlinetec.com.br/terminal/assets/brasil-estados.geojson'", self.html)
         self.assertIn("location.protocol==='file:'?[publicMap]", self.html)
 
+    def test_global_readability_never_returns_to_micro_typography(self) -> None:
+        self.assertIn('--sans:"Manrope"', self.html)
+        self.assertIn('.proc-card p{font-size:12px}', self.html)
+        self.assertIn('.tbl{font-size:13.5px}', self.html)
+        self.assertIn('.agenda-main b{font-size:12px}', self.html)
+        self.assertIn('.market-report-table td{font-size:12px}', self.html)
+
 
 if __name__ == "__main__":
     unittest.main()
