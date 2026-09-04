@@ -710,7 +710,7 @@ body{font-size:15px;line-height:1.6}.topbar{padding-top:12px;padding-bottom:12px
     <button class="tab" data-view="monitors"><span aria-hidden="true">◎</span> Monitores <span class="favorites-count" id="monitorsCount">0</span></button>
     <button class="tab" data-view="mercado"><span class="tno">F3</span>Pesquisa de mercado</button>
     <button class="tab demo-tab" data-view="concorrente"><span class="tno">F4</span>Concorrência</button>
-    <button class="tab demo-tab" data-view="docs"><span class="tno">F5</span>Documentos</button>
+    <button class="tab" data-view="docs"><span class="tno">F5</span>Central de Documentação</button>
     <button class="tab demo-tab" data-view="carteira"><span class="tno">F6</span>Carteira</button>
   </nav>
 
@@ -1055,7 +1055,7 @@ function goView(v){
   if($('#stateExplorer')?.classList.contains('on'))closeStateExplorer();
   $$('.tab').forEach(b=>b.classList.toggle('on',b.dataset.view===v));
   $$('main.view').forEach(m=>m.classList.toggle('on',m.id==='view-'+v));
-  document.body.classList.toggle('private-mode',['favorites','agenda','monitors','inbox'].includes(v));
+  document.body.classList.toggle('private-mode',['favorites','agenda','monitors','inbox','docs'].includes(v));
   if(v==='inbox')renderInboxView();
   if(v==='favorites')renderFavoritesView();
   if(v==='agenda')renderAgendaView();

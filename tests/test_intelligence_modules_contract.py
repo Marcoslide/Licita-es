@@ -42,6 +42,11 @@ class IntelligenceModulesContractTests(unittest.TestCase):
         self.assertIn("'ESTIMATED'", MIGRATION)
         self.assertIn("'HOMOLOGATED'", MIGRATION)
 
+    def test_document_center_is_available_in_real_mode(self) -> None:
+        self.assertIn('data-view="docs"><span class="tno">F5</span>Central de Documentação', HTML)
+        self.assertNotIn('class="tab demo-tab" data-view="docs"', HTML)
+        self.assertIn("'favorites','agenda','monitors','inbox','docs'", HTML)
+
 
 if __name__ == "__main__":
     unittest.main()
