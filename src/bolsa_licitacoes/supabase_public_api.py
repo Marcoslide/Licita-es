@@ -450,6 +450,13 @@ class SupabasePublicApi:
         atas = facets.get("atas") or {}
         pca = facets.get("pca") or {}
         timeline = list(facets.get("timeline") or [])
+        displayed_active_months = [
+            point for point in timeline
+            if _int(point.get("procurements")) or _int(point.get("awarded_procurements"))
+        ]
+        active_month_count = _int(facets.get("timeline_months_count")) or len(displayed_active_months)
+        observed_months = max(active_month_count, 1)
+        awarded_procurements = _int(facets.get("procurements_with_results"))
         suppliers = [dict(row) for row in (facets.get("top_suppliers") or [])]
         homologated_base = sum(_float(row.get("homologated_value")) for row in suppliers)
         for supplier in suppliers:
@@ -458,6 +465,11 @@ class SupabasePublicApi:
                 if homologated_base > 0 else None
             )
             supplier["share_basis"] = "valor homologado observado"
+            supplier["wins_per_month"] = round(_int(supplier.get("wins")) / observed_months, 2)
+            supplier["homologated_per_month"] = round(_float(supplier.get("homologated_value")) / observed_months, 2)
+            supplier["average_homologated_ticket"] = round(
+                _float(supplier.get("homologated_value")) / max(_int(supplier.get("wins")), 1), 2
+            )
 
         buyers = [dict(row) for row in (facets.get("top_organizations") or [])]
         for buyer in buyers:
@@ -466,6 +478,11 @@ class SupabasePublicApi:
                 if estimated > 0 else None
             )
             buyer["share_basis"] = "valor estimado publicado"
+            buyer["procurements_per_month"] = round(_int(buyer.get("procurements")) / observed_months, 2)
+            buyer["estimated_per_month"] = round(_float(buyer.get("estimated_value")) / observed_months, 2)
+            buyer["average_estimated_ticket"] = round(
+                _float(buyer.get("estimated_value")) / max(_int(buyer.get("procurements")), 1), 2
+            )
 
         recent = timeline[-3:]
         previous = timeline[-6:-3]
@@ -534,6 +551,23 @@ class SupabasePublicApi:
                     "price_registry": None, "contracted": _float(contracts.get("value")),
                     "committed": None, "liquidated": None, "paid": None,
                 },
+            },
+            "report_summary": {
+                "observed_months": active_month_count,
+                "procurements": total,
+                "procurements_per_month": round(total / observed_months, 2),
+                "estimated_value": estimated,
+                "estimated_per_month": round(estimated / observed_months, 2),
+                "awarded_procurements": awarded_procurements,
+                "awarded_procurements_per_month": round(awarded_procurements / observed_months, 2),
+                "homologated_value": homologated,
+                "homologated_per_month": round(homologated / observed_months, 2),
+                "average_estimated_ticket": round(estimated / max(total, 1), 2),
+                "average_homologated_ticket": round(homologated / max(awarded_procurements, 1), 2),
+                "suppliers": _int(facets.get("suppliers_count")),
+                "buyers": _int(facets.get("organizations")),
+                "items": _int(facets.get("items_count")),
+                "results": _int(facets.get("results_count")),
             },
             "pulse": {"status": trend, "change_pct": change_pct, "recent_value": recent_value, "previous_value": previous_value, "basis": "valor estimado publicado nos últimos dois blocos de três meses"},
             "scores": {
@@ -946,7 +980,7 @@ class SupabasePublicApi:
         rows = rows_override if rows_override is not None else self._all_rows(
             "licitacoes",
             [("select", "numero_controle_pncp,uf,municipio_nome,orgao_cnpj,modalidade_nome,situacao_nome,"
-                        "valor_total_estimado,data_publicacao_pncp,data_encerramento_proposta") , *filters],
+                        "valor_total_estimado,valor_total_homologado,data_publicacao_pncp,data_encerramento_proposta") , *filters],
         )
         matches_scope_text = lambda value: self.search_engine.matches_text(plan, value) if plan else _matches_terms(value, terms)
         states: dict[str, dict[str, Any]] = {}
@@ -1058,6 +1092,7 @@ class SupabasePublicApi:
             "valor_unitario_homologado,quantidade_homologada,percentual_desconto,data_resultado", ncps,
         )
         supplier_stats: dict[str, dict[str, Any]] = {}
+        result_procurements_by_month: dict[str, set[str]] = defaultdict(set)
         procurements_with_results = {
             str(row.get("numero_controle_pncp") or "")
             for row in result_rows if row.get("numero_controle_pncp")
@@ -1070,8 +1105,10 @@ class SupabasePublicApi:
                 "discounts": [], "unit_prices": [], "procurements": set(), "last_result_date": None,
             })
             supplier_stat["homologated_items"] += 1
-            supplier_stat["procurements"].add(str(result.get("numero_controle_pncp") or ""))
-            supplier_stat["homologated_value"] += _float(result.get("valor_total_homologado"))
+            procurement_id = str(result.get("numero_controle_pncp") or "")
+            supplier_stat["procurements"].add(procurement_id)
+            result_value = _float(result.get("valor_total_homologado"))
+            supplier_stat["homologated_value"] += result_value
             if result.get("percentual_desconto") is not None:
                 supplier_stat["discounts"].append(_float(result.get("percentual_desconto")))
             if _float(result.get("valor_unitario_homologado")) > 0:
@@ -1079,6 +1116,21 @@ class SupabasePublicApi:
             result_date = str(result.get("data_resultado") or "")
             if result_date and result_date > str(supplier_stat["last_result_date"] or ""):
                 supplier_stat["last_result_date"] = result_date
+            parsed_result_date = _parse_datetime(result.get("data_resultado"))
+            if parsed_result_date:
+                month = parsed_result_date.strftime("%Y-%m")
+                point = timeline.setdefault(month, {"month": month, "procurements": 0, "estimated_value": 0.0})
+                point["results"] = _int(point.get("results")) + 1
+                point["homologated_value"] = _float(point.get("homologated_value")) + result_value
+                if procurement_id:
+                    result_procurements_by_month[month].add(procurement_id)
+        for month, procurement_ids in result_procurements_by_month.items():
+            timeline[month]["awarded_procurements"] = len(procurement_ids)
+        for point in timeline.values():
+            point.setdefault("results", 0)
+            point.setdefault("awarded_procurements", 0)
+            point.setdefault("homologated_value", 0.0)
+        suppliers_count = len(supplier_stats)
         top_suppliers = []
         for supplier_stat in sorted(supplier_stats.values(), key=lambda item: (item["homologated_value"], item["wins"]), reverse=True)[:10]:
             discounts = supplier_stat.pop("discounts")
@@ -1240,8 +1292,13 @@ class SupabasePublicApi:
             "modalities": [{"name": name, "procurements": count} for name, count in modalities.most_common(10)],
             "statuses": [{"name": name, "procurements": count} for name, count in statuses.most_common(10)],
             "timeline": [timeline[key] for key in sorted(timeline)[-24:]],
+            "timeline_months_count": len([
+                point for point in timeline.values()
+                if _int(point.get("procurements")) or _int(point.get("awarded_procurements"))
+            ]),
             "prices": price_summary,
             "top_suppliers": top_suppliers,
+            "suppliers_count": suppliers_count,
             "results_count": len(result_rows),
             "contracts": {
                 "count": len(contract_rows) + len(government_contracts),

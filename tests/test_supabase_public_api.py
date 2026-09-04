@@ -34,6 +34,8 @@ class FakeClient:
                 "valor_total_homologado": 90000,
                 "modo_disputa": "Aberto", "srp": True,
                 "uf": "MG", "municipio_nome": "Belo Horizonte",
+                "data_publicacao_pncp": "2026-08-15T12:00:00Z",
+                "data_encerramento_proposta": "2026-09-10T12:00:00Z",
             }], 1)
         if resource == "orgaos":
             return ([{"cnpj": "07615750000117", "razao_social": "SECRETARIA DE SAÚDE"}], None)
@@ -52,6 +54,7 @@ class FakeClient:
                 "fornecedor_ni": "12345678000100", "fornecedor_nome": "FORNECEDOR TESTE",
                 "valor_total_homologado": 1000, "valor_unitario_homologado": 10,
                 "quantidade_homologada": 100, "percentual_desconto": 20,
+                "data_resultado": "2026-08-28T12:00:00Z",
             }], None)
         if resource == "contratos":
             return ([], None)
@@ -153,6 +156,12 @@ class SupabasePublicApiTests(unittest.TestCase):
         self.assertEqual(90000, result["overview"]["financials"]["homologated"])
         self.assertIsNone(result["overview"]["financials"]["paid"])
         self.assertEqual("valor homologado observado", result["suppliers"][0]["share_basis"])
+        self.assertEqual(1, result["report_summary"]["observed_months"])
+        self.assertEqual(1, result["report_summary"]["procurements_per_month"])
+        self.assertEqual(1, result["report_summary"]["awarded_procurements_per_month"])
+        self.assertEqual(1, result["report_summary"]["suppliers"])
+        self.assertEqual(120000, result["buyers"][0]["estimated_per_month"])
+        self.assertEqual(1000, result["suppliers"][0]["homologated_per_month"])
         self.assertFalse(result["availability"]["company_profile"]["available"])
         self.assertIn("mesmo resultado filtrado", result["methodology"]["scope_rule"])
 
