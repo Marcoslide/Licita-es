@@ -7,7 +7,7 @@ name = "bolsa-licitacoes"
 version = "0.1.0"
 description = "Coletores públicos, camada bruta e normalização da Bolsa de Licitações"
 requires-python = ">=3.9"
-dependencies = ["openpyxl>=3.1,<4"]
+dependencies = ["openpyxl>=3.1,<4", "pypdf>=5.0,<7"]
 
 [project.scripts]
 bolsa-coleta = "bolsa_licitacoes.cli:main"

@@ -32,9 +32,26 @@ class ProcurementCockpitContractTests(unittest.TestCase):
         self.assertIn("function recordAgendaChange", self.html)
 
     def test_missing_document_text_is_not_presented_as_ai_fact(self) -> None:
-        self.assertIn("texto não está indexado por página e cláusula", self.html)
+        self.assertIn("/api/public/procurement/requirements?id=", self.html)
+        self.assertIn("nenhuma exigência é presumida", self.html)
         self.assertIn("Não é possível concluir a habilitação com segurança ainda", self.html)
         self.assertNotIn("Edital.pdf → página 47 → item 8.3.2", self.html)
+
+    def test_procurement_navigation_preserves_context(self) -> None:
+        self.assertIn("data-close-procurement", self.html)
+        self.assertIn("você continua nesta ficha", self.html)
+        self.assertIn('data-market-mode="personal"', self.html)
+        self.assertIn('data-market-mode="global"', self.html)
+
+    def test_overview_exposes_decision_signals(self) -> None:
+        for label in (
+            "VALOR DA OPORTUNIDADE",
+            "APTIDÃO DOCUMENTAL",
+            "PREÇO VENCEDOR · ESTIMATIVA HISTÓRICA",
+            "CONCORRÊNCIA · HISTÓRICO",
+            "FASE E EXECUÇÃO",
+        ):
+            self.assertIn(label, self.html)
 
     def test_documents_can_be_read_inside_the_procurement_workspace(self) -> None:
         self.assertIn('id="procDocumentViewer"', self.html)

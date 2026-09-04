@@ -6,7 +6,9 @@ from typing import Any
 from urllib.parse import parse_qs, urlparse
 
 from .db import Database
+from .document_requirements import ProcurementRequirementIndexer
 from .enrichment import DouSearch, HealthPriceIndex
+from .http import PublicHttpClient
 from .market_search import SEARCH_ENGINE_VERSION, normalize_text
 from .public_api import list_procurements, market_summary, procurement_detail, source_status, state_summary
 from .supabase_public_api import SupabasePublicApi, SupabasePublicError, SupabaseRestClient
@@ -27,6 +29,8 @@ def serve(
     remote = SupabasePublicApi(SupabaseRestClient(supabase_url, supabase_anon_key)) if supabase_url and supabase_anon_key else None
     health = HealthPriceIndex(health_data_path)
     dou = DouSearch(timeout=timeout, user_agent=user_agent)
+    requirements = ProcurementRequirementIndexer(PublicHttpClient(timeout=min(timeout, 12), retries=1, user_agent=user_agent))
+    requirements_cache: dict[str, dict[str, Any]] = {}
 
     def public_call(remote_method: str, local_method, *args):
         if remote:
@@ -73,6 +77,30 @@ def serve(
                 self._json(200, payload, cache="public, max-age=15")
             elif parsed.path == "/api/public/sources":
                 self._json(200, public_call("source_status", source_status), cache="public, max-age=20")
+            elif parsed.path == "/api/public/procurement/requirements":
+                query = parse_qs(parsed.query)
+                procurement_raw = query.get("id", [""])[0].strip()
+                refresh = query.get("refresh", [""])[0].lower() in {"1", "true", "yes"}
+                if not procurement_raw:
+                    self._json(400, {"error": "procurement id inválido"}); return
+                if procurement_raw in requirements_cache and not refresh:
+                    self._json(200, requirements_cache[procurement_raw], cache="public, max-age=900"); return
+                try:
+                    detail = remote.procurement_detail(procurement_raw) if remote else procurement_detail(db, int(procurement_raw))
+                except (SupabasePublicError, ValueError) as exc:
+                    print(f"Requirement detail unavailable: {exc}")
+                    detail = None
+                if not detail:
+                    self._json(404, {"error": "not found"}); return
+                payload = {
+                    "procurement_id": procurement_raw,
+                    **requirements.index(detail.get("documents") or []),
+                    "data_source": "official-documents",
+                }
+                if len(requirements_cache) >= 256:
+                    requirements_cache.pop(next(iter(requirements_cache)))
+                requirements_cache[procurement_raw] = payload
+                self._json(200, payload, cache="public, max-age=900")
             elif parsed.path == "/api/public/procurement/enrichment":
                 query = parse_qs(parsed.query)
                 procurement_raw = query.get("id", [""])[0].strip()
