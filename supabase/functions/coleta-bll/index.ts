@@ -1,50 +1,46 @@
 // ============================================================
-// BOLSA — conector BNC (Bolsa Nacional de Compras) v2 — Wave 1 P0
-// bnccompras.com. ASP.NET MVC + jQuery, sem API pública/swagger.
+// BOLSA — conector BLL Compras (Bolsa de Licitações do Brasil) v1
+// bllcompras.com — Wave 1 P0.
+//
+// MESMA FAMÍLIA DE TECNOLOGIA da BNC (bnccompras.com): confirmado por
+// discovery em 2026-09-04 — mesmíssima estrutura de HTML/rotas
+// (/Process/ProcessSearchPublic, /Process/ProcessView, /Process/
+// ProcessFiles, /Process/ProcessDocuments, /BatchList/
+// GetProcessMessageView), mesmos títulos de modal ("Arquivos do
+// Processo", "Documentos exigidos no processo", "Mensagens do
+// Processo" — texto idêntico, não só parecido), mesmo servidor
+// Microsoft-IIS/10.0 + jQuery + reCAPTCHA. Este arquivo é o adapter
+// dessa família aplicado a um segundo cliente/marca — mesma lógica de
+// parsing da BNC, só troca BASE/FONTE. Reuso pleno da entidade genérica
+// (processo_disputa / processo_disputa_detalhe / documento_processo,
+// as mesmas usadas pela BNC — fonte_id já distingue a origem).
 //
 // Motor genérico usado DIRETO via SQL (bolsa.registrar_estado) — regra 5
 // da autorização da Wave 1: _shared/motor.ts não é usado ainda porque seu
 // bundling entre arquivos nunca foi comprovado no deploy. Toda gravação
-// jsonb usa sql.json(obj), nunca JSON.stringify(obj)::jsonb (regra 6 —
-// esse padrão corrompeu bolsa.estado_atual.dados em produção em 2026-09-04,
-// ver migration fix_registrar_estado_guarda_tipo_jsonb).
+// jsonb usa sql.json(obj), nunca JSON.stringify(obj)::jsonb (regra 6).
 //
-// Capacidades REAIS confirmadas por discovery (2026-09-04), sem burlar
-// captcha em nenhum caso:
-//  - Listagem pública (/Process/ProcessSearchPublic?param1=0): até ~100
-//    processos recentes, renderizados em HTML, sem login/captcha.
-//  - Detalhe do processo (/Process/ProcessView?param1=<token>): painel
-//    "INFORMAÇÕES DO PROCESSO" com campos que a listagem não tem (nº
-//    processo administrativo, condutor, autoridade, tipo de contrato,
-//    datas completas de impugnação/esclarecimento/recurso) — sem captcha.
-//  - Arquivos do processo (/Process/ProcessFiles?param1=<token>): lista
-//    de anexos do edital com link de download direto (Azure Blob
-//    Storage público) — sem captcha.
-//  - Documentos exigidos, Mensagens/chat, Impugnações, Esclarecimentos
-//    (ProcessDocuments/BatchList.GetProcessMessageView/
-//    ProcessImpeachment/ProcessClarify): endpoints confirmados
-//    acessíveis sem captcha (testados, retornam 200 com JSON {modal,html})
-//    mas AINDA NÃO estão com parser ligado neste conector — os exemplos
-//    reais encontrados vieram vazios (processo recém-aberto), então não
-//    dá pra validar o formato de uma linha real ainda. Registrado como
-//    capacidade confirmada, não fabricada.
-//  - Lotes/Itens (/Process/ProcessBatches, chamado por GetBatchesInfo):
-//    a própria página só chama esse endpoint depois de
-//    ExecuteCaptcha('processView') gerar um token de reCAPTCHA v2
-//    invisible. É onde ficam lances, resultado/vencedores e
-//    participantes/fornecedores. Capacidade marcada INDISPONÍVEL —
-//    nunca contornada, por instrução explícita.
+// Capacidades confirmadas (herdadas da mesma plataforma, reverificadas
+// nesta fonte especificamente antes de deployar):
+//  - Listagem pública (/Process/ProcessSearchPublic?param1=0): sem
+//    login/captcha, confirmado com dado real (MUNICIPIO DE PEROLA,
+//    MUNICIPIO DE TEIXEIRA DE FREITAS etc.).
+//  - Detalhe/Arquivos/Documentos/Mensagens: confirmados 200 OK, sem
+//    captcha, mesma estrutura da BNC.
+//  - Lotes/Itens (/Process/ProcessBatches via GetBatchesInfo): mesma
+//    plataforma da BNC, mesmo ExecuteCaptcha('processView') — reCAPTCHA
+//    v2 invisible. Herdado como INDISPONÍVEL sem re-testar em cada
+//    processo (mesma engine, mesmo botão, mesmo JS) — nunca contornado.
 //
-// Chave estável (não usa o token opaco/criptografado da URL, que muda a
-// cada carga de página): órgão + número do edital + modalidade, igual ao
-// padrão já usado no PNCP para correlação.
+// Chave estável: órgão + número do edital + modalidade (não o token
+// opaco da URL, que muda a cada carga de página).
 // ============================================================
 import postgres from "npm:postgres@3.4.5";
 
 const sql = postgres(Deno.env.get("SUPABASE_DB_URL")!, { prepare: false, max: 1, idle_timeout: 15, connect_timeout: 10 });
 
-const BASE = "https://bnccompras.com";
-const FONTE = "bnc";
+const BASE = "https://bllcompras.com";
+const FONTE = "bll";
 const UA = "BolsaLicitacoes/0.1 (coleta de dados publicos; +https://github.com/Marcoslide/Licita-es)";
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -104,13 +100,13 @@ async function fetchTexto(url: string, contexto: string, stats: Stats, tentativa
   return { ok: false, status: 0, texto: "" };
 }
 
-interface ProcessoBnc {
+interface ProcessoBll {
   token: string; orgao: string; numero: string; modalidade: string;
   cidade_uf: string; situacao: string; data_publicacao: string; data_sessao: string;
 }
 
-function extrairProcessos(html: string): ProcessoBnc[] {
-  const out: ProcessoBnc[] = [];
+function extrairProcessos(html: string): ProcessoBll[] {
+  const out: ProcessoBll[] = [];
   const linhaRe = /<tr>\s*<td class="tablebutton"><a[^>]+href="\/Process\/ProcessView\?param1=([^"]+)"[^>]*>.*?<\/a><\/td>\s*<td class="orgnamewidth">([^<]*)<\/td>\s*<td>([^<]*)<\/td>\s*<td>([^<]*)<\/td>\s*<td>([^<]*)<\/td>\s*<td>([^<]*)<\/td>\s*<td>([^<]*)<\/td>\s*<td>([^<]*)<\/td>\s*<\/tr>/g;
   let m: RegExpExecArray | null;
   while ((m = linhaRe.exec(html))) {
@@ -150,10 +146,10 @@ function extrairDetalhe(html: string): Record<string, string | null> {
   };
 }
 
-interface ArquivoBnc { titulo: string; criado_em: string; url: string }
+interface ArquivoBll { titulo: string; criado_em: string; url: string }
 
-function extrairArquivos(jsonTexto: string): ArquivoBnc[] {
-  const out: ArquivoBnc[] = [];
+function extrairArquivos(jsonTexto: string): ArquivoBll[] {
+  const out: ArquivoBll[] = [];
   let htmlDecodificado = "";
   try {
     const j = JSON.parse(jsonTexto);
@@ -175,12 +171,13 @@ Deno.serve(async (_req: Request) => {
     logId = rLog[0].id;
   } catch { /* log não fatal */ }
   try {
-    await sql`select bolsa.garantir_fonte(${FONTE}, 'Bolsa Nacional de Compras (BNC)', ${BASE}, ${sql.json({
+    await sql`select bolsa.garantir_fonte(${FONTE}, 'BLL Compras (Bolsa de Licitações do Brasil)', ${BASE}, ${sql.json({
       listagem_publica: true, detalhe_processo: true, arquivos: true,
       documentos_exigidos: "acessivel_nao_validado", mensagens: "acessivel_nao_coletado",
       impugnacoes: "acessivel_nao_coletado", esclarecimentos: "acessivel_nao_coletado",
       lotes_itens_lances_resultados: false,
       motivo_indisponivel: "ProcessBatches exige token de reCAPTCHA v2 invisible (ExecuteCaptcha) — não contornado",
+      tecnologia_familia: "mesma plataforma da BNC (bnccompras.com) — confirmado por discovery 2026-09-04",
     })}::jsonb)`;
 
     const listagem = await fetchTexto(`${BASE}/Process/ProcessSearchPublic?param1=0`, "listagem_publica", stats);
@@ -191,7 +188,7 @@ Deno.serve(async (_req: Request) => {
     const processos = extrairProcessos(listagem.texto);
     stats.processos_vistos = processos.length;
 
-    const ckRows = await sql`select valor from bolsa.checkpoints where chave = 'bnc:listagem'`;
+    const ckRows = await sql`select valor from bolsa.checkpoints where chave = 'bll:listagem'`;
     const enriquecidos = new Set<string>(((ckRows[0]?.valor as any)?.enriquecidos as string[]) ?? []);
     const LIMITE_ENRIQUECIMENTO = 10;
     let enriquecidosNestaExecucao = 0;
@@ -239,7 +236,7 @@ Deno.serve(async (_req: Request) => {
 
     const listaFinal = [...enriquecidos].slice(-500);
     await sql`insert into bolsa.checkpoints (chave, valor, atualizado_em)
-              values ('bnc:listagem', ${sql.json({ enriquecidos: listaFinal, ultima_execucao: new Date().toISOString() })}::jsonb, now())
+              values ('bll:listagem', ${sql.json({ enriquecidos: listaFinal, ultima_execucao: new Date().toISOString() })}::jsonb, now())
               on conflict (chave) do update set valor = excluded.valor, atualizado_em = now()`;
 
     await sql`update bolsa.fontes set status = 'ATIVA', ultimo_sucesso_em = now() where id = ${FONTE}`;
