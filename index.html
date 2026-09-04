@@ -1307,13 +1307,16 @@ function renderTileFallback(){
   renderDrill();
 }
 async function loadBrazilMap(){
-  try{
-    const response=await fetch('assets/brasil-estados.geojson');
-    if(!response.ok)throw new Error('malha indisponível');
-    mapGeo=await response.json();renderHeat();
-  }catch(err){
-    $('#hmGrid').innerHTML='<div class="map-loading">Não foi possível carregar a malha geográfica. Recarregue a página.</div>';
+  const publicMap='https://bolsa.frontlinetec.com.br/terminal/assets/brasil-estados.geojson';
+  const candidates=location.protocol==='file:'?[publicMap]:['assets/brasil-estados.geojson',publicMap];
+  for(const url of candidates){
+    try{
+      const response=await fetch(url,{cache:'force-cache'});
+      if(!response.ok)continue;
+      mapGeo=await response.json();renderHeat();return;
+    }catch(error){/* tenta a próxima origem pública */}
   }
+  $('#hmGrid').innerHTML='<div class="map-loading">A malha geográfica está temporariamente indisponível. Os rankings por estado continuam abaixo.</div>';
 }
 function renderDrill(){
   const e=ESTADOS.find(x=>x[0]===hmSel);if(!e)return;

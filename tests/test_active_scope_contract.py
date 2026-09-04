@@ -46,6 +46,10 @@ class ActiveScopeContractTests(unittest.TestCase):
         self.assertIn("PRÉVIA · INTELIGÊNCIA DE MERCADO", self.html)
         self.assertIn("location.protocol==='file:'?'https://bolsa.frontlinetec.com.br'", self.html)
 
+    def test_brazil_map_has_a_public_file_mode_fallback(self) -> None:
+        self.assertIn("const publicMap='https://bolsa.frontlinetec.com.br/terminal/assets/brasil-estados.geojson'", self.html)
+        self.assertIn("location.protocol==='file:'?[publicMap]", self.html)
+
 
 if __name__ == "__main__":
     unittest.main()
