@@ -34,6 +34,12 @@ class ActiveScopeContractTests(unittest.TestCase):
         self.assertIn("/api/public/search/suggest", self.html)
         self.assertIn("match_score", self.html)
 
+    def test_market_research_center_reuses_the_active_scope(self) -> None:
+        self.assertIn("/api/public/market/research?", self.html)
+        self.assertIn("function refreshMarketResearch()", self.html)
+        self.assertIn("CENTRAL DE PESQUISA DE MERCADO", self.html)
+        self.assertIn("todos os blocos abaixo usam exatamente este contexto", self.html)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -437,6 +437,124 @@ class SupabasePublicApi:
             "data_source": "supabase-live",
         }
 
+    def market_research(self, query: Mapping[str, list[str]]) -> dict[str, Any]:
+        """Build one auditable analytical envelope from the active market scope."""
+        scoped_query = {key: list(value) for key, value in query.items()}
+        scoped_query.update({"limit": ["60"], "offset": ["0"], "sort": ["relevance"], "facets": ["1"]})
+        result = self.list_procurements(scoped_query)
+        facets = result.get("facets") or {}
+        total = _int(result.get("total"))
+        estimated = _float(facets.get("estimated_value"))
+        homologated = _float(facets.get("homologated_value"))
+        contracts = facets.get("contracts") or {}
+        atas = facets.get("atas") or {}
+        pca = facets.get("pca") or {}
+        timeline = list(facets.get("timeline") or [])
+        suppliers = [dict(row) for row in (facets.get("top_suppliers") or [])]
+        homologated_base = sum(_float(row.get("homologated_value")) for row in suppliers)
+        for supplier in suppliers:
+            supplier["market_share_pct"] = (
+                round(_float(supplier.get("homologated_value")) / homologated_base * 100, 2)
+                if homologated_base > 0 else None
+            )
+            supplier["share_basis"] = "valor homologado observado"
+
+        buyers = [dict(row) for row in (facets.get("top_organizations") or [])]
+        for buyer in buyers:
+            buyer["market_share_pct"] = (
+                round(_float(buyer.get("estimated_value")) / estimated * 100, 2)
+                if estimated > 0 else None
+            )
+            buyer["share_basis"] = "valor estimado publicado"
+
+        recent = timeline[-3:]
+        previous = timeline[-6:-3]
+        recent_value = sum(_float(point.get("estimated_value")) for point in recent)
+        previous_value = sum(_float(point.get("estimated_value")) for point in previous)
+        change_pct = round((recent_value - previous_value) / previous_value * 100, 2) if previous_value else None
+        trend = "sem base comparável"
+        if change_pct is not None:
+            trend = "aquecendo" if change_pct > 5 else "esfriando" if change_pct < -5 else "estável"
+
+        sampled = _int(facets.get("records_sampled"))
+        open_count = _int(facets.get("open_procurements"))
+        new_count = _int(facets.get("new_procurements"))
+        opportunity_score = min(100, round(
+            (40 * open_count / max(total, 1)) +
+            (25 * new_count / max(total, 1)) +
+            (20 if _int(pca.get("count")) else 0) +
+            (15 if _int(contracts.get("count")) else 0)
+        )) if total else 0
+        scope = {
+            key: (values[0] if len(values) == 1 else list(values))
+            for key, values in query.items()
+            if key not in {"limit", "offset", "sort", "facets"} and values
+        }
+        try:
+            source_rows = self.source_status()
+        except SupabasePublicError:
+            source_rows = []
+
+        events = [{
+            "type": "procurement", "label": item.get("object"), "occurred_at": item.get("source_created_at"),
+            "status": item.get("status_name"), "procurement_id": item.get("id"),
+            "source": item.get("source_system") or "pncp",
+        } for item in (result.get("items") or [])[:8]]
+        events.extend({
+            "type": "contract_expiry", "label": item.get("object"), "occurred_at": item.get("validity_end"),
+            "status": "vigência", "source": "contratos",
+        } for item in (contracts.get("expiring") or [])[:5])
+        events.extend({
+            "type": "pca", "label": item.get("description"), "occurred_at": item.get("desired_at"),
+            "status": "planejado", "source": "pca",
+        } for item in (pca.get("items") or [])[:5])
+        events.sort(key=lambda item: str(item.get("occurred_at") or ""), reverse=True)
+
+        coverage = {
+            "procurements": {"records": total, "sampled": sampled, "ratio": round(sampled / total * 100, 1) if total else 0},
+            "items": {"records": _int(facets.get("items_count")), "linked_procurements": _int(facets.get("procurements_with_items"))},
+            "results": {"records": _int(facets.get("results_count")), "linked_procurements": _int(facets.get("procurements_with_results"))},
+            "contracts": {"records": _int(contracts.get("count")), "linked_procurements": _int(contracts.get("linked_procurements"))},
+            "participants": {"records": None, "reason": "Participantes completos ainda não possuem cobertura consolidada neste recorte."},
+            "payments": {"records": None, "reason": "Empenho, liquidação e pagamento ainda não têm vínculo canônico suficiente com todo o escopo."},
+        }
+        availability = dict(facets.get("availability") or {})
+        availability.update({
+            "company_profile": {"available": False, "reason": "QSA e relações societárias aguardam fonte pública consolidada e versionada."},
+            "company_fit": {"available": False, "reason": "Configure o perfil privado da empresa para calcular aderência sem misturá-la ao potencial do mercado."},
+            "financial_execution": {"available": False, "reason": coverage["payments"]["reason"]},
+        })
+        return {
+            "scope": scope, "search": result.get("search"),
+            "overview": {
+                "procurements": total, "open_procurements": open_count, "new_procurements": new_count,
+                "failed_procurements": _int(facets.get("failed_procurements")), "organizations": _int(facets.get("organizations")),
+                "financials": {
+                    "estimated": estimated, "adjudicated": None, "homologated": homologated,
+                    "price_registry": None, "contracted": _float(contracts.get("value")),
+                    "committed": None, "liquidated": None, "paid": None,
+                },
+            },
+            "pulse": {"status": trend, "change_pct": change_pct, "recent_value": recent_value, "previous_value": previous_value, "basis": "valor estimado publicado nos últimos dois blocos de três meses"},
+            "scores": {
+                "market_opportunity": {"score": opportunity_score, "basis": ["processos abertos", "novas publicações", "PCA relacionado", "contratos no recorte"]},
+                "company_fit": {"score": None, "reason": availability["company_fit"]["reason"]},
+            },
+            "coverage": coverage,
+            "history": {"monthly": timeline, "comparison": {"recent": recent_value, "previous": previous_value, "change_pct": change_pct}},
+            "prices": facets.get("prices") or {}, "suppliers": suppliers, "buyers": buyers,
+            "geography": {"states": facets.get("states") or [], "cities": facets.get("cities") or []},
+            "contracts": contracts, "price_registry_atas": atas, "future": pca,
+            "events": events[:15], "opportunities": result.get("items") or [],
+            "sources": source_rows, "availability": availability,
+            "methodology": {
+                "scope_rule": "Todos os blocos usam o mesmo resultado filtrado; nenhum total global substitui um recorte vazio.",
+                "financial_rule": "Estimado, homologado e contratado são etapas diferentes. Ausências permanecem nulas.",
+                "share_rule": "Market share usa somente o valor homologado observado no recorte e não equivale a faturamento contábil.",
+            },
+            "data_source": "supabase-live",
+        }
+
     def procurement_detail(self, procurement_id: str) -> Optional[dict[str, Any]]:
         ncp = procurement_id.strip()[:100]
         rows, _ = self.client.get(
@@ -840,6 +958,7 @@ class SupabasePublicApi:
         now = datetime.now(timezone.utc)
         new_since = now - timedelta(days=7)
         open_count = new_count = failed_count = 0
+        homologated_value = 0.0
         for row in rows:
             code = str(row.get("uf") or "").upper()
             if code not in UF_NAMES:
@@ -850,6 +969,7 @@ class SupabasePublicApi:
             })
             state["procurements"] += 1
             value = _float(row.get("valor_total_estimado"))
+            homologated_value += _float(row.get("valor_total_homologado"))
             state["estimated_value"] += value
             if row.get("orgao_cnpj"):
                 org_id = str(row["orgao_cnpj"])
@@ -938,6 +1058,10 @@ class SupabasePublicApi:
             "valor_unitario_homologado,quantidade_homologada,percentual_desconto,data_resultado", ncps,
         )
         supplier_stats: dict[str, dict[str, Any]] = {}
+        procurements_with_results = {
+            str(row.get("numero_controle_pncp") or "")
+            for row in result_rows if row.get("numero_controle_pncp")
+        }
         for result in result_rows:
             supplier_id = str(result.get("fornecedor_ni") or result.get("fornecedor_nome") or "Não informado")
             supplier_stat = supplier_stats.setdefault(supplier_id, {
@@ -1103,6 +1227,13 @@ class SupabasePublicApi:
                 )[:3]],
             } for state in states.values()), key=lambda state: state["procurements"], reverse=True),
             "organizations": len(organizations), "estimated_value": sum(_float(row.get("valor_total_estimado")) for row in rows),
+            "homologated_value": homologated_value,
+            "items_count": len(item_rows),
+            "procurements_with_items": len({
+                str(row.get("numero_controle_pncp") or "")
+                for row in item_rows if row.get("numero_controle_pncp")
+            }),
+            "procurements_with_results": len(procurements_with_results),
             "open_procurements": open_count, "new_procurements": new_count, "failed_procurements": failed_count,
             "cities": sorted(cities.values(), key=lambda item: (item["estimated_value"], item["procurements"]), reverse=True)[:12],
             "top_organizations": top_organizations,
@@ -1115,6 +1246,10 @@ class SupabasePublicApi:
             "contracts": {
                 "count": len(contract_rows) + len(government_contracts),
                 "pncp_count": len(contract_rows), "federal_count": len(government_contracts),
+                "linked_procurements": len({
+                    str(row.get("numero_controle_pncp_compra") or "")
+                    for row in contract_rows if row.get("numero_controle_pncp_compra")
+                }),
                 "value": sum(_float(row.get("valor_global") or row.get("valor_inicial")) for row in [*contract_rows, *government_contracts]),
                 "expiring": expiring_contracts[:12],
             },

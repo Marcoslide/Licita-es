@@ -75,6 +75,30 @@ def serve(
                     except Exception as exc:
                         print(f"Search metrics unavailable: {exc}")
                 self._json(200, payload, cache="public, max-age=15")
+            elif parsed.path == "/api/public/market/research":
+                query = parse_qs(parsed.query)
+                if remote:
+                    try:
+                        payload = remote.market_research(query)
+                    except SupabasePublicError as exc:
+                        print(f"Market research unavailable: {exc}")
+                        self._json(503, {
+                            "error": "A pesquisa de mercado está temporariamente indisponível.",
+                            "data_source": "temporarily-unavailable",
+                        }); return
+                    self._json(200, payload, cache="public, max-age=20")
+                else:
+                    base = list_procurements(db, query)
+                    self._json(200, {
+                        "scope": {key: value for key, value in query.items()},
+                        "overview": {"procurements": base.get("total", 0), "financials": {}},
+                        "opportunities": base.get("items", []),
+                        "availability": {"complete_market_research": {
+                            "available": False,
+                            "reason": "A pesquisa consolidada requer a base nacional conectada.",
+                        }},
+                        "data_source": "sqlite-limited",
+                    }, cache="public, max-age=20")
             elif parsed.path == "/api/public/sources":
                 self._json(200, public_call("source_status", source_status), cache="public, max-age=20")
             elif parsed.path == "/api/public/procurement/requirements":

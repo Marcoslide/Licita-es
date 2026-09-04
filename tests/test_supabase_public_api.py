@@ -31,6 +31,7 @@ class FakeClient:
                 "orgao_cnpj": "07615750000117", "processo": "63/2026",
                 "objeto": "Aquisição de materiais hospitalares", "modalidade_nome": "Pregão",
                 "situacao_nome": "Divulgada", "valor_total_estimado": 120000,
+                "valor_total_homologado": 90000,
                 "modo_disputa": "Aberto", "srp": True,
                 "uf": "MG", "municipio_nome": "Belo Horizonte",
             }], 1)
@@ -67,6 +68,10 @@ class FakeClient:
             }], None)
         if resource == "documentos":
             return ([], None)
+        if resource == "fontes":
+            return ([{"id": "pncp", "nome": "PNCP", "status": "ATIVA", "ultimo_sucesso_em": "2026-09-03T12:00:00Z", "capabilities": {}}], None)
+        if resource == "coleta_log":
+            return ([{"fonte_id": "pncp", "job": "incremental", "finalizado_em": "2026-09-03T12:00:00Z", "registros": 1, "inseridos": 1, "atualizados": 0, "erros": 0}], None)
         raise AssertionError(f"Recurso inesperado: {resource}")
 
 
@@ -137,6 +142,19 @@ class SupabasePublicApiTests(unittest.TestCase):
         self.assertTrue(detail["procurement"]["is_price_registry"])
         self.assertEqual("Menor preço", detail["items"][0]["judgment_criterion"])
         self.assertFalse(detail["items"][0]["confidential_budget"])
+
+    def test_market_research_uses_one_scope_and_separates_financial_stages(self) -> None:
+        result = SupabasePublicApi(FakeClient()).market_research({
+            "q": ["material hospitalar"], "uf": ["MG"], "period": ["365"],
+        })
+        self.assertEqual("material hospitalar", result["scope"]["q"])
+        self.assertEqual("MG", result["scope"]["uf"])
+        self.assertEqual(120000, result["overview"]["financials"]["estimated"])
+        self.assertEqual(90000, result["overview"]["financials"]["homologated"])
+        self.assertIsNone(result["overview"]["financials"]["paid"])
+        self.assertEqual("valor homologado observado", result["suppliers"][0]["share_basis"])
+        self.assertFalse(result["availability"]["company_profile"]["available"])
+        self.assertIn("mesmo resultado filtrado", result["methodology"]["scope_rule"])
 
 
 if __name__ == "__main__":
