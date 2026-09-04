@@ -231,6 +231,8 @@ def serve(
             self.send_header("Content-Length", str(len(body)))
             self.send_header("Cache-Control", cache)
             self.send_header("X-Content-Type-Options", "nosniff")
+            if self.path.startswith("/api/public/") or self.path == "/health":
+                self.send_header("Access-Control-Allow-Origin", "*")
             self.end_headers()
             self.wfile.write(body)
 

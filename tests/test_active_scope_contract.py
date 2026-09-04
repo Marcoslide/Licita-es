@@ -40,6 +40,12 @@ class ActiveScopeContractTests(unittest.TestCase):
         self.assertIn("CENTRAL DE PESQUISA DE MERCADO", self.html)
         self.assertIn("todos os blocos abaixo usam exatamente este contexto", self.html)
 
+    def test_home_exposes_a_real_market_preview_and_file_mode_api(self) -> None:
+        self.assertIn('id="marketPreview"', self.html)
+        self.assertIn("function renderMarketPreview(f,total)", self.html)
+        self.assertIn("PRÉVIA · INTELIGÊNCIA DE MERCADO", self.html)
+        self.assertIn("location.protocol==='file:'?'https://bolsa.frontlinetec.com.br'", self.html)
+
 
 if __name__ == "__main__":
     unittest.main()
