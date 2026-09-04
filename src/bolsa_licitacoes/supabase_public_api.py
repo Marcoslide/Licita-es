@@ -458,6 +458,7 @@ class SupabasePublicApi:
         observed_months = max(active_month_count, 1)
         awarded_procurements = _int(facets.get("procurements_with_results"))
         suppliers = [dict(row) for row in (facets.get("top_suppliers") or [])]
+        latest_result_month = next((row.get("latest_month") for row in suppliers if row.get("latest_month")), None)
         homologated_base = sum(_float(row.get("homologated_value")) for row in suppliers)
         for supplier in suppliers:
             supplier["market_share_pct"] = (
@@ -576,6 +577,15 @@ class SupabasePublicApi:
             },
             "coverage": coverage,
             "history": {"monthly": timeline, "comparison": {"recent": recent_value, "previous": previous_value, "change_pct": change_pct}},
+            "supplier_metrics": {
+                "latest_result_month": latest_result_month,
+                "result_months_observed": len({
+                    month.get("month") for supplier in suppliers for month in supplier.get("monthly_history", []) if month.get("month")
+                }),
+                "results_observed": _int(facets.get("results_count")),
+                "procurements_with_results": awarded_procurements,
+                "rule": "Vitória é um processo distinto com resultado homologado para o fornecedor; itens do mesmo processo não multiplicam vitórias.",
+            },
             "prices": facets.get("prices") or {}, "suppliers": suppliers, "buyers": buyers,
             "geography": {"states": facets.get("states") or [], "cities": facets.get("cities") or []},
             "contracts": contracts, "price_registry_atas": atas, "future": pca,
@@ -1088,7 +1098,7 @@ class SupabasePublicApi:
         }
 
         result_rows = self._related_rows(
-            "resultados_itens", "numero_controle_pncp,fornecedor_ni,fornecedor_nome,valor_total_homologado,"
+            "resultados_itens", "numero_controle_pncp,numero_item,fornecedor_ni,fornecedor_nome,valor_total_homologado,"
             "valor_unitario_homologado,quantidade_homologada,percentual_desconto,data_resultado", ncps,
         )
         supplier_stats: dict[str, dict[str, Any]] = {}
@@ -1098,15 +1108,21 @@ class SupabasePublicApi:
             for row in result_rows if row.get("numero_controle_pncp")
         }
         for result in result_rows:
-            supplier_id = str(result.get("fornecedor_ni") or result.get("fornecedor_nome") or "Não informado")
-            supplier_stat = supplier_stats.setdefault(supplier_id, {
-                "id": supplier_id, "name": result.get("fornecedor_nome") or supplier_id,
+            supplier_key = _supplier_identity(result.get("fornecedor_ni"), result.get("fornecedor_nome"))
+            supplier_id = re.sub(r"[^0-9A-Za-z]", "", str(result.get("fornecedor_ni") or "")).upper()
+            supplier_name = " ".join(str(result.get("fornecedor_nome") or supplier_id or "Não informado").split())
+            supplier_stat = supplier_stats.setdefault(supplier_key, {
+                "id": supplier_id or supplier_name, "name": supplier_name,
                 "wins": 0, "homologated_items": 0, "homologated_value": 0.0,
                 "discounts": [], "unit_prices": [], "procurements": set(), "last_result_date": None,
+                "names": Counter(), "monthly": {},
             })
+            if supplier_name:
+                supplier_stat["names"][supplier_name] += 1
             supplier_stat["homologated_items"] += 1
             procurement_id = str(result.get("numero_controle_pncp") or "")
-            supplier_stat["procurements"].add(procurement_id)
+            if procurement_id:
+                supplier_stat["procurements"].add(procurement_id)
             result_value = _float(result.get("valor_total_homologado"))
             supplier_stat["homologated_value"] += result_value
             if result.get("percentual_desconto") is not None:
@@ -1119,6 +1135,13 @@ class SupabasePublicApi:
             parsed_result_date = _parse_datetime(result.get("data_resultado"))
             if parsed_result_date:
                 month = parsed_result_date.strftime("%Y-%m")
+                supplier_month = supplier_stat["monthly"].setdefault(
+                    month, {"month": month, "procurements": set(), "homologated_items": 0, "homologated_value": 0.0},
+                )
+                if procurement_id:
+                    supplier_month["procurements"].add(procurement_id)
+                supplier_month["homologated_items"] += 1
+                supplier_month["homologated_value"] += result_value
                 point = timeline.setdefault(month, {"month": month, "procurements": 0, "estimated_value": 0.0})
                 point["results"] = _int(point.get("results")) + 1
                 point["homologated_value"] = _float(point.get("homologated_value")) + result_value
@@ -1131,15 +1154,37 @@ class SupabasePublicApi:
             point.setdefault("awarded_procurements", 0)
             point.setdefault("homologated_value", 0.0)
         suppliers_count = len(supplier_stats)
-        top_suppliers = []
-        for supplier_stat in sorted(supplier_stats.values(), key=lambda item: (item["homologated_value"], item["wins"]), reverse=True)[:10]:
+        result_months = sorted({month for supplier_stat in supplier_stats.values() for month in supplier_stat["monthly"]})
+        latest_result_month = result_months[-1] if result_months else None
+        consolidated_suppliers = []
+        for supplier_stat in supplier_stats.values():
             discounts = supplier_stat.pop("discounts")
             unit_prices = supplier_stat.pop("unit_prices")
             procurements = supplier_stat.pop("procurements")
+            names = supplier_stat.pop("names")
+            monthly = supplier_stat.pop("monthly")
             supplier_stat["wins"] = len(procurements)
+            if names:
+                supplier_stat["name"] = names.most_common(1)[0][0]
             supplier_stat["average_discount"] = statistics.fmean(discounts) if discounts else None
             supplier_stat["average_unit_price"] = statistics.fmean(unit_prices) if unit_prices else None
-            top_suppliers.append(supplier_stat)
+            supplier_stat["monthly_history"] = [{
+                "month": month,
+                "wins": len(values["procurements"]),
+                "homologated_items": values["homologated_items"],
+                "homologated_value": values["homologated_value"],
+            } for month, values in sorted(monthly.items())[-12:]]
+            latest = monthly.get(latest_result_month or "", {})
+            supplier_stat["latest_month"] = latest_result_month
+            supplier_stat["latest_month_wins"] = len(latest.get("procurements", set()))
+            supplier_stat["latest_month_homologated_items"] = _int(latest.get("homologated_items"))
+            supplier_stat["latest_month_homologated_value"] = _float(latest.get("homologated_value"))
+            consolidated_suppliers.append(supplier_stat)
+        top_suppliers = sorted(
+            consolidated_suppliers,
+            key=lambda item: (item["homologated_value"], item["wins"], item["homologated_items"]),
+            reverse=True,
+        )[:100]
 
         requested_states = {item.strip().upper() for item in (_first(scope, "uf") or "").split(",") if item.strip()}
         requested_city = _fold(_first(scope, "city") or "")
@@ -1423,6 +1468,15 @@ def expand_search_terms(query: str) -> tuple[list[str], Optional[str]]:
 def _fold(value: str) -> str:
     import unicodedata
     return "".join(ch for ch in unicodedata.normalize("NFD", value) if unicodedata.category(ch) != "Mn").lower()
+
+
+def _supplier_identity(tax_id: Any, name: Any) -> str:
+    """Return a stable key so formatting/name variants do not split one supplier."""
+    normalized_tax_id = re.sub(r"[^0-9A-Za-z]", "", str(tax_id or "")).upper()
+    if normalized_tax_id:
+        return normalized_tax_id
+    normalized_name = re.sub(r"\s+", " ", _fold(str(name or "Não informado"))).strip()
+    return f"nome:{normalized_name or 'nao-informado'}"
 
 
 def _pg_token(value: str) -> str:

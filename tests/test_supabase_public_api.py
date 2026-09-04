@@ -78,6 +78,46 @@ class FakeClient:
         raise AssertionError(f"Recurso inesperado: {resource}")
 
 
+class SupplierHistoryFakeClient(FakeClient):
+    def get(self, resource, params, *, profile="public", count=False):
+        values = dict(params)
+        if resource not in {"licitacoes", "resultados_itens"}:
+            return super().get(resource, params, profile=profile, count=count)
+        self.calls.append((resource, params, profile, count))
+        if int(values.get("offset", "0")) > 0:
+            return ([], 0 if count else None)
+        if resource == "licitacoes":
+            rows = [{
+                "numero_controle_pncp": f"00000000000000-1-00000{index}/2026",
+                "orgao_cnpj": "07615750000117", "processo": f"{index}/2026",
+                "objeto": "Aquisição de materiais hospitalares", "modalidade_nome": "Pregão",
+                "situacao_nome": "Homologada", "valor_total_estimado": 1000,
+                "valor_total_homologado": 500,
+                "uf": "MG", "municipio_nome": "Belo Horizonte",
+                "data_publicacao_pncp": f"2026-0{8 if index < 3 else 9}-15T12:00:00Z",
+                "data_encerramento_proposta": "2026-09-10T12:00:00Z",
+            } for index in range(1, 4)]
+            return (rows, len(rows) if count else None)
+        return ([
+            {"numero_controle_pncp": "00000000000000-1-000001/2026", "numero_item": 1,
+             "fornecedor_ni": "12.345.678/0001-00", "fornecedor_nome": "EMPRESA HISTÓRICA LTDA",
+             "valor_total_homologado": 100, "valor_unitario_homologado": 10,
+             "quantidade_homologada": 10, "percentual_desconto": 10, "data_resultado": "2026-08-20"},
+            {"numero_controle_pncp": "00000000000000-1-000001/2026", "numero_item": 2,
+             "fornecedor_ni": "12345678000100", "fornecedor_nome": "Empresa Histórica Ltda",
+             "valor_total_homologado": 200, "valor_unitario_homologado": 20,
+             "quantidade_homologada": 10, "percentual_desconto": 8, "data_resultado": "2026-08-20"},
+            {"numero_controle_pncp": "00000000000000-1-000003/2026", "numero_item": 1,
+             "fornecedor_ni": "12345678000100", "fornecedor_nome": "EMPRESA HISTÓRICA LTDA",
+             "valor_total_homologado": 400, "valor_unitario_homologado": 40,
+             "quantidade_homologada": 10, "percentual_desconto": 5, "data_resultado": "2026-09-02"},
+            {"numero_controle_pncp": "00000000000000-1-000002/2026", "numero_item": 1,
+             "fornecedor_ni": "99999999000199", "fornecedor_nome": "OUTRO FORNECEDOR",
+             "valor_total_homologado": 50, "valor_unitario_homologado": 5,
+             "quantidade_homologada": 10, "percentual_desconto": 2, "data_resultado": "2026-08-21"},
+        ], None)
+
+
 class SupabasePublicApiTests(unittest.TestCase):
     def test_semantic_expansion_exposes_related_terms(self) -> None:
         terms, intent = expand_search_terms("molduras")
@@ -164,6 +204,18 @@ class SupabasePublicApiTests(unittest.TestCase):
         self.assertEqual(1000, result["suppliers"][0]["homologated_per_month"])
         self.assertFalse(result["availability"]["company_profile"]["available"])
         self.assertIn("mesmo resultado filtrado", result["methodology"]["scope_rule"])
+
+    def test_supplier_history_groups_cnpj_and_exposes_latest_month(self) -> None:
+        result = SupabasePublicApi(SupplierHistoryFakeClient()).market_research({})
+        supplier = next(row for row in result["suppliers"] if row["id"] == "12345678000100")
+        self.assertEqual(2, supplier["wins"], "dois itens do mesmo processo contam como uma vitória")
+        self.assertEqual(3, supplier["homologated_items"])
+        self.assertEqual(700, supplier["homologated_value"])
+        self.assertEqual("2026-09", supplier["latest_month"])
+        self.assertEqual(1, supplier["latest_month_wins"])
+        self.assertEqual(400, supplier["latest_month_homologated_value"])
+        self.assertEqual(350, supplier["average_homologated_ticket"])
+        self.assertEqual("2026-09", result["supplier_metrics"]["latest_result_month"])
 
 
 if __name__ == "__main__":
