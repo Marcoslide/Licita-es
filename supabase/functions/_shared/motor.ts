@@ -31,7 +31,10 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 // Garante a linha em bolsa.fontes (FK exigida por bolsa.raw_payloads.fonte_id).
 // Idempotente — chamar no início de cada invocação não tem custo real.
 export async function garantirFonte(sql: Sql, id: string, nome: string, baseUrl: string, capabilities: Record<string, unknown> = {}) {
-  await sql`select bolsa.garantir_fonte(${id}, ${nome}, ${baseUrl}, ${JSON.stringify(capabilities)}::jsonb)`;
+  // sql.json() (nunca JSON.stringify + ::jsonb manual) — ver nota em
+  // registrarEstado abaixo sobre a dupla-serialização que corrompeu
+  // bolsa.estado_atual.dados em 2026-09-04.
+  await sql`select bolsa.garantir_fonte(${id}, ${nome}, ${baseUrl}, ${sql.json(capabilities)}::jsonb)`;
 }
 
 // Grava a resposta bruta em bolsa.raw_payloads (RAW imutável, deduplicada por
@@ -88,7 +91,13 @@ export async function registrarEstado(
   sql: Sql, entidade: string, chave: string, fonteId: string,
   campos: Record<string, unknown>, canonicoId: number | null = null, confianca = 1.0,
 ): Promise<ResultadoEstado> {
-  const rows = await sql`select bolsa.registrar_estado(${entidade}, ${chave}, ${fonteId}, ${JSON.stringify(campos)}::jsonb, ${canonicoId}, ${confianca}) as r`;
+  // IMPORTANTE: sql.json(campos), nunca JSON.stringify(campos) + ::jsonb —
+  // o driver postgres.js já serializa objeto JS -> jsonb; stringificar
+  // manualmente antes faz dupla-serialização e grava `dados` como STRING
+  // em vez de objeto (bug real encontrado e corrigido em 2026-09-04,
+  // migration fix_registrar_estado_guarda_tipo_jsonb, que também blindou
+  // a função contra esse tipo de entrada malformada).
+  const rows = await sql`select bolsa.registrar_estado(${entidade}, ${chave}, ${fonteId}, ${sql.json(campos)}::jsonb, ${canonicoId}, ${confianca}) as r`;
   const r = (rows[0] as any).r;
   return { estado_id: r.estado_id, versao: r.versao, novo: r.novo, mudancas: r.mudancas ?? [] };
 }

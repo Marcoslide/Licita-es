@@ -185,6 +185,28 @@ async function upsertLicitacoes(regs: any[], stats: Stats) {
         if (mudou) stats.atualizados++; else stats.ignorados++;
       }
       stats.registros++;
+      // Motor genérico (bolsa.registrar_estado) rodando em PARALELO à lógica
+      // de eventos acima — prova real em produção (P3-B da estabilização),
+      // sem substituir o caminho antigo ainda: alimenta bolsa.estado_atual/
+      // estado_versoes com os mesmos 6 campos observados, gerando diff e
+      // evento de forma genérica (sem CAMPOS_EVENTO hardcoded). Falha aqui
+      // nunca derruba a coleta principal.
+      try {
+        // IMPORTANTE: nunca fazer JSON.stringify(obj) manual aqui — o driver
+        // postgres.js já serializa objeto JS -> jsonb sozinho ao ver o cast
+        // ::jsonb; stringificar antes faz dupla-serialização (o valor grava
+        // como STRING contendo o texto do JSON, não como objeto). Foi assim
+        // que a corrupção em bolsa.estado_atual.dados aconteceu (achado e
+        // corrigido em 2026-09-04, ver migration fix_registrar_estado_guarda_tipo_jsonb).
+        await sql`select bolsa.registrar_estado('licitacao', ${ncp}, 'pncp', ${sql.json({
+          data_abertura_proposta: novo.data_abertura_proposta,
+          data_encerramento_proposta: novo.data_encerramento_proposta,
+          valor_total_estimado: novo.valor_total_estimado,
+          valor_total_homologado: novo.valor_total_homologado,
+          situacao_nome: novo.situacao_nome,
+          objeto: novo.objeto,
+        })}::jsonb)`;
+      } catch (e) { nota(stats, `motor genérico ${ncp}: ` + String((e as Error).message)); }
     } catch (e) {
       stats.erros++; nota(stats, `lic ${ncp}: ` + String((e as Error).message));
     }
@@ -212,8 +234,13 @@ async function jobDelta(p: any, stats: Stats, deadline: number) {
       const body: any = r.body; stats.paginas++;
       await upsertLicitacoes(body.data ?? [], stats);
       progresso[mod] = pag;
+      // Bug real encontrado em 2026-09-04 (achado durante P3-B): este insert
+      // gravava `valor` como STRING (JSON duplamente serializado) em vez de
+      // objeto — bolsa.checkpoints.valor->>'paginaPorModalidade' sempre lia
+      // undefined, então o delta reiniciava a paginação do zero a cada
+      // execução. Corrigido com sql.json() (serialização única e correta).
       await sql`insert into bolsa.checkpoints (chave, valor, atualizado_em)
-                values (${ckChave}, ${JSON.stringify({ paginaPorModalidade: progresso, dataInicial, dataFinal })}::jsonb, now())
+                values (${ckChave}, ${sql.json({ paginaPorModalidade: progresso, dataInicial, dataFinal })}::jsonb, now())
                 on conflict (chave) do update set valor = excluded.valor, atualizado_em = now()`;
       if (!body.paginasRestantes || body.paginasRestantes <= 0) break;
       await sleep(100);
@@ -401,7 +428,7 @@ Deno.serve(async (req: Request) => {
       await sql`update bolsa.coleta_log set finalizado_em = now(), paginas = ${stats.paginas}, registros = ${stats.registros},
                 inseridos = ${stats.inseridos}, atualizados = ${stats.atualizados}, ignorados = ${stats.ignorados},
                 documentos = ${stats.documentos}, erros = ${stats.erros},
-                detalhe = ${JSON.stringify({ job, params: p, eventos: stats.eventos, itens: stats.itens, resultados: stats.resultados, contratos: stats.contratos, fornecedores: stats.fornecedores, notas: stats.detalhes })}::jsonb
+                detalhe = ${sql.json({ job, params: p, eventos: stats.eventos, itens: stats.itens, resultados: stats.resultados, contratos: stats.contratos, fornecedores: stats.fornecedores, notas: stats.detalhes })}::jsonb
                 where id = ${logId}`;
     } catch { /* log não fatal */ }
   }
