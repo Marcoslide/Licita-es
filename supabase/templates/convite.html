@@ -1,0 +1,63 @@
+<!--
+  Bolsa de Licitações — template de e-mail: Convite
+  Onde colar: Supabase Dashboard → Authentication → Emails → Templates → "Invite user"
+  Assunto sugerido (campo "Subject heading"): Você foi convidado — Bolsa de Licitações
+  Variável usada: {{ .ConfirmationURL }} (gerada pelo Supabase; não construir o link manualmente)
+
+  Preparado para quando o produto tiver convites de equipe/usuários. Não há fluxo de
+  convite implementado no app ainda — este template fica pronto para uso futuro.
+-->
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f5f7;padding:32px 0;font-family:Arial,Helvetica,sans-serif;">
+  <tr>
+    <td align="center">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background:#ffffff;border-radius:10px;overflow:hidden;border:1px solid #e5e7eb;">
+        <tr>
+          <td style="padding:28px 32px 0 32px;">
+            <table role="presentation" cellpadding="0" cellspacing="0">
+              <tr>
+                <td style="width:32px;height:32px;border-radius:6px;background:#ffb020;text-align:center;vertical-align:middle;font:800 14px Arial,Helvetica,sans-serif;color:#161003;">BL</td>
+                <td style="padding-left:10px;font:700 14px Arial,Helvetica,sans-serif;letter-spacing:.4px;text-transform:uppercase;color:#111827;">Bolsa de Licitações</td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:24px 32px 8px 32px;">
+            <h1 style="margin:0 0 12px 0;font:700 20px Arial,Helvetica,sans-serif;color:#111827;">Você foi convidado</h1>
+            <p style="margin:0 0 16px 0;font:400 14px/1.6 Arial,Helvetica,sans-serif;color:#374151;">
+              Você recebeu um convite para acessar a Bolsa de Licitações com o e-mail <strong>{{ .Email }}</strong>.
+              Clique no botão abaixo para criar sua senha e ativar o acesso.
+            </p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:8px 32px 24px 32px;" align="center">
+            <a href="{{ .ConfirmationURL }}"
+               style="display:inline-block;background:#ffb020;color:#161003;font:700 15px Arial,Helvetica,sans-serif;
+                      text-decoration:none;padding:14px 28px;border-radius:8px;">
+              Aceitar convite
+            </a>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:0 32px 8px 32px;">
+            <p style="margin:0 0 12px 0;font:400 12.5px/1.6 Arial,Helvetica,sans-serif;color:#6b7280;">
+              Este link é de uso único e expira após um período limitado.
+            </p>
+            <p style="margin:0 0 12px 0;font:400 12.5px/1.6 Arial,Helvetica,sans-serif;color:#6b7280;">
+              Se você não esperava este convite, pode ignorar este e-mail com segurança.
+            </p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:16px 32px 28px 32px;border-top:1px solid #e5e7eb;">
+            <p style="margin:0;font:400 11.5px/1.6 Arial,Helvetica,sans-serif;color:#9ca3af;">
+              Se o botão não funcionar, copie e cole este link no navegador:<br>
+              <span style="word-break:break-all;color:#6b7280;">{{ .ConfirmationURL }}</span>
+            </p>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>

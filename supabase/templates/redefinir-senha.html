@@ -1,0 +1,61 @@
+<!--
+  Bolsa de Licitações — template de e-mail: Recuperação de senha
+  Onde colar: Supabase Dashboard → Authentication → Emails → Templates → "Reset Password"
+  Assunto sugerido (campo "Subject heading"): Redefina sua senha — Bolsa de Licitações
+  Variável usada: {{ .ConfirmationURL }} (gerada pelo Supabase; não construir o link manualmente)
+-->
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f5f7;padding:32px 0;font-family:Arial,Helvetica,sans-serif;">
+  <tr>
+    <td align="center">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background:#ffffff;border-radius:10px;overflow:hidden;border:1px solid #e5e7eb;">
+        <tr>
+          <td style="padding:28px 32px 0 32px;">
+            <table role="presentation" cellpadding="0" cellspacing="0">
+              <tr>
+                <td style="width:32px;height:32px;border-radius:6px;background:#ffb020;text-align:center;vertical-align:middle;font:800 14px Arial,Helvetica,sans-serif;color:#161003;">BL</td>
+                <td style="padding-left:10px;font:700 14px Arial,Helvetica,sans-serif;letter-spacing:.4px;text-transform:uppercase;color:#111827;">Bolsa de Licitações</td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:24px 32px 8px 32px;">
+            <h1 style="margin:0 0 12px 0;font:700 20px Arial,Helvetica,sans-serif;color:#111827;">Redefinir sua senha</h1>
+            <p style="margin:0 0 16px 0;font:400 14px/1.6 Arial,Helvetica,sans-serif;color:#374151;">
+              Recebemos um pedido para redefinir a senha da conta <strong>{{ .Email }}</strong> na Bolsa de Licitações.
+              Clique no botão abaixo para escolher uma nova senha.
+            </p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:8px 32px 24px 32px;" align="center">
+            <a href="{{ .ConfirmationURL }}"
+               style="display:inline-block;background:#ffb020;color:#161003;font:700 15px Arial,Helvetica,sans-serif;
+                      text-decoration:none;padding:14px 28px;border-radius:8px;">
+              Redefinir senha
+            </a>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:0 32px 8px 32px;">
+            <p style="margin:0 0 12px 0;font:400 12.5px/1.6 Arial,Helvetica,sans-serif;color:#6b7280;">
+              Por segurança, este link é de uso único e expira após um período limitado. Sua senha atual continua
+              válida até que a nova seja definida.
+            </p>
+            <p style="margin:0 0 12px 0;font:400 12.5px/1.6 Arial,Helvetica,sans-serif;color:#6b7280;">
+              Se você não solicitou essa redefinição, pode ignorar este e-mail com segurança — sua senha não será alterada.
+            </p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:16px 32px 28px 32px;border-top:1px solid #e5e7eb;">
+            <p style="margin:0;font:400 11.5px/1.6 Arial,Helvetica,sans-serif;color:#9ca3af;">
+              Se o botão não funcionar, copie e cole este link no navegador:<br>
+              <span style="word-break:break-all;color:#6b7280;">{{ .ConfirmationURL }}</span>
+            </p>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
