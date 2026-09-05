@@ -30,6 +30,30 @@ Deno.serve(async (req: Request) => {
   const inicio = Number(body.inicio ?? 0);
   const fim = Number(body.fim ?? 4000);
 
+  // encadeia 2 requisições preservando o cookie da primeira (Set-Cookie ->
+  // Cookie), para apps que amarram um token/redirect a uma sessão (ex.:
+  // e-LIC SC, JSESSIONID etc.) — evita o falso-negativo de duas fetches
+  // independentes e sem estado.
+  if (body.modo === "cadeia2") {
+    const r1 = await fetch(String(body.url1), {
+      headers: { "user-agent": UA }, signal: AbortSignal.timeout(15000),
+    });
+    const setCookie = r1.headers.get("set-cookie") ?? "";
+    const t1 = await r1.text();
+    const m = body.regexRedirect ? new RegExp(String(body.regexRedirect)).exec(t1) : null;
+    const url2raw = body.url2 ? String(body.url2) : (m ? m[1] : "");
+    const url2 = new URL(url2raw, String(body.url1)).toString();
+    const cookieHeader = setCookie ? { cookie: setCookie.split(";")[0] } : {};
+    const r2 = await fetch(url2, {
+      headers: { "user-agent": UA, ...cookieHeader }, signal: AbortSignal.timeout(15000),
+    });
+    const t2 = await r2.text();
+    return new Response(JSON.stringify({
+      status1: r1.status, set_cookie: setCookie, url2_usado: url2,
+      status2: r2.status, tamanho2: t2.length, amostra2: amostrar(t2, termo, inicio, fim),
+    }), { headers: { "content-type": "application/json" } });
+  }
+
   try {
     const opcoes: RequestInit = {
       method: metodo,
