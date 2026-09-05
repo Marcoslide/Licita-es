@@ -82,11 +82,29 @@ Deno.serve(async (req: Request) => {
   const datasetParam = (url.searchParams.get("dataset") ?? body.dataset ?? "ceis") as Config["dataset"];
   const cfg = CONFIGS.find((c) => c.dataset === datasetParam) ?? CONFIGS[0];
 
-  const hoje = new Date();
-  const ymd = `${hoje.getUTCFullYear()}${String(hoje.getUTCMonth() + 1).padStart(2, "0")}${String(hoje.getUTCDate()).padStart(2, "0")}`;
-  const fileUrl = `https://portaldatransparencia.gov.br/download-de-dados/${cfg.dataset}/${ymd}`;
+  // Arquivos do dia publicam com atraso variável por dataset (CEIS/CNEP
+  // costumam sair no mesmo dia ou D+1; CEPIM demora mais — confirmado
+  // 2026-09-05: hoje e D-1 devolvem 403 AccessDenied real do S3, D-2 devolve
+  // 200 com zip real). Tenta hoje e recua até 4 dias, usa o primeiro que
+  // responder OK — evita fixar um atraso específico por dataset.
+  function formatarYmd(d: Date): string {
+    return `${d.getUTCFullYear()}${String(d.getUTCMonth() + 1).padStart(2, "0")}${String(d.getUTCDate()).padStart(2, "0")}`;
+  }
+  let ymd = "";
+  let fileUrl = "";
+  let res: Response | null = null;
+  const tentativas: { ymd: string; status: number }[] = [];
+  for (let dias = 0; dias <= 4; dias++) {
+    const d = new Date();
+    d.setUTCDate(d.getUTCDate() - dias);
+    const ymdTentativa = formatarYmd(d);
+    const urlTentativa = `https://portaldatransparencia.gov.br/download-de-dados/${cfg.dataset}/${ymdTentativa}`;
+    const r = await fetch(urlTentativa, { headers: { "user-agent": UA, accept: "*/*" }, signal: AbortSignal.timeout(30000) });
+    tentativas.push({ ymd: ymdTentativa, status: r.status });
+    if (r.ok) { ymd = ymdTentativa; fileUrl = urlTentativa; res = r; break; }
+  }
 
-  const stats = { dataset: cfg.dataset, registros_vistos: 0, novos: 0, atualizados: 0, sem_mudanca: 0, erros: 0, campo_chave_usado: "", headers_amostra: [] as string[], detalhes: [] as string[] };
+  const stats = { dataset: cfg.dataset, ymd_usado: ymd || null, tentativas_data: tentativas, registros_vistos: 0, novos: 0, atualizados: 0, sem_mudanca: 0, erros: 0, campo_chave_usado: "", headers_amostra: [] as string[], detalhes: [] as string[] };
   let logId: number | null = null;
   try {
     const rLog = await sql`insert into bolsa.coleta_log (fonte_id, job) values (${FONTE}, ${"sancoes_" + cfg.dataset}) returning id`;
@@ -97,9 +115,8 @@ Deno.serve(async (req: Request) => {
     await sql`select bolsa.garantir_fonte(${FONTE}, 'Portal da Transparência (CGU)', 'https://portaldatransparencia.gov.br', ${sql.json({
       licitacoes_bulk: true, ceis: true, cnep: true, cepim: true,
     })}::jsonb)`;
-    const res = await fetch(fileUrl, { headers: { "user-agent": UA, accept: "*/*" }, signal: AbortSignal.timeout(30000) });
-    if (!res.ok) {
-      stats.erros++; stats.detalhes.push(`download HTTP ${res.status}`);
+    if (!res || !res.ok) {
+      stats.erros++; stats.detalhes.push(`nenhum arquivo disponivel nas ultimas ${tentativas.length} datas testadas (ainda nao publicado)`);
       return new Response(JSON.stringify(stats), { headers: { "content-type": "application/json" } });
     }
     const buf = new Uint8Array(await res.arrayBuffer());
