@@ -12,6 +12,16 @@ function amostrar(texto: string, termo: string | undefined, inicioPadrao: number
   return texto.slice(Math.max(0, idx - 1500), idx + 3000);
 }
 
+function todasOcorrencias(texto: string, termo: string, janela: number): string[] {
+  const trechos: string[] = [];
+  let idx = texto.indexOf(termo);
+  while (idx !== -1 && trechos.length < 15) {
+    trechos.push(texto.slice(Math.max(0, idx - 200), idx + janela));
+    idx = texto.indexOf(termo, idx + termo.length);
+  }
+  return trechos;
+}
+
 Deno.serve(async (req: Request) => {
   const body = await req.json().catch(() => ({} as Record<string, unknown>));
   const url = String(body.url ?? "");
@@ -26,13 +36,24 @@ Deno.serve(async (req: Request) => {
       headers: { "user-agent": UA, ...(body.headers as Record<string, string> | undefined ?? {}) },
       signal: AbortSignal.timeout(20000),
     };
-    if (metodo === "POST" && body.corpo) {
+    if (metodo === "POST" && body.corpoJson !== undefined) {
+      opcoes.body = JSON.stringify(body.corpoJson);
+    } else if (metodo === "POST" && body.corpo) {
       const params = new URLSearchParams(body.corpo as Record<string, string>);
       opcoes.body = params.toString();
       opcoes.headers = { ...opcoes.headers, "content-type": "application/x-www-form-urlencoded" };
     }
     const res = await fetch(url, opcoes);
     const texto = await res.text();
+
+    if (body.modo === "todas" && termo) {
+      const janela = Number(body.janela ?? 600);
+      return new Response(JSON.stringify({
+        url, status: res.status, tamanho: texto.length,
+        ocorrencias: todasOcorrencias(texto, termo, janela),
+      }), { headers: { "content-type": "application/json" } });
+    }
+
     return new Response(JSON.stringify({
       url, status: res.status, content_type: res.headers.get("content-type"),
       tamanho: texto.length, amostra: amostrar(texto, termo, inicio, fim),
